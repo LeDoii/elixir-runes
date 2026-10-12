@@ -280,7 +280,7 @@
 
   /* ---- palette : clic (ajout au centre) ou glisser-déposer sur la plaque */
   function miniSVG(r) {
-    return '<svg viewBox="130 28 252 456" xmlns="http://www.w3.org/2000/svg">' + r.strokes.map((s) =>
+    return '<svg viewBox="112 28 288 456" xmlns="http://www.w3.org/2000/svg">' + r.strokes.map((s) =>
       '<polyline points="' + s.pts.map((p) => p.join(",")).join(" ") + '" fill="none" stroke="#20201E" stroke-width="' + D.strokeWidth + '"/>').join("") + "</svg>";
   }
   const pal = $("palette");

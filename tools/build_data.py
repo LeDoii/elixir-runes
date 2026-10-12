@@ -27,7 +27,9 @@ for name, r in src["runes"].items():
         strokes.append({"name": t["nom"], "pts": pts})
     runes.append({"name": name, "glyph": r["glyphe"], "strokes": strokes, "sens": descriptions[name]})
 
-data = {"strokeWidth": grid["epaisseur_px"], "bbox": [160, 58, 352, 454], "runes": runes}
+xs = [p[0] for r in runes for st in r["strokes"] for p in st["pts"]]
+ys = [p[1] for r in runes for st in r["strokes"] for p in st["pts"]]
+data = {"strokeWidth": grid["epaisseur_px"], "bbox": [min(xs), min(ys), max(xs), max(ys)], "runes": runes}
 OUT.write_text("window.RUNES = " + json.dumps(data, ensure_ascii=False) + ";\n", encoding="utf-8")
 print(f"{len(runes)} runes -> {OUT}", file=sys.stderr)
 

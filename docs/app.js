@@ -18,7 +18,7 @@
       '<polyline class="' + (opts.animate ? "draw" + (opts.force ? " force" : "") : "") + '" pathLength="1" points="' + s.pts.map((p) => p.join(",")).join(" ") +
       '" fill="none" stroke="' + (opts.color || "#20201E") + '" stroke-width="' + D.strokeWidth +
       '" stroke-linecap="butt" stroke-linejoin="miter" style="animation-delay:' + (i * 0.45) + 's"/>').join("");
-    return '<svg viewBox="120 24 272 464" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rune ' + rune.name + '">' + paths + "</svg>";
+    return '<svg viewBox="112 24 288 464" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rune ' + rune.name + '">' + paths + "</svg>";
   }
 
   /* ------------------------------------------------------------------ onglets */
