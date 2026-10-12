@@ -4,6 +4,7 @@ import { json, privateJson, preflight, ipHash } from "./lib/http.js";
 import { sessionUser } from "./lib/auth.js";
 import * as account from "./auth.js";
 import * as mine from "./mine.js";
+import { handleAdmin } from "./admin.js";
 import { validateBindrune, cleanName } from "./lib/validate.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
@@ -58,10 +59,11 @@ export async function handleApi(request, env) {
   if (path !== "/api" && !path.startsWith("/api/")) return null;
   const method = request.method;
   // Routes liées à un compte : pas de CORS (le site seul les utilise), donc pas de réponse préliminaire.
-  const accountRoute = path.startsWith("/api/auth/") || path === "/api/me" || path.startsWith("/api/my/");
+  const accountRoute = path.startsWith("/api/auth/") || path === "/api/me" || path.startsWith("/api/my/") || path.startsWith("/api/admin/");
   if (method === "OPTIONS") return accountRoute ? new Response(null, { status: 204 }) : preflight();
 
   try {
+    if (path.startsWith("/api/admin/")) return await handleAdmin(request, env, path, method);
     if (path === "/api/auth/login" && method === "GET") return await account.login(request, env);
     if (path === "/api/auth/callback" && method === "GET") return await account.callback(request, env);
     if (path === "/api/auth/logout" && method === "POST") return await account.logout(request, env);

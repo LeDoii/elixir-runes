@@ -34,18 +34,27 @@ Sans la base, l'API répond 503 et le site masque les boutons de codes courts : 
    Les secrets ne sont pas touchés par les déploiements.
 5. Redéployer si besoin. Tant que ces variables manquent, `/api/me` répond `login: false` et le site cache la connexion.
 
+## Étape 3 : administration
+
+Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » pour les administrateurs). Réservée aux identifiants de `ADMIN_IDS`, vérifiés à chaque requête côté serveur.
+
+- `GET /api/admin/stats`, `/api/admin/bindrunes` (comptes et codes courts réunis ; filtres `source`, `user`, `q` ; 30 par page), `/api/admin/users`, `/api/admin/log`, `/api/admin/export` (JSON).
+- `DELETE /api/admin/bindrunes/<account|code>/<id>` ; `POST /api/admin/users/<id>/ban` `{ banned: true|false }` (un administrateur ne peut pas être bloqué ; bloquer coupe les sessions).
+- Suppressions et blocages sont inscrits dans `admin_log` (migration `0003_admin.sql`).
+- Aucune route d'admin n'a de CORS ; les modifications exigent l'en-tête `Origin` du site.
+
 ## Mise en place
 
-1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql` et `0002_accounts.sql` appliqués.
+1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql`, `0002_accounts.sql` et `0003_admin.sql` appliqués.
 2. `wrangler.jsonc` à la racine : Worker `elixir-runes`, `assets.directory = ./docs`, liaison `DB` vers la base, `run_worker_first = ["/api/*"]`.
 3. Dans le tableau de bord, Worker `elixir-runes` > Settings > Build : commande de déploiement `npx wrangler deploy` (sans option `--assets`, la configuration vient du fichier).
 4. (Facultatif) Secret `IP_SALT` : une chaîne aléatoire, pour saler l'empreinte des adresses IP.
 
 ## Fichiers
 
-- `server/worker.js` : point d'entrée ; `server/api.js` : routes ; `server/auth.js` : connexion et compte ; `server/mine.js` : bindrunes du compte ; `server/lib/` : validation, codes, sessions, réponses HTTP.
+- `server/worker.js` : point d'entrée ; `server/api.js` : routes ; `server/auth.js` : connexion et compte ; `server/mine.js` : bindrunes du compte ; `server/admin.js` : administration ; `server/lib/` : validation, codes, sessions, réponses HTTP.
 - `server/lib/rune-data.js` est généré par `tools/build_data.py`.
 
 ## Tests
 
-`node --no-warnings tools/test_functions.mjs` : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.
+`node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) et `node --no-warnings tools/test_admin.mjs` (administration) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.

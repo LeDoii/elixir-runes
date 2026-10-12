@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administration · Les runes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <p class="label">Les runes · administration</p>
+    <h1>Administration</h1>
+    <p class="sub"><a class="link" href="/#bindrunes">Retour au site</a></p>
+    <nav class="tabs" role="tablist" id="adm-tabs" hidden>
+      <button role="tab" id="t-bind" aria-selected="true">Bindrunes</button>
+      <button role="tab" id="t-users" aria-selected="false">Utilisateurs</button>
+      <button role="tab" id="t-log" aria-selected="false">Journal</button>
+    </nav>
+  </header>
+
+  <main>
+    <p id="adm-gate" class="hint center-text" role="status">Vérification de l'accès…</p>
+
+    <div id="adm-app" hidden>
+      <ul id="adm-stats" class="statgrid"></ul>
+
+      <section id="p-bind">
+        <div class="toolbar">
+          <select id="f-source" aria-label="Source">
+            <option value="">Comptes et codes courts</option>
+            <option value="account">Bindrunes de comptes</option>
+            <option value="code">Codes courts</option>
+          </select>
+          <select id="f-user" aria-label="Auteur">
+            <option value="">Tous les auteurs</option>
+            <option value="anonymous">Anonymes seulement</option>
+          </select>
+          <input id="f-q" type="search" placeholder="Nom, pseudo ou code" aria-label="Recherche" autocomplete="off">
+          <a id="f-export" class="btn ghost" href="/api/admin/export" download>Exporter (JSON)</a>
+        </div>
+        <p id="f-chip" class="hint" hidden></p>
+        <p id="b-msg" class="hint" role="status"></p>
+        <ul id="b-list" class="admin-grid"></ul>
+        <div class="pager"><button id="b-prev" class="btn ghost">Précédent</button><span id="b-page" class="hint"></span><button id="b-next" class="btn ghost">Suivant</button></div>
+      </section>
+
+      <section id="p-users" hidden>
+        <div class="toolbar"><input id="u-q" type="search" placeholder="Pseudo ou identifiant Discord" aria-label="Recherche" autocomplete="off"></div>
+        <p id="u-msg" class="hint" role="status"></p>
+        <ul id="u-list" class="admin-grid"></ul>
+        <div class="pager"><button id="u-prev" class="btn ghost">Précédent</button><span id="u-page" class="hint"></span><button id="u-next" class="btn ghost">Suivant</button></div>
+      </section>
+
+      <section id="p-log" hidden>
+        <ul id="l-list" class="loglist"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p class="small">Page réservée aux administrateurs. Chaque action est vérifiée côté serveur et inscrite au journal.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="supports.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

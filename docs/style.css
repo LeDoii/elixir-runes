@@ -190,3 +190,24 @@ textarea { font: inherit; width: 100%; padding: .55rem .6rem; background: #f3eee
 .privacy { margin-top: .6rem; font-size: .95rem; }
 .privacy summary { cursor: pointer; font-family: ui-monospace, Consolas, monospace; font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--grey2); }
 .privacy p { margin: .5rem 0 0; }
+
+/* administration */
+.statgrid { list-style: none; padding: 0; margin: 0 0 1.4rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem; }
+.statgrid li { border: 1px solid var(--line); background: rgba(255,255,255,.3); padding: .7rem .9rem; display: grid; }
+.statgrid strong { font-family: "Italiana", serif; font-weight: 400; font-size: 2.2rem; line-height: 1; color: var(--ink); }
+.statgrid span { font-family: ui-monospace, Consolas, monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--grey2); }
+.statgrid small { color: var(--grey2); font-size: .85rem; }
+.toolbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: .8rem; }
+.toolbar select, .toolbar input { font: inherit; padding: .5rem .6rem; background: #f3eee2; border: 1px solid var(--grey); color: var(--ink); border-radius: 2px; }
+.toolbar input { flex: 1; min-width: 180px; }
+.admin-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1rem; }
+.badge { display: inline-block; margin-left: .5rem; padding: .05rem .45rem; border-radius: 2px; font-family: ui-monospace, Consolas, monospace; font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; vertical-align: middle; border: 1px solid var(--grey2); color: var(--grey2); }
+.badge.code { border-color: var(--warm); color: var(--warm); }
+.badge.banned { border-color: #a33; color: #a33; }
+.badge.admin { border-color: #12A26A; color: #0d7a50; }
+.macts button.act.danger { color: #a33; }
+.pager { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1.2rem; }
+.loglist { list-style: none; padding: 0; margin: 0; }
+.loglist li { padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .98rem; }
+.ucard { grid-template-columns: 1fr; }
+a.btn { text-decoration: none; display: inline-block; }

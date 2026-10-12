@@ -28,6 +28,7 @@
     $("acc-out").hidden = !!state.user;
     $("acc-in").hidden = !state.user;
     if (state.user) $("acc-name").textContent = state.user.name;
+    $("acc-admin").hidden = !(state.user && state.user.admin);
   }
 
   /* ---- bindrunes du compte */

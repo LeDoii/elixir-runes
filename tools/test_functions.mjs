@@ -1,57 +1,7 @@
-// Tests du Worker (codes courts, connexion Discord, bindrunes du compte) avec une vraie base SQLite en mémoire
-// qui reçoit les migrations, et un faux Discord. À lancer depuis SiteRunes/ : node tools/test_functions.mjs
-import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
-import worker from "../server/worker.js";
+// Tests du Worker : codes courts, connexion Discord, bindrunes du compte (vraie base SQLite en mémoire, faux Discord).
+// À lancer depuis SiteRunes/ : node --no-warnings tools/test_functions.mjs   (l'administration : tools/test_admin.mjs)
+import { check, finish, ASSETS, ORIGIN, baseEnv, call, cookieOf, post, same, good, loginAs, discord } from "./testkit.mjs";
 import { normalizeCode, newCode } from "../server/lib/codes.js";
-
-/* ---------------------------------------------------------------- base D1 simulée (SQLite) */
-function d1(sqlite) {
-  const stmt = (sql, args = []) => ({
-    bind: (...a) => stmt(sql, a),
-    first: async () => sqlite.prepare(sql).get(...args) || null,
-    all: async () => ({ results: sqlite.prepare(sql).all(...args) }),
-    run: async () => { const r = sqlite.prepare(sql).run(...args); return { meta: { changes: Number(r.changes) } }; },
-  });
-  return { prepare: (sql) => stmt(sql), batch: async (list) => { for (const s of list) await s.run(); return []; }, raw: sqlite };
-}
-function freshDb() {
-  const sqlite = new DatabaseSync(":memory:");
-  ["0001_init.sql", "0002_accounts.sql"].forEach((f) => sqlite.exec(readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")));
-  return d1(sqlite);
-}
-
-/* ---------------------------------------------------------------- faux Discord */
-let discord = { tokenOk: true, user: { id: "111111111111111111", username: "viktor", global_name: "Viktor" }, calls: [] };
-globalThis.fetch = async (url, init) => {
-  const u = String(url);
-  discord.calls.push(u);
-  if (u.endsWith("/api/oauth2/token")) return discord.tokenOk ? Response.json({ access_token: "tok" }) : new Response("{}", { status: 400 });
-  if (u.endsWith("/api/users/@me")) return Response.json(discord.user);
-  if (u.endsWith("/token/revoke")) return new Response("{}");
-  throw new Error("appel inattendu : " + u);
-};
-
-/* ---------------------------------------------------------------- outils */
-let failed = 0;
-const check = (label, ok, extra = "") => { if (!ok) failed++; console.log((ok ? "ok   " : "ECHEC") + " " + label + (ok ? "" : " " + extra)); };
-const ASSETS = { fetch: async () => new Response("fichier statique", { status: 200 }) };
-const ORIGIN = "https://site.test";
-const baseEnv = (over = {}) => Object.assign({ ASSETS, DB: freshDb(), DISCORD_CLIENT_ID: "cid", DISCORD_CLIENT_SECRET: "secret" }, over);
-const call = (env, path, init = {}) => worker.fetch(new Request(ORIGIN + path, init), env);
-const cookieOf = (res) => (res.headers.getSetCookie ? res.headers.getSetCookie() : []).map((c) => c.split(";")[0]).filter((c) => !/=$/.test(c)).join("; ");
-const post = (env, path, body, headers = {}) => call(env, path, { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers });
-const same = (cookie) => ({ Origin: ORIGIN, Cookie: cookie });
-
-async function loginAs(env, user) {
-  if (user) discord.user = user;
-  const start = await call(env, "/api/auth/login");
-  const state = new URL(start.headers.get("Location")).searchParams.get("state");
-  const res = await call(env, "/api/auth/callback?code=abc&state=" + state, { headers: { Cookie: cookieOf(start) } });
-  return { start, res, cookie: cookieOf(res) };
-}
-
-const good = { name: "  Ma   création ", d: { r: [{ n: "Gebo", x: 44, y: 64, m: 1, c: "#3D5C8C" }, { n: "Mannaz", x: 44, y: 64, m: 1, c: "#7A4E7A" }], s: "pierre", t: 0, l: [[0, 1, 0, 2], [0, 1, 99, 0], [1, 1, 0, 0]] } };
 
 /* ================================================================ codes courts (étape 1) */
 {
@@ -235,5 +185,4 @@ const good = { name: "  Ma   création ", d: { r: [{ n: "Gebo", x: 44, y: 64, m:
     env.DB.raw.prepare("SELECT user_id FROM shared_bindrunes WHERE code = ?").get(bCode.code).user_id === null);
 }
 
-console.log(failed ? "\n" + failed + " échec(s)" : "\nTout est bon");
-process.exit(failed ? 1 : 0);
+finish();
