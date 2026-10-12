@@ -2,7 +2,7 @@
  *
  * - Étiquettes des runes (RUNE_TAGS) : pour chaque sens du Chapitre 7, dans l'ordre des sens de la rune (data.js), la liste de ses
  *   étiquettes (vide si le sens n'en a pas). Choix de l'utilisateur ; les synonymes sont conservés.
- * - Dans une bindrune, chaque rune garde tout ou partie de ses sens (champ « t » de la rune : indices des sens gardés ; absent = tous).
+ * - Dans une bindrune, chaque rune garde tout ou partie de ses étiquettes (champ « t » de la rune : étiquettes gardées ; absent = toutes).
  *   Les étiquettes gardées ne sont pas modifiables à la main : on les coche ou décoche par rune.
  * - Étiquettes ajoutées : choisies dans la même liste (VOCAB) ou libres (2 à 20 caractères), MAX_TAGS au plus.
  * - FAMILIES / OPPOSED : chaque étiquette est rattachée à une famille de sens ; certaines familles s'opposent (sert à l'évaluation
@@ -90,15 +90,26 @@
   const IMPOSED = new Set(VOCAB.map(norm));
   const isImposed = (t) => IMPOSED.has(t);
 
-  /** Indices des sens gardés par une rune de la bindrune (t absent : tous). */
-  function keptIndexes(r) {
-    const n = (RUNE_TAGS[r.n] || []).length;
-    return Array.isArray(r.t) ? Array.from(new Set(r.t.filter((i) => Number.isInteger(i) && i >= 0 && i < n))).sort((x, y) => x - y) : Array.from({ length: n }, (_, i) => i);
+  /** Étiquettes d'une rune (tous ses sens), normalisées et sans doublon, dans l'ordre du livre. */
+  const runeTags = (name) => Array.from(new Set([].concat(...(RUNE_TAGS[name] || [])).map(norm)));
+  /**
+   * Étiquettes gardées par une rune de la bindrune : r.t liste les étiquettes gardées (absent : toutes).
+   * Ancien format accepté : r.t = indices de sens, qui gardent toutes les étiquettes de ces sens.
+   */
+  function keptTags(r) {
+    const flat = runeTags(r.n);
+    if (!Array.isArray(r.t)) return flat;
+    const want = new Set();
+    r.t.forEach((x) => {
+      if (typeof x === "string") want.add(norm(x));
+      else if (Number.isInteger(x) && RUNE_TAGS[r.n] && RUNE_TAGS[r.n][x]) RUNE_TAGS[r.n][x].forEach((t) => want.add(norm(t)));
+    });
+    return flat.filter((t) => want.has(t));
   }
-  /** Étiquettes des runes d'une bindrune d = { r: [{ n, t }] } : celles des sens gardés, sans doublon, dans l'ordre des runes. */
+  /** Étiquettes des runes d'une bindrune d = { r: [{ n, t }] } : celles qui sont gardées, sans doublon, dans l'ordre des runes. */
   function derive(d) {
     const out = [];
-    ((d && d.r) || []).forEach((r) => keptIndexes(r).forEach((i) => RUNE_TAGS[r.n][i].forEach((t) => { const k = norm(t); if (!out.includes(k)) out.push(k); })));
+    ((d && d.r) || []).forEach((r) => keptTags(r).forEach((t) => { if (!out.includes(t)) out.push(t); }));
     return out;
   }
   /** Toutes les étiquettes d'une bindrune : celles de ses runes, puis celles qui ont été ajoutées. */
@@ -117,7 +128,7 @@
     const runes = (d && d.r) || [];
     const per = runes.map((r) => {
       const byFam = {};
-      keptIndexes(r).forEach((i) => RUNE_TAGS[r.n][i].forEach((t) => { const f = FAMILY_OF[norm(t)]; if (f && !byFam[f]) byFam[f] = norm(t); }));
+      keptTags(r).forEach((t) => { const f = FAMILY_OF[t]; if (f && !byFam[f]) byFam[f] = t; });
       return byFam;
     });
     const found = [];
@@ -213,5 +224,5 @@
     return { el: box, refresh: () => draw(false) };
   }
 
-  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, FAMILIES, OPPOSED, familyOf, norm, clean, label, isImposed, keptIndexes, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
+  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, FAMILIES, OPPOSED, familyOf, norm, clean, label, isImposed, runeTags, keptTags, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
 });

@@ -37,12 +37,15 @@ check("Raidho : Voyage une seule fois", T.RUNE_TAGS.Raidho.flat().filter((t) => 
 check("rune sans « t » : tous les sens", T.derive(plate(rune("Isa"))).join() === "glace,immobilité,gel,stagnation,patience,réflexion");
 check("sens gardés : seulement ceux-là", T.derive(plate(rune("Algiz", { t: [0, 2] }))).join() === "protection,défense");
 check("« t » vide : aucune étiquette de cette rune", T.derive(plate(rune("Algiz", { t: [] }), rune("Isa"))).join() === "glace,immobilité,gel,stagnation,patience,réflexion");
-check("indices invalides ou doublons ignorés", T.derive(plate(rune("Isa", { t: [1, 1, 9, -1, "a", 0.5] }))).join() === "patience,réflexion");
+check("ancien format (indices de sens) : accepté, indices invalides ignorés", T.derive(plate(rune("Isa", { t: [1, 1, 9, -1, "a", 0.5] }))).join() === "patience,réflexion");
+check("un interrupteur par étiquette : seuls les mots gardés", T.derive(plate(rune("Gebo", { t: ["Échange", "équilibre", "zzz"] }))).join() === "échange,équilibre" && T.keptTags(rune("Gebo", { t: ["échange"] })).join() === "échange");
+check("mots hors de la rune ignorés (un mot d'une autre rune ne s'ajoute pas)", T.derive(plate(rune("Gebo", { t: ["joie"] }))).length === 0);
 check("étiquette partagée entre runes : une seule fois", T.derive(plate(rune("Kenaz"), rune("Sowilo"))).filter((t) => t === "lumière").length === 1);
 check("toutes : celles des runes puis celles ajoutées", T.all(plate(rune("Isa")), ["Mon projet", "patience", "x"]).join() === "glace,immobilité,gel,stagnation,patience,réflexion,mon projet");
 check("ajoutées : on retire celles qui viennent des runes", T.extras(plate(rune("Isa")), ["immobilité", "mon projet", "patience"]).join() === "mon projet");
 check("oppositions : Isa (immobilité) et Raidho (mouvement), une seule fois même avec plusieurs mots", T.dissonances(plate(rune("Isa"), rune("Raidho"))).length === 1 && T.dissonances(plate(rune("Isa"), rune("Raidho")))[0].families.join() === "Immobilité,Mouvement");
 check("une opposition à l'intérieur d'une même rune ne compte pas (Eihwaz : renaissance et mort)", T.dissonances(plate(rune("Eihwaz"))).length === 0);
+check("une étiquette décochée ne compte plus", T.dissonances(plate(rune("Isa"), rune("Raidho", { t: ["cycle naturel"] }))).length === 0 && T.dissonances(plate(rune("Isa"), rune("Raidho", { t: ["voyage"] }))).length === 1);
 check("le sens non gardé ne compte plus", T.dissonances(plate(rune("Isa"), rune("Raidho", { t: [2] }))).length === 0 && T.dissonances(plate(rune("Isa"), rune("Raidho", { t: [0] }))).length === 1);
 check("sans opposition : rien", T.dissonances(plate(rune("Gebo"), rune("Mannaz"))).length === 0);
 
@@ -56,7 +59,9 @@ check("serveur : colonne illisible → liste vide", S.parseTags("pas du json").l
 
 /* ---- validation serveur du champ « t » */
 let v = validateBindrune(plate(rune("Algiz", { t: [3, 0, 0, 7] }), rune("Isa", { t: [0, 1] }), rune("Gebo", { t: "x" })));
-check("validation : « t » trié, dédoublonné, borné ; omis quand tous les sens sont gardés", JSON.stringify(v.r[0].t) === "[0,3]" && v.r[1].t === undefined && v.r[2].t === undefined, JSON.stringify(v.r));
+check("validation : « t » en mots (ancien format converti), omis quand tout est gardé", JSON.stringify(v.r[0].t) === JSON.stringify(["protection", "énergie divine"]) && v.r[1].t === undefined && v.r[2].t === undefined, JSON.stringify(v.r));
+v = validateBindrune(plate(rune("Gebo", { t: ["Échange", "zzz", "échange", "joie"] })));
+check("validation : mots normalisés, inconnus et doublons retirés", JSON.stringify(v.r[0].t) === JSON.stringify(["échange"]));
 v = validateBindrune(plate(rune("Algiz", { t: [] })));
 check("validation : « t » vide conservé", Array.isArray(v.r[0].t) && v.r[0].t.length === 0);
 
@@ -82,7 +87,7 @@ await save(alice, "Choix par rune", ["Mon projet"], keep);
 items = await mineOf(alice);
 const ch = items.find((i) => i.name === "Choix par rune");
 check("choix par rune : seuls les sens gardés donnent des étiquettes", ch.tags.join() === "don,échange,partenariat,collaboration,conscience de soi,relation sociale,mon projet", ch.tags.join());
-check("choix par rune : « t » conservé dans les données", JSON.stringify(ch.d.r.map((r) => r.t)) === "[[0],[1]]");
+check("choix par rune : les mots gardés sont conservés dans les données", JSON.stringify(ch.d.r.map((r) => r.t)) === JSON.stringify([["don", "échange", "partenariat"], ["collaboration", "conscience de soi", "relation sociale"]]), JSON.stringify(ch.d.r.map((r) => r.t)));
 let r = await save(alice, "Aucune étiquette", [], plate(rune("Gebo", { t: [] })));
 check("aucune étiquette du tout : refusé (400)", r.status === 400 && !(await mineOf(alice)).some((i) => i.name === "Aucune étiquette"));
 r = await save(alice, "Une seule", ["Mon projet"], plate(rune("Gebo", { t: [] })));

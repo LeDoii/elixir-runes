@@ -249,3 +249,10 @@ button.tag:hover, button.tag:focus-visible { background: rgba(164,85,31,.14); ou
 #design.expanded .grid2.design { grid-template-columns: minmax(0, 3fr) minmax(300px, 1fr); max-width: none; }
 #design.expanded .dz-wrap { max-width: calc((100vh - 130px) * 1.25); margin-left: auto; margin-right: auto; }
 @media (max-width: 800px) { #design.expanded .grid2.design { grid-template-columns: 1fr; } }
+
+button.tag.tg { cursor: pointer; font: inherit; font-family: ui-monospace, Consolas, monospace; font-size: .66rem; letter-spacing: .04em; }
+button.tag.tg::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; border: 1px solid var(--grey2); background: transparent; display: inline-block; }
+button.tag.tg.on { background: rgba(18,162,106,.16); border-color: #12A26A; color: var(--ink); }
+button.tag.tg.on::before { background: #12A26A; border-color: #12A26A; }
+button.tag.tg:not(.on) { opacity: .6; text-decoration: line-through; }
+.sens li { margin-bottom: .45rem; }

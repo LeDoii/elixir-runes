@@ -48,16 +48,25 @@ export function parseTags(text) {
   try { return cleanTags(JSON.parse(text), MAX_STORED); } catch (e) { return []; }
 }
 
-/** Indices des sens gardés par une rune de la bindrune (t absent : tous). */
-export function keptIndexes(r) {
-  const n = (RUNE_TAGS[r.n] || []).length;
-  return Array.isArray(r.t) ? Array.from(new Set(r.t.filter((i) => Number.isInteger(i) && i >= 0 && i < n))).sort((x, y) => x - y) : Array.from({ length: n }, (_, i) => i);
+/** Étiquettes d'une rune (tous ses sens), normalisées et sans doublon, dans l'ordre du livre. */
+export const runeTags = (name) => Array.from(new Set([].concat(...(RUNE_TAGS[name] || [])).map(normTag)));
+
+/** Étiquettes gardées par une rune de la bindrune : r.t liste les étiquettes gardées (absent : toutes). Ancien format : indices de sens. */
+export function keptTags(r) {
+  const flat = runeTags(r.n);
+  if (!Array.isArray(r.t)) return flat;
+  const want = new Set();
+  r.t.forEach((x) => {
+    if (typeof x === "string") want.add(normTag(x));
+    else if (Number.isInteger(x) && RUNE_TAGS[r.n] && RUNE_TAGS[r.n][x]) RUNE_TAGS[r.n][x].forEach((t) => want.add(normTag(t)));
+  });
+  return flat.filter((t) => want.has(t));
 }
 
 /** Étiquettes des runes d'une bindrune validée. */
 export function deriveTags(d) {
   const out = [];
-  d.r.forEach((r) => keptIndexes(r).forEach((i) => RUNE_TAGS[r.n][i].forEach((t) => { const k = normTag(t); if (!out.includes(k)) out.push(k); })));
+  d.r.forEach((r) => keptTags(r).forEach((t) => { if (!out.includes(t)) out.push(t); }));
   return out;
 }
 

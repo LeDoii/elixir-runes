@@ -477,19 +477,20 @@
     renderComplexity();
     if (!items.length) { box.innerHTML = '<p class="hint">Les runes posées sur la plaque apparaissent ici, avec leurs sens et leurs traits.</p>'; return; }
     items.forEach((it) => {
-      const r = byName(it.name), d = document.createElement("div"), kept = Tags.keptIndexes({ n: it.name, t: it.keep });
+      const r = byName(it.name), d = document.createElement("div"), kept = Tags.keptTags({ n: it.name, t: it.keep }), flat = Tags.runeTags(it.name);
       d.className = "bring";
       d.innerHTML = '<h4><i style="background:' + it.color + '"></i>' + r.name + "</h4>" +
-        "<h5>Sens (coche ceux que la bindrune garde)</h5><ul class=\"sens\">" + r.sens.map((t, i) =>
-          '<li><label><input type="checkbox" data-i="' + i + '"' + (Tags.RUNE_TAGS[r.name][i].length ? (kept.includes(i) ? " checked" : "") : " disabled") + '> ' +
-          (Tags.RUNE_TAGS[r.name][i].length ? Tags.RUNE_TAGS[r.name][i].map((x) => '<span class="tag locked">' + Tags.label(Tags.norm(x)) + "</span>").join(" ") : '<span class="hint">(sans étiquette)</span>') + " " + t + "</label></li>").join("") + "</ul>" +
+        "<h5>Sens (un interrupteur par étiquette)</h5><ul class=\"sens\">" + r.sens.map((t, i) =>
+          "<li><div class=\"tags\">" + (Tags.RUNE_TAGS[r.name][i].length
+            ? Tags.RUNE_TAGS[r.name][i].map((x) => { const k = Tags.norm(x), on = kept.includes(k); return '<button type="button" class="tag locked tg' + (on ? " on" : "") + '" role="switch" aria-checked="' + on + '" data-tag="' + k + '">' + Tags.label(k) + "</button>"; }).join("")
+            : '<span class="hint">(sans étiquette)</span>') + "</div>" + t + "</li>").join("") + "</ul>" +
         "<h5>Traits</h5><ul>" + r.strokes.map((s) => "<li>" + s.name + "</li>").join("") + "</ul>";
-      d.querySelectorAll("input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => {
-        const i = Number(cb.dataset.i), next = cb.checked ? kept.concat(i).sort((x, y) => x - y) : kept.filter((k) => k !== i);
+      d.querySelectorAll("button.tg").forEach((btn) => btn.addEventListener("click", () => {
+        const tag = btn.dataset.tag, next = btn.classList.contains("on") ? kept.filter((k) => k !== tag) : flat.filter((k) => k === tag || kept.includes(k));
         const test = items.map((o) => ({ n: o.name, t: o === it ? next : o.keep }));
-        if (!Tags.all({ r: test }, svTags).length) { cb.checked = true; say("Une bindrune garde au moins une étiquette : coche un autre sens ou ajoute une étiquette."); return; }
+        if (!Tags.all({ r: test }, svTags).length) { say("Une bindrune garde au moins une étiquette : active une autre étiquette ou ajoutes-en une."); return; }
         record();
-        it.keep = next.length === r.sens.length ? null : next;
+        it.keep = next.length === flat.length ? null : next;
         say(""); render();
       }));
       box.appendChild(d);
