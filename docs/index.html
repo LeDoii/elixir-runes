@@ -29,6 +29,12 @@
     <section id="runes" role="tabpanel" aria-labelledby="tab-runes">
       <p class="hint center-text">Survole une rune pour voir son tracé, clique pour ouvrir sa fiche : sens et traits.</p>
       <div class="field sortbar">
+        <label for="gallery-q">Chercher par sens</label>
+        <input id="gallery-q" type="search" placeholder="protection, voyage, justice…" autocomplete="off">
+        <p id="gallery-found" class="hint" role="status"></p>
+        <div id="gallery-links" class="tags"></div>
+      </div>
+      <div class="field sortbar">
         <label for="gallery-sort">Ordre</label>
         <select id="gallery-sort">
           <option value="lib">Ordre de la bibliothèque</option>

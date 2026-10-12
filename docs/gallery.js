@@ -76,6 +76,8 @@
     const q = new URLSearchParams({ page: state.page, sort: $("g-sort").value });
     if ($("g-q").value.trim()) q.set("q", $("g-q").value.trim());
     if (state.tag) q.set("tag", state.tag);
+    const sense = Tags.match($("g-q").value).tags.slice(0, 12);          // « sante » retrouve aussi « santé », une famille retrouve ses mots
+    if (sense.length) q.set("qt", sense.join(","));
     try {
       const j = await api("/api/gallery?" + q.toString());
       state.page = j.page;
@@ -111,6 +113,7 @@
   let timer;
   $("g-q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => load(1), 300); });
   $("g-sort").addEventListener("change", () => load(1));
+  window.PublicGallery = { showTag: (t) => { setTag(t); $("g-q").value = ""; window.showTab("galerie"); load(1); } };
   $("tab-galerie").addEventListener("click", () => load(state.page));
   if (initialHash.indexOf("#galerie=") === 0) showShared(initialHash.slice(9));
   if (initialHash.indexOf("#galerie") === 0) load(1);

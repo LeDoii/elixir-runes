@@ -122,6 +122,27 @@ const id = (await mineOf(alice)).find((i) => i.name === "Gebo et Mannaz").id;
 check("fiche d'une bindrune : étiquettes comprises", (await (await call(env, "/api/gallery/" + id)).json()).tags.includes("protection"));
 check("aucune donnée de compte dans la réponse", !JSON.stringify(await gal("")).includes(ALICE));
 
+/* ---- recherche par sens */
+check("recherche : sans accent ni casse", T.match("SANTE").tags.includes("santé") && T.fold("Épreuve") === "epreuve");
+check("recherche : une famille ramène tous ses mots", T.match("destruct").families.join() === "Destruction" && ["mort", "grêle", "bouleversement", "force destructrice"].every((t) => T.match("destruct").tags.includes(t)));
+check("recherche : trop court → rien", T.match("a").tags.length === 0 && T.match("").tags.length === 0);
+await save(bob, "Vitale", [], plate(rune("Uruz")));
+await publish(bob, "Vitale");
+await save(bob, "Lumineuse", [], plate(rune("Sowilo")));
+await publish(bob, "Lumineuse");
+g = await gal("q=sowilo");
+check("galerie : la recherche trouve aussi le nom d'une rune", g.total === 1 && g.items[0].name === "Lumineuse");
+g = await gal("q=sante");
+check("galerie : « sante » seul ne trouve pas « santé » (le navigateur ajoute qt)", g.total === 0);
+g = await gal("q=sante&qt=" + encodeURIComponent(T.match("sante").tags.join(",")));
+check("galerie : avec les étiquettes trouvées par le navigateur, « sante » retrouve Uruz", g.total === 1 && g.items[0].name === "Vitale");
+g = await gal("q=destruct&qt=" + encodeURIComponent(T.match("destruct").tags.join(",")));
+check("galerie : une famille de sens retrouve les runes qui en ont un mot (Hagalaz absent ici)", g.total === 0 || g.items.every((i) => /Hagalaz|Eihwaz/.test(JSON.stringify(i.d))));
+g = await gal("qt=santé");
+check("qt sans texte : sans effet", g.total === (await gal("")).total);
+g = await gal("q=zzzzz&qt=" + encodeURIComponent("a' OR 1=1 --"));
+check("qt : injection SQL sans effet", g.total === 0);
+
 /* ---- ligne ancienne (publiée avant les étiquettes par sens) : calculée à la première lecture */
 env.DB.raw.prepare("INSERT INTO bindrunes (id, user_id, name, name_key, description, data, published, published_at, created_at, updated_at) VALUES ('old2', ?, 'Vieille', 'vieille', '', ?, 1, 5, 1, 1)").run(BOB, JSON.stringify(plate(rune("Kenaz"))));
 g = await gal("tag=lumière");

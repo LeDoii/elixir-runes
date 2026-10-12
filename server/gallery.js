@@ -5,7 +5,7 @@ import { validateBindrune } from "./lib/validate.js";
 import { comboKey } from "./lib/combo.js";
 import { sessionUser } from "./lib/auth.js";
 import { like, intParam } from "./lib/sql.js";
-import { normTag, parseTags, allTags } from "./lib/tags.js";
+import { normTag, cleanTags, parseTags, allTags } from "./lib/tags.js";
 
 const PAGE = 24;
 const FROM = " FROM bindrunes b JOIN users u ON u.id = b.user_id WHERE b.published = 1 AND u.banned = 0";
@@ -24,10 +24,14 @@ export async function listGallery(request, env) {
   const text = (q.get("q") || "").trim().slice(0, 60);
   const sort = q.get("sort") === "name" ? "b.name COLLATE NOCASE ASC, b.published_at DESC" : "b.published_at DESC, b.id";
   let where = "", binds = [];
+  // Recherche libre : nom, description, auteur, étiquettes, runes ; « qt » : étiquettes déjà trouvées par le navigateur (sans accent, familles de sens).
+  const qt = cleanTags((q.get("qt") || "").split(","), 12);
   if (text) {
     where = " AND (b.name LIKE ? ESCAPE '\\' OR b.description LIKE ? ESCAPE '\\' OR u.global_name LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\'" +
-      " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value LIKE ? ESCAPE '\\'))";
-    binds = [like(text), like(text), like(text), like(text), like(text)];
+      " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value LIKE ? ESCAPE '\\')" +
+      " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.data) THEN b.data ELSE '{}' END, '$.r') WHERE json_extract(value, '$.n') LIKE ? ESCAPE '\\')" +
+      (qt.length ? " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value IN (" + qt.map(() => "?").join(",") + "))" : "") + ")";
+    binds = [like(text), like(text), like(text), like(text), like(text), like(text), ...qt];
   }
   // Filtre par étiquette : toutes les étiquettes de la bindrune (celles de ses runes et celles ajoutées) sont dans la colonne `tags`.
   const tag = normTag(q.get("tag"));

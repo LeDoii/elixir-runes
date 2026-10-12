@@ -52,10 +52,47 @@
         { duration: 600, delay: i * 250, easing: "ease", fill: "backwards" });
     });
   }
+  /**
+   * Recherche par sens : chaque mot tapé doit se retrouver (sans accent ni casse) dans le nom, les étiquettes, la famille de sens
+   * ou le texte du livre de la rune. Retourne { score, found } (found : étiquettes qui ont répondu), ou null si la rune ne convient pas.
+   */
+  function senseMatch(r, words) {
+    const tagList = Tags.runeTags(r.name), famList = Array.from(new Set(tagList.map(Tags.familyOf).filter(Boolean)));
+    const name = Tags.fold(r.name), text = Tags.fold(r.sens.join(" "));
+    let score = 0;
+    const found = [];
+    for (const w of words) {
+      let s = 0;
+      if (Tags.hasWord(name, w)) s += 4;
+      tagList.forEach((t) => { if (Tags.hasWord(Tags.fold(t), w)) { s += 3; if (!found.includes(t)) found.push(t); } });
+      famList.forEach((f) => { if (Tags.hasWord(Tags.fold(f), w)) s += 2; });
+      if (Tags.hasWord(text, w)) s += 1;
+      if (!s) return null;
+      score += s;
+    }
+    return { score, found };
+  }
   function renderGallery() {
-    const sort = $("gallery-sort").value;
-    const list = D.runes.slice();
+    const sort = $("gallery-sort").value, words = Tags.fold($("gallery-q").value).split(" ").filter(Boolean);
+    let list = D.runes.slice(), hits = {};
+    if (words.length) {
+      list = list.filter((r) => (hits[r.name] = senseMatch(r, words)));
+      list.sort((a, b) => hits[b.name].score - hits[a.name].score);
+    }
     if (sort !== "lib") list.sort((a, b) => (DIFF[a.name].rank - DIFF[b.name].rank) * (sort === "easy" ? 1 : -1));
+    $("gallery-found").textContent = words.length ? (list.length ? list.length + (list.length > 1 ? " runes correspondent." : " rune correspond.") : "Aucune rune ne correspond.") : "";
+    const links = $("gallery-links");
+    links.innerHTML = "";
+    if (words.length && window.PublicGallery) {                  // mêmes mots dans la galerie publique
+      const tg = Tags.match($("gallery-q").value).tags.slice(0, 6);
+      if (tg.length) links.appendChild(Object.assign(document.createElement("span"), { className: "hint", textContent: "Dans la galerie des bindrunes : " }));
+      tg.forEach((t) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "tag imposed"; b.textContent = Tags.label(t);
+        b.addEventListener("click", () => window.PublicGallery.showTag(t));
+        links.appendChild(b);
+      });
+    }
     gallery.innerHTML = "";
     list.forEach((r) => {
       const li = document.createElement("li");
@@ -63,7 +100,8 @@
       const d = DIFF[r.name];
       b.className = "card";
       b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + "</span>" +
-        (d ? pips(d.level) + '<span class="lv">' + LEVELS[d.level - 1] + (sort !== "lib" ? " · n° " + d.rank : "") + "</span>" : "");
+        (d ? pips(d.level) + '<span class="lv">' + LEVELS[d.level - 1] + (sort !== "lib" ? " · n° " + d.rank : "") + "</span>" : "") +
+        (hits[r.name] && hits[r.name].found.length ? '<span class="lv found">' + hits[r.name].found.slice(0, 3).map(Tags.label).join(", ") + "</span>" : "");
       b.addEventListener("click", () => openRune(r.name));
       const play = () => playTrace(b);
       b.addEventListener("pointerenter", (e) => { if (e.pointerType !== "touch") play(); });
@@ -73,6 +111,7 @@
     });
   }
   $("gallery-sort").addEventListener("change", renderGallery);
+  $("gallery-q").addEventListener("input", renderGallery);
   renderGallery();
   function openRune(name) {
     current = byName(name);

@@ -116,8 +116,23 @@
   const all = (d, extra) => { const base = derive(d); return base.concat(clean(extra).filter((t) => !base.includes(t))); };
   /** Étiquettes ajoutées : une liste complète (comme la renvoie le serveur) privée de celles qui viennent des runes. */
   const extras = (d, list) => { const base = derive(d); return clean(list, 60).filter((t) => !base.includes(t)).slice(0, MAX_TAGS); };
+  /** Minuscules sans accent : « Santé » et « sante » se rencontrent. */
+  const fold = (s) => String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  /** Un mot de text (déjà passé par fold) commence-t-il par w ? « sante » ne se trouve donc pas dans « puissante ». */
+  const hasWord = (text, w) => (" " + text.replace(/[^a-z0-9]+/g, " ")).includes(" " + w);
   const FAMILY_OF = {};
   Object.keys(FAMILIES).forEach((f) => FAMILIES[f].forEach((t) => { FAMILY_OF[norm(t)] = f; }));
+  /**
+   * Recherche par sens : étiquettes (de la liste) dont le mot, ou la famille, contient ce qui est tapé (sans accent ni casse).
+   * Retourne { tags, families } ; vide si moins de 2 caractères.
+   */
+  function match(q) {
+    const w = fold(q);
+    if (w.length < 2) return { tags: [], families: [] };
+    const families = Object.keys(FAMILIES).filter((f) => hasWord(fold(f), w));
+    const tags = VOCAB.map(norm).filter((t) => hasWord(fold(t), w) || families.includes(FAMILY_OF[t]));
+    return { tags, families };
+  }
   /** Famille de sens d'une étiquette (normalisée) ; undefined pour une étiquette libre. */
   const familyOf = (t) => FAMILY_OF[t];
   /**
@@ -224,5 +239,5 @@
     return { el: box, refresh: () => draw(false) };
   }
 
-  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, FAMILIES, OPPOSED, familyOf, norm, clean, label, isImposed, runeTags, keptTags, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
+  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, FAMILIES, OPPOSED, familyOf, fold, hasWord, match, norm, clean, label, isImposed, runeTags, keptTags, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
 });
