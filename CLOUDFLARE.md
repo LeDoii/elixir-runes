@@ -78,5 +78,5 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 ## Étape 6 : étiquettes
 
 - Migration `migrations/0006_tags.sql` (colonnes `tags` de `bindrunes` et `shared_bindrunes`, texte JSON), à appliquer **avant** de publier le code.
-- `GET /api/gallery?tag=<étiquette>` filtre sur l'étiquette choisie ou sur l'étiquette verrouillée d'une rune de la bindrune ; `q` cherche aussi dans les étiquettes.
+- La colonne `tags` contient toutes les étiquettes de la bindrune (celles des sens gardés de ses runes, puis celles ajoutées), calculées par le serveur à l'enregistrement ; une bindrune publiée sans étiquette (avant cette étape) est complétée à la première lecture de la galerie. `GET /api/gallery?tag=<étiquette>` filtre dessus ; `q` cherche aussi dans les étiquettes. Un enregistrement sans aucune étiquette est refusé (400).
 - Normalisation et étiquettes verrouillées : `docs/tags.js` et `server/lib/tags.js`, gardés identiques par `tools/test_tags.mjs`.

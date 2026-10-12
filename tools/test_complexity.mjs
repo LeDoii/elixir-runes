@@ -1,0 +1,31 @@
+// Évaluation de la complexité d'une bindrune. À lancer depuis SiteRunes/ : node --no-warnings tools/test_complexity.mjs
+import { createRequire } from "node:module";
+import { check, finish } from "./testkit.mjs";
+const require = createRequire(import.meta.url);
+globalThis.window = globalThis;
+globalThis.Tags = require("../docs/tags.js");
+require("../docs/difficulty.js");
+globalThis.DIFFICULTY = window.DIFFICULTY;
+const C = require("../docs/complexity.js");
+const plate = (...n) => ({ r: n.map((x) => (typeof x === "string" ? { n: x } : x)) });
+
+const one = C.rate(plate("Isa"));
+check("une rune facile : niveau simple, aucun point de nombre", one.score < 20 && one.level === "Simple" && one.parts[0].pts === 0, JSON.stringify(one));
+const six = C.rate(plate("Gebo", "Mannaz", "Ansuz", "Laguz", "Algiz", "Dagaz"));
+check("six runes : plus complexe qu'une seule", six.score > one.score + 30);
+check("le score reste entre 0 et 100", [one, six].every((r) => r.score >= 0 && r.score <= 100));
+check("chaque élément respecte son maximum", six.parts.every((p) => p.pts >= 0 && p.pts <= p.max) && six.parts.reduce((a, p) => a + p.max, 0) === 100);
+check("le score est la somme des éléments", six.score === six.parts.reduce((a, p) => a + p.pts, 0));
+const calm = C.rate(plate("Gebo", "Mannaz")), clash = C.rate(plate("Isa", "Raidho"));
+check("sens opposés : points ajoutés et oppositions listées", clash.parts[4].pts === 16 && clash.oppositions.length === 2 && calm.parts[4].pts === 0);
+const noClash = C.rate(plate("Isa", { n: "Raidho", t: [2] }));
+check("décocher le sens qui s'oppose retire l'opposition", noClash.oppositions.length === 0 && noClash.score < clash.score);
+const dup = C.rate(plate("Isa", "Isa"));
+check("rune répétée : points de répétition", dup.parts[3].pts === 5);
+const cap = C.rate(plate("Isa", "Isa", "Isa", "Isa", "Isa", "Isa"));
+check("répétitions plafonnées", cap.parts[3].pts === 10);
+check("niveaux croissants", ["Simple", "Modérée", "Élevée", "Très élevée", "Extrême"].includes(six.level));
+const worst = C.rate(plate("Ingwaz", "Eihwaz", "Isa", "Raidho", "Hagalaz", "Algiz"));
+check("rune inconnue du tableau de difficulté : valeur moyenne", C.rate(plate("Inconnue")).score >= 0);
+console.log("six runes :", six.score, six.level, "· pire cas :", worst.score, worst.level, "· Isa+Raidho :", clash.score, clash.level);
+finish();

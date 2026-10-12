@@ -205,6 +205,8 @@
             <button id="dz-clear" class="btn ghost">Tout retirer</button>
           </div>
           <p id="dz-msg" class="hint center-text" role="status"></p>
+          <h3>Complexité</h3>
+          <div id="dz-complexity" class="cplx"></div>
           <h3>Ce que chaque rune apporte</h3>
           <div id="dz-brings" class="brings"></div>
         </div>
@@ -235,7 +237,7 @@
           </div>
           <textarea id="sv-desc" rows="2" maxlength="300" placeholder="Description (facultative, 300 caractères) : à quoi sert cette bindrune ?" aria-label="Description"></textarea>
           <div id="sv-tags"></div>
-          <p class="hint">Étiquettes grises : celles des runes posées, non modifiables. Les autres (liste ou libres, 6 au plus) sont à toi.</p>
+          <p class="hint">Étiquettes grises : les sens gardés de chaque rune (cases à cocher dans « Ce que chaque rune apporte »). Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
           <div class="field" style="margin-top:.8rem">
             <label for="dz-open">Ouvrir une bindrune enregistrée</label>
             <select id="dz-open"></select>
@@ -279,6 +281,7 @@
   <script src="scoring.js"></script>
   <script src="combo.js"></script>
   <script src="tags.js"></script>
+  <script src="complexity.js"></script>
   <script src="bindrunes.js"></script>
   <script src="account.js"></script>
   <script src="gallery.js"></script>

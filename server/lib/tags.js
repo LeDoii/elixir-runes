@@ -1,15 +1,17 @@
 // Étiquettes des bindrunes : mêmes règles que docs/tags.js (test de parité : tools/test_tags.mjs).
-// Les étiquettes enregistrées sont normalisées (minuscules, 2 à 20 caractères, 6 au plus). Les étiquettes verrouillées des runes
-// ne sont pas stockées : elles servent seulement au filtre de la galerie (une bindrune porte celles de ses runes).
-export const MAX_TAGS = 6, MIN_LEN = 2, MAX_LEN = 20;
+// Une étiquette par sens de chaque rune ; une bindrune garde tout ou partie des sens de chacune de ses runes (champ « t »).
+// La colonne `tags` contient toutes les étiquettes de la bindrune : celles de ses runes puis celles que l'auteur a ajoutées.
+export const MAX_TAGS = 6, MIN_LEN = 2, MAX_LEN = 20, MAX_STORED = 60;
 
 export const RUNE_TAGS = {
-  Fehu: ["Abondance"], Uruz: ["Force", "Vitalité"], Thurisaz: ["Force", "Défense"], Ansuz: ["Communication", "Sagesse"],
-  Raidho: ["Voyage", "Cycles"], Kenaz: ["Connaissance", "Lumière"], Gebo: ["Échange", "Partenariat"], Wunjo: ["Joie", "Harmonie"],
-  Hagalaz: ["Transformation"], Nauthiz: ["Épreuve"], Isa: ["Immobilité", "Patience"], Jera: ["Cycles"],
-  Eihwaz: ["Renaissance", "Transformation"], Perthro: ["Mystère", "Destin"], Algiz: ["Protection", "Défense"], Sowilo: ["Lumière", "Victoire"],
-  Tiwaz: ["Justice", "Courage"], Berkano: ["Croissance", "Guérison"], Ehwaz: ["Partenariat", "Harmonie"], Mannaz: ["Humanité"],
-  Laguz: ["Intuition", "Eau"], Ingwaz: ["Fertilité", "Paix"], Dagaz: ["Éveil", "Renaissance"], Othala: ["Héritage"],
+  Fehu: ["Abondance", "Maîtrise", "Partage", "Cupidité"], Uruz: ["Vitalité", "Santé"], Thurisaz: ["Thor", "Défense"],
+  Ansuz: ["Parole", "Écoute", "Communication"], Raidho: ["Mouvement", "Voyage", "Cycles"], Kenaz: ["Connaissance", "Lumière"],
+  Gebo: ["Échange", "Don", "Équilibre"], Wunjo: ["Joie", "Accomplissement"], Hagalaz: ["Destruction", "Transformation"],
+  Nauthiz: ["Contrainte", "Épreuve"], Isa: ["Immobilité", "Patience"], Jera: ["Cycles", "Récompense", "Temps"],
+  Eihwaz: ["Renaissance", "Transformation"], Perthro: ["Mystère", "Hasard"], Algiz: ["Protection", "Élan", "Défense", "Divin"],
+  Sowilo: ["Victoire", "Lumière"], Tiwaz: ["Justice", "Honneur"], Berkano: ["Renaissance", "Croissance"], Ehwaz: ["Partenariat", "Progrès"],
+  Mannaz: ["Humanité", "Collaboration"], Laguz: ["Eau", "Intuition"], Ingwaz: ["Fertilité", "Potentiel"], Dagaz: ["Éveil", "Nouveau départ"],
+  Othala: ["Héritage", "Transmission"],
 };
 
 export function normTag(s) {
@@ -18,19 +20,33 @@ export function normTag(s) {
   return t.length >= MIN_LEN ? t : "";
 }
 
-/** Liste quelconque → liste normalisée, sans doublon, de MAX_TAGS au plus. */
-export function cleanTags(list) {
+/** Liste quelconque → liste normalisée, sans doublon, de max étiquettes au plus. */
+export function cleanTags(list, max = MAX_TAGS) {
   const out = [];
-  (Array.isArray(list) ? list : []).forEach((x) => { const t = normTag(x); if (t && !out.includes(t) && out.length < MAX_TAGS) out.push(t); });
+  (Array.isArray(list) ? list : []).forEach((x) => { const t = normTag(x); if (t && !out.includes(t) && out.length < max) out.push(t); });
   return out;
 }
 
 /** Colonne `tags` (texte JSON) → liste ; une valeur illisible donne une liste vide. */
 export function parseTags(text) {
-  try { return cleanTags(JSON.parse(text)); } catch (e) { return []; }
+  try { return cleanTags(JSON.parse(text), MAX_STORED); } catch (e) { return []; }
 }
 
-/** Noms des runes qui portent l'étiquette (normalisée) : pour retrouver les bindrunes qui la portent par leurs runes. */
-export function runesWithTag(tag) {
-  return Object.keys(RUNE_TAGS).filter((n) => RUNE_TAGS[n].some((t) => normTag(t) === tag));
+/** Indices des sens gardés par une rune de la bindrune (t absent : tous). */
+export function keptIndexes(r) {
+  const n = (RUNE_TAGS[r.n] || []).length;
+  return Array.isArray(r.t) ? Array.from(new Set(r.t.filter((i) => Number.isInteger(i) && i >= 0 && i < n))).sort((x, y) => x - y) : Array.from({ length: n }, (_, i) => i);
+}
+
+/** Étiquettes des runes d'une bindrune validée. */
+export function deriveTags(d) {
+  const out = [];
+  d.r.forEach((r) => keptIndexes(r).forEach((i) => { const k = normTag(RUNE_TAGS[r.n][i]); if (!out.includes(k)) out.push(k); }));
+  return out;
+}
+
+/** Toutes les étiquettes à enregistrer : celles des runes, puis les étiquettes ajoutées (nettoyées). */
+export function allTags(d, extra) {
+  const base = deriveTags(d);
+  return base.concat(cleanTags(extra).filter((t) => !base.includes(t)));
 }

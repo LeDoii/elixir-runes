@@ -1,6 +1,7 @@
 // Validation côté serveur d'une bindrune reçue : jamais de confiance envers le client.
 // Mêmes règles que docs/bindrunes.js (validate), avec le nombre de points d'ancrage par rune pour contrôler les liaisons.
 import { ANCHORS } from "./rune-data.js";
+import { RUNE_TAGS, keptIndexes } from "./tags.js";
 
 export const MAX_NAME = 40;
 export const MAX_RUNES = 6;
@@ -25,7 +26,10 @@ export function validateBindrune(d) {
   const r = [];
   for (const e of d.r) {
     if (!e || !known(e.n) || !isNum(e.x) || !isNum(e.y)) return null;
-    r.push({ n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] });
+    const entry = { n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] };
+    const kept = Array.isArray(e.t) ? keptIndexes(e) : null;                 // sens gardés de la rune (absent : tous)
+    if (kept && kept.length < RUNE_TAGS[e.n].length) entry.t = kept;
+    r.push(entry);
   }
   const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) =>
     Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&

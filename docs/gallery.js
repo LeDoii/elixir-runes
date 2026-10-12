@@ -48,9 +48,9 @@
     const pv = el("div", "mprev"); pv.innerHTML = B.previewSVG(item.d);
     info.appendChild(el("h4", "", item.name));
     info.appendChild(el("p", "author", "par " + item.author));
-    info.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label + (item.published_at ? " · publiée le " + fmt(item.published_at) : "")));
+    info.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label + " · " + B.cxLine(item.d) + (item.published_at ? " · publiée le " + fmt(item.published_at) : "")));
     if (item.description) info.appendChild(el("p", "desc", item.description));
-    info.appendChild(Tags.chips(Tags.locked(item.d.r.map((e) => e.n)), item.tags || [], pickTag));
+    info.appendChild(Tags.chips(Tags.derive(item.d), item.tags || [], pickTag));
     action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
     action(acts, "S'entraîner", () => {
       const rec = keep(item);
@@ -97,9 +97,9 @@
       const pv = el("div", "mprev"); pv.innerHTML = B.previewSVG(item.d);
       const body = el("div");
       body.appendChild(el("h3", "", "« " + item.name + " », par " + item.author));
-      body.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label));
+      body.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label + " · " + B.cxLine(item.d)));
       if (item.description) body.appendChild(el("p", "desc", item.description));
-      body.appendChild(Tags.chips(Tags.locked(item.d.r.map((e) => e.n)), item.tags || [], pickTag));
+      body.appendChild(Tags.chips(Tags.derive(item.d), item.tags || [], pickTag));
       const acts = el("div", "macts");
       action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
       action(acts, "Enregistrer chez moi", () => { const rec = keep(item); say(rec ? "« " + rec.name + " » enregistrée dans « Mes bindrunes »." : "Enregistrement impossible."); });

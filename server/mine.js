@@ -3,7 +3,7 @@ import { privateJson } from "./lib/http.js";
 import { sessionUser, sameOrigin, randomToken } from "./lib/auth.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
 import { comboKey } from "./lib/combo.js";
-import { cleanTags, parseTags } from "./lib/tags.js";
+import { allTags, parseTags } from "./lib/tags.js";
 
 const MAX_BODY = 4096;
 const MAX_PER_USER = 100;
@@ -32,8 +32,10 @@ export async function saveMine(request, env) {
   if (text.length > MAX_BODY) return privateJson({ error: "Données trop volumineuses." }, 413);
   let body;
   try { body = JSON.parse(text); } catch (e) { return privateJson({ error: "JSON invalide." }, 400); }
-  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description), tags = cleanTags(body && body.tags);
+  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description), extra = body && body.tags;
   if (!name || !d) return privateJson({ error: "Bindrune invalide." }, 400);
+  const tags = allTags(d, extra);
+  if (!tags.length) return privateJson({ error: "Une bindrune porte au moins une étiquette." }, 400);
 
   const key = name.toLowerCase(), now = Date.now(), data = JSON.stringify(d), combo = comboKey(d), tagsJson = JSON.stringify(tags);
   const existing = await env.DB.prepare("SELECT id FROM bindrunes WHERE user_id = ? AND name_key = ?").bind(user.id, key).first();

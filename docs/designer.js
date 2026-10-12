@@ -219,7 +219,7 @@
     say("");
     record();
     const used = items.map((i) => i.color);
-    const it = { id: nextId++, name, x: 0, y: 0, snap: true, color: COLORS.find((c) => !used.includes(c)) || COLORS[0] };
+    const it = { id: nextId++, name, x: 0, y: 0, snap: true, keep: null, color: COLORS.find((c) => !used.includes(c)) || COLORS[0] };
     const [x0, y0, x1, y1] = D.bbox;
     it.x = cx - (x0 + x1) / 2; it.y = cy - (y0 + y1) / 2;
     items.push(it);
@@ -456,25 +456,46 @@
   function renderBrings() {
     const box = $("dz-brings");
     box.innerHTML = "";
+    renderComplexity();
     if (!items.length) { box.innerHTML = '<p class="hint">Les runes posées sur la plaque apparaissent ici, avec leurs sens et leurs traits.</p>'; return; }
     items.forEach((it) => {
-      const r = byName(it.name), d = document.createElement("div");
+      const r = byName(it.name), d = document.createElement("div"), kept = Tags.keptIndexes({ n: it.name, t: it.keep });
       d.className = "bring";
       d.innerHTML = '<h4><i style="background:' + it.color + '"></i>' + r.name + "</h4>" +
-        "<h5>Étiquettes</h5>" + Tags.locked([it.name]).map((t) => '<span class="tag locked">' + Tags.label(t) + "</span>").join(" ") +
-        "<h5>Sens</h5><ul>" + r.sens.map((t) => "<li>" + t + "</li>").join("") + "</ul>" +
+        "<h5>Sens (coche ceux que la bindrune garde)</h5><ul class=\"sens\">" + r.sens.map((t, i) =>
+          '<li><label><input type="checkbox" data-i="' + i + '"' + (kept.includes(i) ? " checked" : "") + '> <span class="tag locked">' + Tags.label(Tags.norm(Tags.RUNE_TAGS[r.name][i])) + "</span> " + t + "</label></li>").join("") + "</ul>" +
         "<h5>Traits</h5><ul>" + r.strokes.map((s) => "<li>" + s.name + "</li>").join("") + "</ul>";
+      d.querySelectorAll("input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => {
+        const i = Number(cb.dataset.i), next = cb.checked ? kept.concat(i).sort((x, y) => x - y) : kept.filter((k) => k !== i);
+        const test = items.map((o) => ({ n: o.name, t: o === it ? next : o.keep }));
+        if (!Tags.all({ r: test }, svTags).length) { cb.checked = true; say("Une bindrune garde au moins une étiquette : coche un autre sens ou ajoute une étiquette."); return; }
+        record();
+        it.keep = next.length === r.sens.length ? null : next;
+        say(""); render();
+      }));
       box.appendChild(d);
     });
   }
 
+  /* ---- complexité : voir complexity.js */
+  function renderComplexity() {
+    const box = $("dz-complexity");
+    if (!items.length) { box.innerHTML = '<p class="hint">Pose des runes pour évaluer la complexité de la bindrune.</p>'; return; }
+    const c = Complexity.rate(platesD());
+    box.innerHTML = '<p class="cplx-head"><strong>' + c.level + "</strong> · " + c.score + ' / 100</p><div class="cplx-bar"><i style="width:' + c.score + '%"></i></div><ul>' +
+      c.parts.map((p) => "<li><span>" + p.label + " <small>(" + p.detail + ")</small></span><b>" + p.pts + " / " + p.max + "</b></li>").join("") + "</ul>" +
+      (c.oppositions.length ? '<p class="hint">Sens qui s\'opposent : ' + c.oppositions.map((o) => o.runes[0] + " (" + Tags.label(o.tags[0]) + ") et " + o.runes[1] + " (" + Tags.label(o.tags[1]) + ")").join(" ; ") + ".</p>" : "") +
+      '<p class="hint">Évaluation du site (nombre de runes, difficulté de tracé, traits, répétitions, sens opposés) : un repère pour comparer, pas une règle du livre.</p>';
+  }
+
   /* ---- enregistrement : liste, renommage, partage et import se gèrent dans l'onglet « Mes bindrunes » */
+  const platesD = () => ({ r: items.map((i) => ({ n: i.name, t: i.keep })) });   // runes et sens gardés, pour les étiquettes
   let svTags = [];                                           // étiquettes choisies (les verrouillées se déduisent des runes posées)
-  const tagEd = Tags.editor({ locked: () => Tags.locked(items.map((i) => i.name)), get: () => svTags, set: (t) => { svTags = Tags.clean(t); } });
+  const tagEd = Tags.editor({ locked: () => Tags.derive(platesD()), get: () => svTags, set: (t) => { svTags = Tags.extras(platesD(), t); } });
   $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
   const snapshot = () => ({
-    r: items.map((i) => ({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color })),
+    r: items.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {})),
     s: Supports.current(), t: $("dz-strata").checked ? 1 : 0,
     l: links.map((k) => [items.findIndex((i) => i.id === k.a), items.findIndex((i) => i.id === k.b), k.pa, k.pb]),
   });
@@ -482,7 +503,7 @@
     const d = Bindrunes.validate(raw);
     if (!d) return false;
     record();
-    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, snap: e.m !== 0, color: e.c }));
+    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, color: e.c }));
     links = (d.l || []).map(([i, j, pa, pb]) => ({ a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
     sel = new Set(); snapMark = null;
@@ -493,7 +514,7 @@
     return true;
   }
   function openSaved(name, d, description, tags) {
-    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.clean(tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
+    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
   function refreshOpen() {
     const sel = $("dz-open");
@@ -512,6 +533,7 @@
     const name = Bindrunes.cleanName($("sv-name").value);
     if (!name) { svmsg("Donne un nom à ta bindrune."); return; }
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
+    if (!Tags.all(platesD(), svTags).length) { svmsg("Garde au moins une étiquette : coche un sens d'une rune ou ajoute une étiquette."); return; }
     const old = Bindrunes.get(name);
     if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
     if (!Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }

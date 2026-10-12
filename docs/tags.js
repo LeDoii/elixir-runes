@@ -1,11 +1,13 @@
 /* Étiquettes des bindrunes.
  *
- * - Liste imposée (VOCAB) : thèmes tirés des sens du Chapitre 7. Elle sert aussi de filtre dans la galerie.
- * - Étiquettes libres : 2 à 20 caractères, au plus MAX_TAGS étiquettes (imposées et libres confondues) par bindrune.
- * - Étiquettes verrouillées (RUNE_TAGS) : propres à chaque rune, non modifiables. Elles ne sont jamais enregistrées :
- *   une bindrune porte celles de toutes ses runes. Le choix des mots est une lecture des sens du livre (à valider).
+ * - Étiquettes des runes (RUNE_TAGS) : une par sens du Chapitre 7, dans l'ordre des sens de la rune (data.js). Quand deux sens
+ *   disent la même chose, ils partagent le même mot. Le choix des mots est une lecture du livre (à valider).
+ * - Dans une bindrune, chaque rune garde tout ou partie de ses sens (champ « t » de la rune : indices des sens gardés ; absent = tous).
+ *   Les étiquettes gardées ne sont pas modifiables à la main : on les coche ou décoche par rune.
+ * - Étiquettes ajoutées : choisies dans la même liste (VOCAB) ou libres (2 à 20 caractères), MAX_TAGS au plus.
+ * - DISSONANT : couples d'étiquettes qui s'opposent dans les sens du livre (sert à l'évaluation de la complexité ; à valider).
  *
- * Les étiquettes enregistrées sont normalisées : minuscules, sans signe de ponctuation autre que - et '.
+ * Les étiquettes enregistrées sont normalisées : minuscules, sans ponctuation autre que - et '.
  * À garder identique à server/lib/tags.js (test de parité : tools/test_tags.mjs). */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) module.exports = factory();
@@ -13,19 +15,23 @@
 })(typeof self !== "undefined" ? self : this, function () {
   const MAX_TAGS = 6, MIN_LEN = 2, MAX_LEN = 20;
 
-  const VOCAB = ["Abondance", "Communication", "Connaissance", "Courage", "Croissance", "Cycles", "Défense", "Destin", "Eau", "Échange", "Épreuve",
-    "Éveil", "Fertilité", "Force", "Guérison", "Harmonie", "Héritage", "Humanité", "Immobilité", "Intuition", "Joie", "Justice",
-    "Lumière", "Mystère", "Paix", "Partenariat", "Patience", "Protection", "Renaissance", "Sagesse", "Transformation", "Victoire",
-    "Vitalité", "Voyage"];
-
   const RUNE_TAGS = {
-    Fehu: ["Abondance"], Uruz: ["Force", "Vitalité"], Thurisaz: ["Force", "Défense"], Ansuz: ["Communication", "Sagesse"],
-    Raidho: ["Voyage", "Cycles"], Kenaz: ["Connaissance", "Lumière"], Gebo: ["Échange", "Partenariat"], Wunjo: ["Joie", "Harmonie"],
-    Hagalaz: ["Transformation"], Nauthiz: ["Épreuve"], Isa: ["Immobilité", "Patience"], Jera: ["Cycles"],
-    Eihwaz: ["Renaissance", "Transformation"], Perthro: ["Mystère", "Destin"], Algiz: ["Protection", "Défense"], Sowilo: ["Lumière", "Victoire"],
-    Tiwaz: ["Justice", "Courage"], Berkano: ["Croissance", "Guérison"], Ehwaz: ["Partenariat", "Harmonie"], Mannaz: ["Humanité"],
-    Laguz: ["Intuition", "Eau"], Ingwaz: ["Fertilité", "Paix"], Dagaz: ["Éveil", "Renaissance"], Othala: ["Héritage"],
+  Fehu: ["Abondance", "Maîtrise", "Partage", "Cupidité"], Uruz: ["Vitalité", "Santé"], Thurisaz: ["Thor", "Défense"],
+  Ansuz: ["Parole", "Écoute", "Communication"], Raidho: ["Mouvement", "Voyage", "Cycles"], Kenaz: ["Connaissance", "Lumière"],
+  Gebo: ["Échange", "Don", "Équilibre"], Wunjo: ["Joie", "Accomplissement"], Hagalaz: ["Destruction", "Transformation"],
+  Nauthiz: ["Contrainte", "Épreuve"], Isa: ["Immobilité", "Patience"], Jera: ["Cycles", "Récompense", "Temps"],
+  Eihwaz: ["Renaissance", "Transformation"], Perthro: ["Mystère", "Hasard"], Algiz: ["Protection", "Élan", "Défense", "Divin"],
+  Sowilo: ["Victoire", "Lumière"], Tiwaz: ["Justice", "Honneur"], Berkano: ["Renaissance", "Croissance"], Ehwaz: ["Partenariat", "Progrès"],
+  Mannaz: ["Humanité", "Collaboration"], Laguz: ["Eau", "Intuition"], Ingwaz: ["Fertilité", "Potentiel"], Dagaz: ["Éveil", "Nouveau départ"],
+  Othala: ["Héritage", "Transmission"],
   };
+  const DISSONANT = [
+  ["Cupidité", "Partage"], ["Cupidité", "Don"], ["Cupidité", "Honneur"], ["Cupidité", "Justice"],
+  ["Immobilité", "Mouvement"], ["Immobilité", "Voyage"], ["Immobilité", "Progrès"], ["Immobilité", "Élan"], ["Immobilité", "Transformation"], ["Immobilité", "Croissance"], ["Immobilité", "Éveil"],
+  ["Destruction", "Protection"], ["Destruction", "Santé"], ["Destruction", "Croissance"], ["Destruction", "Fertilité"], ["Destruction", "Héritage"], ["Destruction", "Équilibre"], ["Destruction", "Vitalité"],
+  ["Contrainte", "Mouvement"], ["Contrainte", "Voyage"], ["Épreuve", "Joie"],
+  ["Hasard", "Maîtrise"], ["Mystère", "Connaissance"], ["Patience", "Élan"], ["Transformation", "Héritage"],
+];
 
   /** « Épreuve  ! » → « épreuve » ; "" si l'étiquette est trop courte. */
   function norm(s) {
@@ -33,20 +39,46 @@
       .replace(/[^\p{L}\p{N}' -]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^[-' ]+|[-' ]+$/g, "").slice(0, MAX_LEN).trim();
     return t.length >= MIN_LEN ? t : "";
   }
-  /** Liste d'étiquettes quelconque → liste normalisée, sans doublon, de MAX_TAGS au plus. */
-  function clean(list) {
-    const out = [];
-    (Array.isArray(list) ? list : []).forEach((x) => { const t = norm(x); if (t && !out.includes(t) && out.length < MAX_TAGS) out.push(t); });
+  /** Liste quelconque → liste normalisée, sans doublon, de max étiquettes au plus. */
+  function clean(list, max) {
+    const out = [], cap = max || MAX_TAGS;
+    (Array.isArray(list) ? list : []).forEach((x) => { const t = norm(x); if (t && !out.includes(t) && out.length < cap) out.push(t); });
     return out;
   }
   const label = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
+  /** Liste des étiquettes proposées : toutes celles des runes, sans doublon, par ordre alphabétique. */
+  const VOCAB = Array.from(new Set([].concat(...Object.values(RUNE_TAGS)))).sort((x, y) => x.localeCompare(y, "fr"));
   const IMPOSED = new Set(VOCAB.map(norm));
   const isImposed = (t) => IMPOSED.has(t);
-  /** Étiquettes verrouillées d'un ensemble de runes (noms), dans l'ordre des runes, sans doublon. */
-  function locked(names) {
+
+  /** Indices des sens gardés par une rune de la bindrune (t absent : tous). */
+  function keptIndexes(r) {
+    const n = (RUNE_TAGS[r.n] || []).length;
+    return Array.isArray(r.t) ? Array.from(new Set(r.t.filter((i) => Number.isInteger(i) && i >= 0 && i < n))).sort((x, y) => x - y) : Array.from({ length: n }, (_, i) => i);
+  }
+  /** Étiquettes des runes d'une bindrune d = { r: [{ n, t }] } : celles des sens gardés, sans doublon, dans l'ordre des runes. */
+  function derive(d) {
     const out = [];
-    (names || []).forEach((n) => (RUNE_TAGS[n] || []).forEach((t) => { const k = norm(t); if (!out.includes(k)) out.push(k); }));
+    ((d && d.r) || []).forEach((r) => keptIndexes(r).forEach((i) => { const k = norm(RUNE_TAGS[r.n][i]); if (!out.includes(k)) out.push(k); }));
     return out;
+  }
+  /** Toutes les étiquettes d'une bindrune : celles de ses runes, puis celles qui ont été ajoutées. */
+  const all = (d, extra) => { const base = derive(d); return base.concat(clean(extra).filter((t) => !base.includes(t))); };
+  /** Étiquettes ajoutées : une liste complète (comme la renvoie le serveur) privée de celles qui viennent des runes. */
+  const extras = (d, list) => { const base = derive(d); return clean(list, 60).filter((t) => !base.includes(t)).slice(0, MAX_TAGS); };
+  /** Couples d'étiquettes opposées entre runes différentes (une étiquette partagée par les deux runes ne compte pas). */
+  function dissonances(d) {
+    const per = ((d && d.r) || []).map((r) => keptIndexes(r).map((i) => norm(RUNE_TAGS[r.n][i])));
+    const found = [], seen = new Set();
+    DISSONANT.forEach(([x, y]) => {
+      const a = norm(x), b = norm(y);
+      for (let i = 0; i < per.length; i++) for (let j = 0; j < per.length; j++) {
+        if (i === j || !per[i].includes(a) || !per[j].includes(b)) continue;
+        const key = [a, b].join("|") + "#" + Math.min(i, j) + "," + Math.max(i, j);
+        if (!seen.has(key)) { seen.add(key); found.push({ tags: [a, b], runes: [d.r[i].n, d.r[j].n] }); }
+      }
+    });
+    return found;
   }
 
   /* ---------------------------------------------------------------- interface (navigateur seulement) */
@@ -55,7 +87,7 @@
   /** Pastille d'étiquette. kind : « locked » (verrouillée), « imposed » (liste imposée) ou « free » (libre). */
   function chip(t, kind) {
     const c = el("span", "tag " + kind, label(t));
-    if (kind === "locked") c.title = "Étiquette d'une rune de la bindrune : non modifiable.";
+    if (kind === "locked") c.title = "Étiquette d'un sens gardé d'une rune (à cocher dans les sens de la rune).";
     return c;
   }
   /** Rangée d'étiquettes en lecture seule. onPick(t) rend chaque pastille cliquable (filtre de la galerie). */
@@ -131,5 +163,5 @@
     return { el: box, refresh: () => draw(false) };
   }
 
-  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, norm, clean, label, isImposed, locked, chip, chips, editor };
+  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, DISSONANT, norm, clean, label, isImposed, keptIndexes, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
 });

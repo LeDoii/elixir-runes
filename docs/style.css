@@ -233,3 +233,13 @@ button.tag:hover, button.tag:focus-visible { background: rgba(164,85,31,.14); ou
 .tagctl input, .tagctl select { flex: 1 1 8rem; min-width: 0; }
 .tagbox { margin: .4rem 0; }
 .marquee { fill: rgba(61,92,140,.14); stroke: #3D5C8C; stroke-dasharray: 5 4; stroke-width: 1.4; pointer-events: none; }
+
+.sens { list-style: none; padding-left: 0; }
+.sens label { display: block; cursor: pointer; }
+.sens .tag { margin-right: .25rem; }
+.cplx ul { list-style: none; padding: 0; margin: .4rem 0; }
+.cplx li { display: flex; justify-content: space-between; gap: 1rem; font-size: .9rem; padding: .1rem 0; border-bottom: 1px dotted var(--line); }
+.cplx small { color: var(--grey2); }
+.cplx-head { margin: .2rem 0; font-size: 1.1rem; }
+.cplx-bar { height: 6px; background: rgba(32,32,30,.12); border-radius: 3px; overflow: hidden; }
+.cplx-bar i { display: block; height: 100%; background: var(--warm); }

@@ -5,7 +5,7 @@ import { validateBindrune } from "./lib/validate.js";
 import { comboKey } from "./lib/combo.js";
 import { sessionUser } from "./lib/auth.js";
 import { like, intParam } from "./lib/sql.js";
-import { normTag, parseTags, runesWithTag } from "./lib/tags.js";
+import { normTag, parseTags, allTags } from "./lib/tags.js";
 
 const PAGE = 24;
 const FROM = " FROM bindrunes b JOIN users u ON u.id = b.user_id WHERE b.published = 1 AND u.banned = 0";
@@ -29,14 +29,13 @@ export async function listGallery(request, env) {
       " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value LIKE ? ESCAPE '\\'))";
     binds = [like(text), like(text), like(text), like(text), like(text)];
   }
-  // Filtre par étiquette : étiquette choisie ou étiquette verrouillée d'une des runes de la bindrune.
+  // Filtre par étiquette : toutes les étiquettes de la bindrune (celles de ses runes et celles ajoutées) sont dans la colonne `tags`.
   const tag = normTag(q.get("tag"));
   if (tag) {
-    const runes = runesWithTag(tag);
-    where += " AND (EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value = ?)" +
-      (runes.length ? " OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.data) THEN b.data ELSE '{}' END, '$.r') WHERE json_extract(value, '$.n') IN (" + runes.map(() => "?").join(",") + "))" : "") + ")";
-    binds.push(tag, ...runes);
+    where += " AND EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(b.tags) THEN b.tags ELSE '[]' END) WHERE value = ?)";
+    binds.push(tag);
   }
+  await backfillTags(env);
   const total = (await env.DB.prepare("SELECT COUNT(*) AS n" + FROM + where).bind(...binds).first()).n;
   const rows = await env.DB.prepare(
     "SELECT b.id, b.name, b.description, b.tags, b.data, b.published_at, u.username, u.global_name" + FROM + where + " ORDER BY " + sort + " LIMIT ? OFFSET ?"
@@ -49,6 +48,16 @@ export async function getGalleryItem(id, env) {
   const row = await env.DB.prepare("SELECT b.id, b.name, b.description, b.tags, b.data, b.published_at, u.username, u.global_name" + FROM + " AND b.id = ?").bind(id).first();
   const item = row ? shape(row) : null;
   return item ? json(item, 200, CACHE) : json({ error: "Introuvable." }, 404);
+}
+
+/** Bindrunes publiées avant les étiquettes par sens (colonne vide) : leurs étiquettes sont calculées une fois à partir de leurs runes. */
+async function backfillTags(env) {
+  const rows = await env.DB.prepare("SELECT id, data FROM bindrunes WHERE published = 1 AND tags = '[]' LIMIT 100").all();
+  for (const r of rows.results || []) {
+    let tags = [];
+    try { const d = validateBindrune(JSON.parse(r.data)); if (d) tags = allTags(d, []); } catch (e) { /* ligne illisible : ignorée */ }
+    if (tags.length) await env.DB.prepare("UPDATE bindrunes SET tags = ? WHERE id = ?").bind(JSON.stringify(tags), r.id).run();
+  }
 }
 
 /** Remplit l'empreinte des lignes qui n'en ont pas encore (enregistrées avant la migration 0005). */

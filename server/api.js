@@ -7,7 +7,7 @@ import * as mine from "./mine.js";
 import { handleAdmin } from "./admin.js";
 import { listGallery, getGalleryItem, checkCombo } from "./gallery.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
-import { cleanTags, parseTags } from "./lib/tags.js";
+import { allTags, parseTags } from "./lib/tags.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
 const MAX_BODY = 4096;          // octets : une bindrune de 6 runes en fait moins de 1 500
@@ -22,8 +22,9 @@ async function createCode(request, env) {
   let body;
   try { body = JSON.parse(text); } catch (e) { return json({ error: "JSON invalide." }, 400); }
 
-  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description), tags = cleanTags(body && body.tags);
+  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description), extra = body && body.tags;
   if (!name || !d) return json({ error: "Bindrune invalide." }, 400);
+  const tags = allTags(d, extra);
 
   const ip = await ipHash(request, env), now = Date.now();
   const user = await sessionUser(request, env);          // un code créé en étant connecté est rattaché au compte
