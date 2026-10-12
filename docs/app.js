@@ -131,10 +131,7 @@
       if (els.help.value === "guide") { const gd = Supports.guide(false); drawModel(g, m, gd.color, gd.alpha); }
       else if (els.help.value === "faint") { const gd = Supports.guide(true); drawModel(g, m, gd.color, gd.alpha); }
     }
-    if (!m && preview && ranking.length) {
-      const hit = ranking.find((r) => r.name === preview);
-      if (hit && hit.fit) { const gd = Supports.guide(false); drawModel(g, byName(preview), gd.color, gd.alpha, hit.fit); }
-    }
+    if (!m && preview && ranking.length) { const gd = Supports.guide(false); drawModel(g, byName(preview), gd.color, gd.alpha); }
     const list = overlay ? overlay.aligned : strokes.concat(cur ? [cur] : []);
     const paths = [];
     list.forEach((s, si) => {
@@ -168,6 +165,9 @@
     els.hint.textContent = best.total >= 70 ? "Correspondance : " + Math.round(best.total) + " %."
       : "Correspondance faible (" + Math.round(best.total) + " %) : le dessin ne ressemble clairement à aucune rune.";
     if (!preview || !ranking.some((r) => r.name === preview)) preview = best.name;
+    // le dessin est recentré et mis à l'échelle sur le masque de la rune retenue : le masque reste toujours dans le cadre
+    const fitted = S.score(byName(preview), map, strokes, Object.assign({ align: true }, FREE_TOL));
+    if (fitted) strokes = fitted.aligned;
     ranking.slice(0, 5).forEach((r) => {
       const li = document.createElement("li");
       li.setAttribute("aria-current", String(r.name === preview));
