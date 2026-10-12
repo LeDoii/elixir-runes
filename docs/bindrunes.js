@@ -185,6 +185,41 @@
     else prompt("Copie ce texte :", text);
   }
 
+  /* ---- codes courts : API des Pages Functions, seulement sur l'hébergement Cloudflare (absente de GitHub Pages et en local) */
+  let apiOk = null;
+  async function checkApi() {
+    try {
+      const r = await fetch("/api/health", { cache: "no-store" });
+      apiOk = r.ok && (await r.json()).db === true;
+    } catch (e) { apiOk = false; }
+    renderTab();
+  }
+  const SHORT = /^[A-HJKMNP-Z2-9]{4}[\s-]?[A-HJKMNP-Z2-9]{4}$/i;      // alphabet du serveur : ni 0, 1, I, L, O
+  async function apiCall(url, options) {
+    let r, j;
+    try { r = await fetch(url, options); j = await r.json(); } catch (e) { throw new Error("Le serveur ne répond pas."); }
+    if (!r.ok) throw new Error(j && j.error ? j.error : "Erreur " + r.status + ".");
+    return j;
+  }
+  async function shortCode(rec) {
+    if (!apiOk) { say("Les codes courts ne sont disponibles que sur l'adresse Cloudflare du site."); return; }
+    say("Création du code court…");
+    try {
+      const j = await apiCall("/api/codes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, d: rec.d }) });
+      let copied = false;
+      try { await navigator.clipboard.writeText(j.display); copied = true; } catch (e) { /* presse-papiers indisponible */ }
+      say("Code court de « " + rec.name + " » : " + j.display + (copied ? " (copié)." : "."));
+    } catch (e) { say("Code court impossible : " + e.message); }
+  }
+  async function importShort(text) {
+    if (!apiOk) { say("Les codes courts ne sont disponibles que sur l'adresse Cloudflare du site."); return null; }
+    try {
+      const j = await apiCall("/api/codes/" + encodeURIComponent(text.replace(/[\s-]+/g, "").toUpperCase()));
+      const d = validate(j.d);
+      return d ? [{ name: cleanName(j.name) || "Sans nom", d }] : [];
+    } catch (e) { say("Import impossible : " + e.message); return null; }
+  }
+
   function renderTab() {
     const ul = $("mine-list");
     if (!ul) return;
@@ -212,6 +247,7 @@
       });
       act(acts, "Lien", () => copyText(shareUrl(rec), "Lien", rec));
       act(acts, "Code", () => copyText(shareCode(rec), "Code", rec));
+      if (apiOk) act(acts, "Code court", () => shortCode(rec));
       act(acts, "Exporter", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json"));
       act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
       info.appendChild(h); info.appendChild(meta); info.appendChild(acts);
@@ -244,8 +280,14 @@
     box.appendChild(pv); box.appendChild(body);
   }
 
-  $("mine-import-btn").addEventListener("click", () => {
-    const t = $("mine-import-text").value;
+  $("mine-import-btn").addEventListener("click", async () => {
+    const t = $("mine-import-text").value.trim();
+    if (SHORT.test(t)) {                                      // code court : on le résout auprès du serveur
+      const items = await importShort(t);
+      if (items) doImport(items, "ce code");
+      if ($("mine-msg").textContent.indexOf("importée") >= 0) $("mine-import-text").value = "";
+      return;
+    }
     doImport(parseImport(t), "ce texte");
     if ($("mine-msg").textContent.indexOf("importée") >= 0) $("mine-import-text").value = "";
   });
@@ -262,8 +304,9 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
+  checkApi();
 
   const hash = location.hash;                                  // lien de partage reçu (ancien format #concepteur= inclus)
   if (hash.indexOf("#bindrunes=") === 0 || hash.indexOf("#concepteur=") === 0) {

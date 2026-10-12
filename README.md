@@ -33,6 +33,10 @@ La reconnaissance tient aussi compte de la **topologie** : nombre de formes (deu
 
 Les sens affichés sur la fiche de chaque rune sont les descriptions du Chapitre 7 du livre de runes (`tools/descriptions.json`, source du `build_data.py`). Seules les descriptions des pages d'aett sont reprises ; les phrases composées sont découpées par idée, avec les mots du livre (connecteurs retirés, rares sujets ou verbes répétés pour que chaque idée se lise seule).
 
+## Hébergement et API
+
+GitHub Pages sert le site seul. Sur Cloudflare Pages, des Functions (`functions/`, `server/`) ajoutent les codes courts de partage (base D1). Voir `CLOUDFLARE.md`.
+
 ## Licence
 
 Code : [MIT](LICENSE). Polices Italiana et Crimson Pro (`docs/fonts/`) sous [SIL OFL 1.1](https://openfontlicense.org).
