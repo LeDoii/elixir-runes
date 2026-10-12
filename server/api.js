@@ -5,7 +5,8 @@ import { sessionUser } from "./lib/auth.js";
 import * as account from "./auth.js";
 import * as mine from "./mine.js";
 import { handleAdmin } from "./admin.js";
-import { validateBindrune, cleanName } from "./lib/validate.js";
+import { listGallery, getGalleryItem } from "./gallery.js";
+import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
 const MAX_BODY = 4096;          // octets : une bindrune de 6 runes en fait moins de 1 500
@@ -20,7 +21,7 @@ async function createCode(request, env) {
   let body;
   try { body = JSON.parse(text); } catch (e) { return json({ error: "JSON invalide." }, 400); }
 
-  const name = cleanName(body && body.name), d = validateBindrune(body && body.d);
+  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description);
   if (!name || !d) return json({ error: "Bindrune invalide." }, 400);
 
   const ip = await ipHash(request, env), now = Date.now();
@@ -31,8 +32,8 @@ async function createCode(request, env) {
   for (let i = 0; i < 5; i++) {                       // collision de code : on retire un autre code
     const code = newCode();
     try {
-      await env.DB.prepare("INSERT INTO shared_bindrunes (code, name, data, created_at, ip_hash, user_id) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(code, name, JSON.stringify(d), now, ip, user ? user.id : null).run();
+      await env.DB.prepare("INSERT INTO shared_bindrunes (code, name, description, data, created_at, ip_hash, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(code, name, description, JSON.stringify(d), now, ip, user ? user.id : null).run();
       return json({ code, display: formatCode(code) }, 201);
     } catch (e) {
       if (!/UNIQUE|constraint/i.test(String(e && e.message ? e.message : e))) throw e;
@@ -45,12 +46,12 @@ async function readCode(rawCode, env) {
   if (!env.DB) return noDb();
   const code = normalizeCode(rawCode);
   if (!code) return json({ error: "Code invalide." }, 400);
-  const row = await env.DB.prepare("SELECT name, data FROM shared_bindrunes WHERE code = ?").bind(code).first();
+  const row = await env.DB.prepare("SELECT name, description, data FROM shared_bindrunes WHERE code = ?").bind(code).first();
   if (!row) return json({ error: "Code introuvable." }, 404);
   let d;
   try { d = validateBindrune(JSON.parse(row.data)); } catch (e) { d = null; }
   if (!d) return json({ error: "Données illisibles." }, 500);
-  return json({ name: row.name, d }, 200, { "Cache-Control": "public, max-age=300" });   // un code ne change jamais
+  return json({ name: row.name, description: row.description, d }, 200, { "Cache-Control": "public, max-age=300" });   // un code ne change jamais
 }
 
 export async function handleApi(request, env) {
@@ -73,13 +74,18 @@ export async function handleApi(request, env) {
     if (path === "/api/my/bindrunes" && method === "POST") return await mine.saveMine(request, env);
     const mm = path.match(/^\/api\/my\/bindrunes\/([A-Za-z0-9_-]{1,40})$/);
     if (mm && method === "DELETE") return await mine.deleteMine(request, env, mm[1]);
+    const pm = path.match(/^\/api\/my\/bindrunes\/([A-Za-z0-9_-]{1,40})\/publish$/);
+    if (pm && method === "POST") return await mine.publishMine(request, env, pm[1]);
     if (accountRoute) return privateJson({ error: "Route inconnue ou méthode non autorisée." }, 404);
 
+    if (path === "/api/gallery" && method === "GET") return await listGallery(request, env);
+    const gm = path.match(/^\/api\/gallery\/([A-Za-z0-9_-]{1,40})$/);
+    if (gm && method === "GET") return await getGalleryItem(gm[1], env);
     if (path === "/api/health" && method === "GET") return json({ ok: true, db: !!env.DB });
     if (path === "/api/codes" && method === "POST") return await createCode(request, env);
     const m = path.match(/^\/api\/codes\/([^/]+)$/);
     if (m && method === "GET") return await readCode(decodeURIComponent(m[1]), env);
-    if (path === "/api/health" || path === "/api/codes" || m) return json({ error: "Méthode non autorisée." }, 405);
+    if (path === "/api/health" || path === "/api/codes" || path === "/api/gallery" || gm || m) return json({ error: "Méthode non autorisée." }, 405);
     return json({ error: "Route inconnue." }, 404);
   } catch (e) {
     console.error("Erreur API :", e && e.stack ? e.stack : e);

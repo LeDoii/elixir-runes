@@ -22,8 +22,8 @@
   }
 
   /* ------------------------------------------------------------------ onglets */
-  const tabs = { runes: $("tab-runes"), mine: $("tab-mine"), draw: $("tab-draw"), design: $("tab-design") };
-  const HASH = { runes: "#", mine: "#bindrunes", draw: "#dessin", design: "#concepteur" };
+  const tabs = { runes: $("tab-runes"), galerie: $("tab-galerie"), mine: $("tab-mine"), draw: $("tab-draw"), design: $("tab-design") };
+  const HASH = { runes: "#", galerie: "#galerie", mine: "#bindrunes", draw: "#dessin", design: "#concepteur" };
   function show(which) {
     Object.keys(tabs).forEach((k) => {
       tabs[k].setAttribute("aria-selected", String(k === which));
@@ -32,6 +32,7 @@
     history.replaceState(null, "", HASH[which]);
   }
   tabs.runes.addEventListener("click", () => show("runes"));
+  tabs.galerie.addEventListener("click", () => show("galerie"));
   tabs.mine.addEventListener("click", () => show("mine"));
   tabs.draw.addEventListener("click", () => show("draw"));
   window.showTab = show;
@@ -395,6 +396,6 @@
   /* ------------------------------------------------------------------ démarrage */
   try { if (localStorage.getItem("runes-send") === "0") els.send.checked = false; } catch (e) { /* ignoré */ }
   syncControls(); updateRanking();
-  if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur=") === 0 || location.hash.indexOf("#bindrunes") === 0) show("mine"); else if (location.hash === "#concepteur") show("design");
+  if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur=") === 0 || location.hash.indexOf("#bindrunes") === 0) show("mine"); else if (location.hash === "#concepteur") show("design"); else if (location.hash.indexOf("#galerie") === 0) show("galerie");
   window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
 })();

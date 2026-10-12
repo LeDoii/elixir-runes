@@ -43,18 +43,27 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 - Suppressions et blocages sont inscrits dans `admin_log` (migration `0003_admin.sql`).
 - Aucune route d'admin n'a de CORS ; les modifications exigent l'en-tête `Origin` du site.
 
+## Étape 4 : description et galerie publique
+
+- Chaque bindrune a une description (300 caractères, une seule ligne), enregistrée avec le nom : localement, sur le compte (`bindrunes.description`), dans les liens, codes, fichiers JSON et codes courts (`shared_bindrunes.description`).
+- Publication volontaire : `POST /api/my/bindrunes/<id>/publish` `{ published: true|false }` (bindrune du compte, protection CSRF).
+- Galerie publique, lecture seule, sans cookie : `GET /api/gallery?q=&sort=recent|name&page=` (24 par page) et `GET /api/gallery/<id>`. Chaque élément porte son auteur (`global_name`, à défaut le pseudo) ; **jamais d'identifiant Discord** dans ces réponses. Les bindrunes non publiées et celles des comptes bloqués n'apparaissent pas ; la suppression d'un compte les retire.
+- Une copie prise dans la galerie garde « d'après <auteur> » et ne peut pas être republiée telle quelle depuis « Mes bindrunes » (refaite dans le concepteur, c'est une nouvelle bindrune).
+- Administration : état « publiée » et description visibles ; `POST /api/admin/bindrunes/account/<id>/unpublish` retire une bindrune de la galerie (journalisé `unpublish`) sans la supprimer du compte.
+- Migration `0004_gallery.sql`. Tests : `node --no-warnings tools/test_gallery.mjs`.
+
 ## Mise en place
 
-1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql`, `0002_accounts.sql` et `0003_admin.sql` appliqués.
+1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql`, `0002_accounts.sql`, `0003_admin.sql` et `0004_gallery.sql` appliqués.
 2. `wrangler.jsonc` à la racine : Worker `elixir-runes`, `assets.directory = ./docs`, liaison `DB` vers la base, `run_worker_first = ["/api/*"]`.
 3. Dans le tableau de bord, Worker `elixir-runes` > Settings > Build : commande de déploiement `npx wrangler deploy` (sans option `--assets`, la configuration vient du fichier).
 4. (Facultatif) Secret `IP_SALT` : une chaîne aléatoire, pour saler l'empreinte des adresses IP.
 
 ## Fichiers
 
-- `server/worker.js` : point d'entrée ; `server/api.js` : routes ; `server/auth.js` : connexion et compte ; `server/mine.js` : bindrunes du compte ; `server/admin.js` : administration ; `server/lib/` : validation, codes, sessions, réponses HTTP.
+- `server/worker.js` : point d'entrée ; `server/api.js` : routes ; `server/auth.js` : connexion et compte ; `server/mine.js` : bindrunes du compte ; `server/admin.js` : administration ; `server/gallery.js` : galerie publique ; `server/lib/` : validation, codes, sessions, réponses HTTP.
 - `server/lib/rune-data.js` est généré par `tools/build_data.py`.
 
 ## Tests
 
-`node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) et `node --no-warnings tools/test_admin.mjs` (administration) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.
+`node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) `node --no-warnings tools/test_admin.mjs` (administration) et `node --no-warnings tools/test_gallery.mjs` (galerie) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.

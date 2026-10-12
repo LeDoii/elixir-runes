@@ -43,10 +43,11 @@
         const h = document.createElement("h4"), meta = document.createElement("p"), acts = document.createElement("div");
         li.className = "mcard"; pv.className = "mprev"; pv.innerHTML = B.previewSVG(it.d);
         h.textContent = it.name; meta.className = "meta"; acts.className = "macts";
+        if (it.published) { const b = document.createElement("span"); b.className = "badge pub"; b.textContent = "publiée"; h.appendChild(b); }
         meta.textContent = B.runesLine(it.d) + " · " + Supports.get(it.d.s).label + " · " + new Date(it.updated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-        action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: it.name, d: it.d } })));
+        action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: it.name, description: it.description, d: it.d } })));
         action(acts, "Récupérer ici", () => {
-          const added = B.importItems([{ name: it.name, d: it.d }]);
+          const added = B.importItems([{ name: it.name, description: it.description, d: it.d }]);
           say(added.length ? "« " + added[0].name + " » récupérée dans tes bindrunes de ce navigateur." : "Récupération impossible : stockage du navigateur indisponible.");
         });
         action(acts, "Supprimer", async () => {
@@ -54,7 +55,11 @@
           try { await api("/api/my/bindrunes/" + encodeURIComponent(it.id), { method: "DELETE" }); say("« " + it.name + " » supprimée du compte."); loadOnline(); }
           catch (e) { say("Suppression impossible : " + e.message); }
         });
-        info.appendChild(h); info.appendChild(meta); info.appendChild(acts);
+        if (it.published) action(acts, "Retirer de la galerie", () => setPublished(it.id, it.name, false));
+        else action(acts, "Publier dans la galerie", () => setPublished(it.id, it.name, true));
+        info.appendChild(h); info.appendChild(meta);
+        if (it.description) { const dp = document.createElement("p"); dp.className = "desc"; dp.textContent = it.description; info.appendChild(dp); }
+        info.appendChild(acts);
         li.appendChild(pv); li.appendChild(info); ul.appendChild(li);
       });
     } catch (e) { say("Impossible de lire ton compte : " + e.message); }
@@ -65,12 +70,29 @@
     parent.appendChild(b);
   }
 
+  async function send(rec) {
+    return api("/api/my/bindrunes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, description: rec.description || "", d: rec.d }) });
+  }
   async function upload(rec) {
     try {
-      const j = await api("/api/my/bindrunes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, d: rec.d }) });
+      const j = await send(rec);
       say("« " + j.name + " » " + (j.updated ? "mise à jour sur ton compte." : "enregistrée sur ton compte."));
       loadOnline();
     } catch (e) { say("Envoi impossible : " + e.message); }
+  }
+  async function setPublished(id, name, published) {
+    try {
+      await api("/api/my/bindrunes/" + encodeURIComponent(id) + "/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ published }) });
+      await loadOnline();
+      say("« " + name + " » " + (published ? "publiée dans la galerie, créditée à ton nom d'affichage Discord." : "retirée de la galerie."));
+    } catch (e) { say("Action impossible : " + e.message); }
+  }
+  /** Envoie la bindrune sur le compte (nom, description, tracé) puis la publie. */
+  async function publish(rec) {
+    try {
+      const j = await send(rec);
+      await setPublished(j.id, j.name, true);
+    } catch (e) { say("Publication impossible : " + e.message); }
   }
 
   /* ---- boutons */
@@ -99,6 +121,6 @@
     say(MESSAGES[q]);
   }
 
-  window.Account = { user: () => state.user, upload, refresh };
+  window.Account = { user: () => state.user, upload, publish, refresh };
   refresh();
 })();

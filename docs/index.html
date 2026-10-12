@@ -17,6 +17,7 @@
     <p class="sub">Vingt-quatre runes à découvrir, à tracer, à reconnaître</p>
     <nav class="tabs" role="tablist">
       <button role="tab" id="tab-runes" aria-controls="runes" aria-selected="true">Les runes</button>
+      <button role="tab" id="tab-galerie" aria-controls="galerie" aria-selected="false">Galerie</button>
       <button role="tab" id="tab-mine" aria-controls="mine" aria-selected="false">Mes bindrunes</button>
       <button role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">Dessin libre</button>
       <button role="tab" id="tab-design" aria-controls="design" aria-selected="false">Concepteur</button>
@@ -38,6 +39,31 @@
       <ul id="gallery" class="gallery"></ul>
       <p class="hint center-text">La difficulté combine deux mesures : la précision moyenne obtenue par des tracés simulés à main levée (80 par rune)
         et la complexité de la forme (nombre de traits, longueur, changements de direction, angles différents).</p>
+    </section>
+
+    <!-- ============================ GALERIE ============================ -->
+    <section id="galerie" role="tabpanel" aria-labelledby="tab-galerie" hidden>
+      <div id="g-shared" class="inbox" hidden></div>
+      <div class="grid2 mine-top">
+        <div class="text">
+          <h2>Galerie</h2>
+          <p>Les bindrunes publiées par les joueurs. Chacune est créditée à son auteur : ouvre-la dans le concepteur,
+            entraîne-toi à la tracer ou enregistre-en une copie.</p>
+          <p class="hint">Pour publier une des tiennes : connecte-toi avec Discord dans « Mes bindrunes », puis « Publier dans la galerie ».</p>
+        </div>
+        <div class="text">
+          <div class="toolbar">
+            <input id="g-q" type="search" placeholder="Nom, description ou auteur" aria-label="Recherche" autocomplete="off">
+            <select id="g-sort" aria-label="Tri">
+              <option value="recent">Les plus récentes</option>
+              <option value="name">Par nom</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <p id="g-msg" class="hint center-text" role="status"></p>
+      <ul id="g-list" class="mine-grid"></ul>
+      <div class="pager"><button id="g-prev" class="btn ghost">Précédent</button><span id="g-page" class="hint"></span><button id="g-next" class="btn ghost">Suivant</button></div>
     </section>
 
     <!-- ============================ MES BINDRUNES ============================ -->
@@ -206,6 +232,7 @@
             <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
             <button id="sv-save" class="btn">Enregistrer</button>
           </div>
+          <textarea id="sv-desc" rows="2" maxlength="300" placeholder="Description (facultative, 300 caractères) : à quoi sert cette bindrune ?" aria-label="Description"></textarea>
           <div class="field" style="margin-top:.8rem">
             <label for="dz-open">Ouvrir une bindrune enregistrée</label>
             <select id="dz-open"></select>
@@ -249,6 +276,7 @@
   <script src="scoring.js"></script>
   <script src="bindrunes.js"></script>
   <script src="account.js"></script>
+  <script src="gallery.js"></script>
   <script src="app.js"></script>
   <script src="designer.js"></script>
 </body>

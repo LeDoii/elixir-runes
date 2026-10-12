@@ -73,9 +73,16 @@
         li.appendChild(preview(it.d));
         const h = el("h4", "", it.name);
         h.appendChild(el("span", "badge " + it.source, it.source === "code" ? "code court" : "compte"));
+        if (it.published) h.appendChild(el("span", "badge pub", "publiée"));
         info.appendChild(h);
         info.appendChild(el("p", "meta", (it.d ? it.d.r.map((e) => e.n).join(" · ") + " · " + Supports.get(it.d.s).label : "données illisibles") + " · " + fmt(it.at)));
         info.appendChild(el("p", "meta", (it.source === "code" ? "Code " + it.id.slice(0, 4) + "-" + it.id.slice(4) + " · " : "") + (it.user ? "Auteur : " + (it.user.name || "?") + " (" + it.user.id + ")" : "Anonyme")));
+        if (it.description) info.appendChild(el("p", "desc", it.description));
+        if (it.published) action(acts, "Dépublier", async () => {
+          if (!confirm("Retirer « " + it.name + " » de la galerie ? Elle reste sur le compte de son auteur.")) return;
+          try { await post("/api/admin/bindrunes/account/" + encodeURIComponent(it.id) + "/unpublish", {}); await loadBind(state.bind.page); $("b-msg").textContent = "« " + it.name + " » dépubliée."; }
+          catch (e) { $("b-msg").textContent = "Action impossible : " + e.message; }
+        });
         if (it.user) action(acts, "Voir l'auteur", () => { state.user = it.user.id; showChip(it.user.name || it.user.id); loadBind(1); });
         action(acts, "Supprimer", async () => {
           if (!confirm("Supprimer définitivement « " + it.name + " » ?" + (it.source === "code" ? " Le code court ne fonctionnera plus." : ""))) return;
@@ -130,7 +137,7 @@
   }
 
   /* ---------------------------------------------------------------- journal */
-  const ACTIONS = { delete_bindrune: "a supprimé la bindrune", delete_code: "a supprimé le code court", ban: "a bloqué", unban: "a débloqué" };
+  const ACTIONS = { delete_bindrune: "a supprimé la bindrune", delete_code: "a supprimé le code court", ban: "a bloqué", unban: "a débloqué", unpublish: "a dépublié de la galerie" };
   async function loadLog() {
     const ul = $("l-list");
     try {

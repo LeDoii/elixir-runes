@@ -389,8 +389,8 @@
     say(""); render();
     return true;
   }
-  function openSaved(name, d) {
-    if (restore(d)) { $("sv-name").value = name; svmsg("« " + name + " » ouverte."); window.showTab("design"); }
+  function openSaved(name, d, description) {
+    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
   function refreshOpen() {
     const sel = $("dz-open");
@@ -400,10 +400,10 @@
   Bindrunes.onChange(refreshOpen); refreshOpen();
   $("dz-open").addEventListener("change", (e) => {
     const rec = Bindrunes.get(e.target.value);
-    if (rec) openSaved(rec.name, rec.d);
+    if (rec) openSaved(rec.name, rec.d, rec.description);
     e.target.value = "";
   });
-  window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d));
+  window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d, e.detail.description));
   $("sv-manage").addEventListener("click", () => window.showTab("mine"));
   $("sv-save").addEventListener("click", () => {
     const name = Bindrunes.cleanName($("sv-name").value);
@@ -411,7 +411,7 @@
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
     const old = Bindrunes.get(name);
     if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
-    if (!Bindrunes.save(name, snapshot())) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
+    if (!Bindrunes.save(name, snapshot(), $("sv-desc").value)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
     svmsg("« " + name + " » enregistrée (onglet « Mes bindrunes »).");
   });
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });

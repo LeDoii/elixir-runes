@@ -2,6 +2,7 @@
 import { privateJson } from "./lib/http.js";
 import { sessionUser, isAdmin, sameOrigin } from "./lib/auth.js";
 import { validateBindrune } from "./lib/validate.js";
+import { like, intParam } from "./lib/sql.js";
 
 const PAGE = 30;
 const EXPORT_MAX = 5000;
@@ -17,8 +18,6 @@ async function gate(request, env, mutates) {
 }
 
 const displayName = (u) => (u ? u.global_name || u.username : "");
-const like = (q) => "%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
-const intParam = (v, def, min, max) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def; };
 
 async function logAction(env, admin, action, target, detail) {
   await env.DB.prepare("INSERT INTO admin_log (at, admin_id, admin_name, action, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
@@ -26,8 +25,8 @@ async function logAction(env, admin, action, target, detail) {
 }
 
 /* ---------------------------------------------------------------- bindrunes (comptes et codes courts) */
-const UNION = "SELECT 'account' AS source, id, name, data, user_id, created_at, updated_at AS at FROM bindrunes " +
-  "UNION ALL SELECT 'code' AS source, code AS id, name, data, user_id, created_at, created_at AS at FROM shared_bindrunes";
+const UNION = "SELECT 'account' AS source, id, name, description, published, data, user_id, created_at, updated_at AS at FROM bindrunes " +
+  "UNION ALL SELECT 'code' AS source, code AS id, name, description, 0 AS published, data, user_id, created_at, created_at AS at FROM shared_bindrunes";
 const FROM = " FROM (" + UNION + ") x LEFT JOIN users u ON u.id = x.user_id";
 
 function filters(q) {
@@ -49,7 +48,7 @@ function shape(r) {
   let d = null;
   try { d = validateBindrune(JSON.parse(r.data)); } catch (e) { /* ligne illisible : affichée sans aperçu */ }
   return {
-    source: r.source, id: r.id, name: r.name, d, created_at: r.created_at, at: r.at,
+    source: r.source, id: r.id, name: r.name, description: r.description, published: !!r.published, d, created_at: r.created_at, at: r.at,
     user: r.user_id ? { id: r.user_id, name: r.global_name || r.username || null } : null,
   };
 }
@@ -78,6 +77,14 @@ async function deleteBindrune(env, admin, source, id) {
   if (!row) return privateJson({ error: "Introuvable." }, 404);
   await env.DB.prepare("DELETE FROM " + table + " WHERE " + col + " = ?").bind(id).run();
   await logAction(env, admin, source === "account" ? "delete_bindrune" : "delete_code", id, row.name + (row.user_id ? " (compte " + row.user_id + ")" : " (anonyme)"));
+  return privateJson({ ok: true });
+}
+
+async function unpublish(env, admin, id) {
+  const row = await env.DB.prepare("SELECT name, user_id, published FROM bindrunes WHERE id = ?").bind(id).first();
+  if (!row) return privateJson({ error: "Introuvable." }, 404);
+  await env.DB.prepare("UPDATE bindrunes SET published = 0 WHERE id = ?").bind(id).run();
+  await logAction(env, admin, "unpublish", id, row.name + " (compte " + row.user_id + ")");
   return privateJson({ ok: true });
 }
 
@@ -142,7 +149,9 @@ export async function handleAdmin(request, env, path, method) {
   if (path === "/api/admin/export" && method === "GET") return exportBindrunes(request, env);
   if (path === "/api/admin/users" && method === "GET") return listUsers(request, env);
   if (path === "/api/admin/log" && method === "GET") return logList(env);
-  let m = path.match(/^\/api\/admin\/bindrunes\/(account|code)\/([A-Za-z0-9_-]{1,40})$/);
+  let m = path.match(/^\/api\/admin\/bindrunes\/account\/([A-Za-z0-9_-]{1,40})\/unpublish$/);
+  if (m && method === "POST") return unpublish(env, g.user, m[1]);
+  m = path.match(/^\/api\/admin\/bindrunes\/(account|code)\/([A-Za-z0-9_-]{1,40})$/);
   if (m && method === "DELETE") return deleteBindrune(env, g.user, m[1], m[2]);
   m = path.match(/^\/api\/admin\/users\/(\d{15,25})\/ban$/);
   if (m && method === "POST") return setBan(request, env, g.user, m[1]);

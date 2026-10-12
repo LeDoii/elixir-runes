@@ -4,12 +4,17 @@ import { ANCHORS } from "./rune-data.js";
 
 export const MAX_NAME = 40;
 export const MAX_RUNES = 6;
+export const MAX_DESC = 300;
 export const COLORS = ["#3D5C8C", "#7A4E7A", "#A4551F", "#2B2B2E", "#4E7A53", "#8C3D3D"];
 // À garder alignés avec docs/supports.js
 export const SUPPORT_IDS = ["bois", "pierre", "cuivre", "acier", "os", "defense", "papier", "tissu", "cristal"];
 
 export const cleanName = (s) =>
   String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
+
+/** Description libre : une seule ligne de texte (retours à la ligne et caractères de contrôle remplacés par des espaces). */
+export const cleanDescription = (s) =>
+  String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_DESC);
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 2000;
 const known = (n) => typeof n === "string" && Object.prototype.hasOwnProperty.call(ANCHORS, n);

@@ -211,3 +211,8 @@ textarea { font: inherit; width: 100%; padding: .55rem .6rem; background: #f3eee
 .loglist li { padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .98rem; }
 .ucard { grid-template-columns: 1fr; }
 a.btn { text-decoration: none; display: inline-block; }
+
+textarea#sv-desc { margin-top: .6rem; }
+.mcard .desc, .bring .desc { margin: .1rem 0 .5rem; font-size: .98rem; line-height: 1.35; }
+.mcard .author { margin: .1rem 0 .1rem; font-style: italic; color: var(--ink); }
+.badge.pub { border-color: #12A26A; color: #0d7a50; }
