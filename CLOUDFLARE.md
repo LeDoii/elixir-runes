@@ -74,3 +74,9 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 ## Tests
 
 `node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) `node --no-warnings tools/test_admin.mjs` (administration) `node --no-warnings tools/test_gallery.mjs` (galerie) et `node --no-warnings tools/test_combo.mjs` (combinaisons) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.
+
+## Étape 6 : étiquettes
+
+- Migration `migrations/0006_tags.sql` (colonnes `tags` de `bindrunes` et `shared_bindrunes`, texte JSON), à appliquer **avant** de publier le code.
+- `GET /api/gallery?tag=<étiquette>` filtre sur l'étiquette choisie ou sur l'étiquette verrouillée d'une rune de la bindrune ; `q` cherche aussi dans les étiquettes.
+- Normalisation et étiquettes verrouillées : `docs/tags.js` et `server/lib/tags.js`, gardés identiques par `tools/test_tags.mjs`.

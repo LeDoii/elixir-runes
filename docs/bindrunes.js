@@ -52,7 +52,7 @@
         const a = JSON.parse(localStorage.getItem(STORE) || "[]");
         cache = (Array.isArray(a) ? a : []).map((x) => {
           const name = cleanName(x && x.name), d = validate(x && x.d);
-          return name && d ? { name, at: Number.isFinite(x.at) ? x.at : 0, d, description: cleanDesc(x.description), from: cleanName(x.from) } : null;
+          return name && d ? { name, at: Number.isFinite(x.at) ? x.at : 0, d, description: cleanDesc(x.description), tags: Tags.clean(x.tags), from: cleanName(x.from) } : null;
         }).filter(Boolean);
       } catch (e) { cache = []; }
     }
@@ -76,10 +76,10 @@
     return out;
   }
   /** Enregistre (ou remplace) une bindrune. Retourne l'enregistrement, ou null si le stockage est indisponible. */
-  function save(name, d, description) {
+  function save(name, d, description, tags) {
     const nm = cleanName(name), data = validate(d);
     if (!nm || !data) return null;
-    const all = readAll(), rec = { name: nm, at: Date.now(), d: data, description: cleanDesc(description), from: "" }, idx = all.findIndex((x) => x.name.toLowerCase() === nm.toLowerCase());
+    const all = readAll(), rec = { name: nm, at: Date.now(), d: data, description: cleanDesc(description), tags: Tags.clean(tags), from: "" }, idx = all.findIndex((x) => x.name.toLowerCase() === nm.toLowerCase());
     if (idx >= 0) all[idx] = rec; else all.push(rec);
     return writeAll(all) ? rec : null;
   }
@@ -88,6 +88,16 @@
     if (!rec) return false;
     rec.description = cleanDesc(text);
     return writeAll(all);
+  }
+  /** Étiquettes d'une bindrune : enregistrées sans redessiner l'onglet (l'éditeur d'étiquettes se met à jour lui-même). */
+  function setTags(name, tags) {
+    const all = readAll(), rec = all.find((x) => x.name.toLowerCase() === cleanName(name).toLowerCase());
+    if (!rec) return false;
+    rec.tags = Tags.clean(tags);
+    cache = null;
+    try { localStorage.setItem(STORE, JSON.stringify(all)); } catch (e) { return false; }
+    listeners.forEach((fn) => fn());
+    return true;
   }
   const remove = (name) => writeAll(readAll().filter((x) => x.name.toLowerCase() !== cleanName(name).toLowerCase()));
   function rename(oldName, newName) {
@@ -123,7 +133,7 @@
     enc: (o) => { const u = new TextEncoder().encode(JSON.stringify(o)); let b = ""; u.forEach((c) => (b += String.fromCharCode(c))); return btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
     dec: (t) => { const b = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, (c) => c.charCodeAt(0)))); },
   };
-  const shareCode = (rec) => b64.enc({ name: rec.name, description: rec.description || "", from: rec.from || "", d: rec.d });
+  const shareCode = (rec) => b64.enc({ name: rec.name, description: rec.description || "", tags: rec.tags || [], from: rec.from || "", d: rec.d });
   const shareUrl = (rec) => location.origin + location.pathname + "#bindrunes=" + shareCode(rec);
 
   /** Lit un lien, un code ou un fichier JSON. Retourne un tableau de { name, d } valides (éventuellement vide). */
@@ -142,7 +152,7 @@
     const out = [];
     entries.slice(0, 50).forEach((e) => {
       const d = validate(e && e.d), name = cleanName(e && e.name);
-      if (d) out.push({ name: name || "Sans nom", description: cleanDesc(e && e.description), from: cleanName(e && e.from), d });
+      if (d) out.push({ name: name || "Sans nom", description: cleanDesc(e && e.description), tags: Tags.clean(e && e.tags), from: cleanName(e && e.from), d });
     });
     return out;
   }
@@ -154,7 +164,7 @@
       let name = cleanName(it.name), i = 2;
       const base = name;
       while (names.includes(name.toLowerCase())) { const suffix = " (" + i++ + ")"; name = base.slice(0, MAX_NAME - suffix.length) + suffix; }
-      const rec = { name, at: Date.now() + added.length, d: it.d, description: cleanDesc(it.description), from: cleanName(it.from) };
+      const rec = { name, at: Date.now() + added.length, d: it.d, description: cleanDesc(it.description), tags: Tags.clean(it.tags), from: cleanName(it.from) };
       all.push(rec); added.push(rec);
     });
     return writeAll(all) ? added : [];
@@ -166,7 +176,7 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   const fileSafe = (s) => s.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").toLowerCase() || "bindrune";
-  const exportDoc = (recs) => ({ format: FORMAT, version: 1, bindrunes: recs.map((r) => ({ name: r.name, description: r.description || "", from: r.from || "", d: r.d })) });
+  const exportDoc = (recs) => ({ format: FORMAT, version: 1, bindrunes: recs.map((r) => ({ name: r.name, description: r.description || "", tags: r.tags || [], from: r.from || "", d: r.d })) });
 
   /* ------------------------------------------------------------------ onglet « Mes bindrunes » */
   const say = (t) => { $("mine-msg").textContent = t; };
@@ -213,7 +223,7 @@
     if (!apiOk) { say("Les codes courts ne sont disponibles que sur l'adresse Cloudflare du site."); return; }
     say("Création du code court…");
     try {
-      const j = await apiCall("/api/codes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, description: rec.description || "", d: rec.d }) });
+      const j = await apiCall("/api/codes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, description: rec.description || "", tags: rec.tags || [], d: rec.d }) });
       let copied = false;
       try { await navigator.clipboard.writeText(j.display); copied = true; } catch (e) { /* presse-papiers indisponible */ }
       say("Code court de « " + rec.name + " » : " + j.display + (copied ? " (copié)." : "."));
@@ -224,7 +234,7 @@
     try {
       const j = await apiCall("/api/codes/" + encodeURIComponent(text.replace(/[\s-]+/g, "").toUpperCase()));
       const d = validate(j.d);
-      return d ? [{ name: cleanName(j.name) || "Sans nom", description: cleanDesc(j.description), d }] : [];
+      return d ? [{ name: cleanName(j.name) || "Sans nom", description: cleanDesc(j.description), tags: Tags.clean(j.tags), d }] : [];
     } catch (e) { say("Import impossible : " + e.message); return null; }
   }
 
@@ -266,7 +276,7 @@
       meta.className = "meta";
       meta.textContent = runesLine(rec.d) + " · " + Supports.get(rec.d.s).label + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "");
       acts.className = "macts";
-      act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, d: rec.d } })));
+      act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, tags: rec.tags, d: rec.d } })));
       act(acts, "S'entraîner", () => window.dispatchEvent(new CustomEvent("bindrune:train", { detail: { name: rec.name } })));
       act(acts, "Description", () => {
         const t = prompt("Description (" + MAX_DESC + " caractères au plus) :", rec.description || "");
@@ -290,6 +300,12 @@
       act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
       info.appendChild(h); info.appendChild(meta);
       if (rec.description) { const dp = document.createElement("p"); dp.className = "desc"; dp.textContent = rec.description; info.appendChild(dp); }
+      info.appendChild(Tags.editor({
+        collapsible: true,
+        locked: () => Tags.locked(rec.d.r.map((e) => e.n)),
+        get: () => rec.tags || [],
+        set: (t) => { rec.tags = Tags.clean(t); setTags(rec.name, rec.tags); },
+      }).el);
       info.appendChild(acts);
       li.appendChild(pv); li.appendChild(info);
       ul.appendChild(li);
@@ -314,9 +330,11 @@
     p.className = "meta"; p.textContent = runesLine(item.d) + " · " + Supports.get(item.d.s).label + (item.description ? " · " + item.description : "");
     acts.className = "macts";
     act(acts, "Enregistrer dans mes bindrunes", () => { doImport([item], "ce lien"); box.hidden = true; });
-    act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, d: item.d } })));
+    act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
     act(acts, "Ignorer", () => { box.hidden = true; });
-    body.appendChild(h); body.appendChild(p); body.appendChild(acts);
+    body.appendChild(h); body.appendChild(p);
+    if ((item.tags || []).length) body.appendChild(Tags.chips(Tags.locked(item.d.r.map((e) => e.n)), item.tags));
+    body.appendChild(acts);
     box.appendChild(pv); box.appendChild(body);
   }
 
@@ -344,7 +362,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

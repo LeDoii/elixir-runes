@@ -45,9 +45,9 @@
         h.textContent = it.name; meta.className = "meta"; acts.className = "macts";
         if (it.published) { const b = document.createElement("span"); b.className = "badge pub"; b.textContent = "publiée"; h.appendChild(b); }
         meta.textContent = B.runesLine(it.d) + " · " + Supports.get(it.d.s).label + " · " + new Date(it.updated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-        action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: it.name, description: it.description, d: it.d } })));
+        action(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: it.name, description: it.description, tags: it.tags, d: it.d } })));
         action(acts, "Récupérer ici", () => {
-          const added = B.importItems([{ name: it.name, description: it.description, d: it.d }]);
+          const added = B.importItems([{ name: it.name, description: it.description, tags: it.tags, d: it.d }]);
           say(added.length ? "« " + added[0].name + " » récupérée dans tes bindrunes de ce navigateur." : "Récupération impossible : stockage du navigateur indisponible.");
         });
         action(acts, "Supprimer", async () => {
@@ -59,6 +59,7 @@
         else action(acts, "Publier dans la galerie", () => setPublished(it.id, it.name, true));
         info.appendChild(h); info.appendChild(meta);
         if (it.description) { const dp = document.createElement("p"); dp.className = "desc"; dp.textContent = it.description; info.appendChild(dp); }
+        info.appendChild(Tags.chips(Tags.locked(it.d.r.map((e) => e.n)), it.tags || []));
         info.appendChild(acts);
         li.appendChild(pv); li.appendChild(info); ul.appendChild(li);
       });
@@ -71,7 +72,7 @@
   }
 
   async function send(rec) {
-    return api("/api/my/bindrunes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, description: rec.description || "", d: rec.d }) });
+    return api("/api/my/bindrunes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: rec.name, description: rec.description || "", tags: rec.tags || [], d: rec.d }) });
   }
   async function upload(rec) {
     try {

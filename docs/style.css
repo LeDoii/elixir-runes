@@ -219,3 +219,17 @@ textarea#sv-desc { margin-top: .6rem; }
 
 .pal.taken { opacity: .38; }
 .pal.taken span::after { content: " ✓"; }
+
+/* ---- étiquettes */
+.tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0; }
+.tag { display: inline-flex; align-items: center; gap: .3rem; padding: .08rem .5rem; border-radius: 99px; border: 1px solid var(--warm); background: transparent; color: var(--ink);
+  font-family: ui-monospace, Consolas, monospace; font-size: .66rem; letter-spacing: .04em; line-height: 1.4; }
+.tag.locked { background: rgba(32,32,30,.1); border-color: var(--grey2); color: var(--grey2); }
+.tag.free { border-style: dashed; }
+button.tag { cursor: pointer; }
+button.tag:hover, button.tag:focus-visible { background: rgba(164,85,31,.14); outline: none; }
+.tagx { border: 0; background: none; padding: 0; margin-left: .1rem; cursor: pointer; font-size: .7rem; color: inherit; line-height: 1; }
+.tagctl { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0; }
+.tagctl input, .tagctl select { flex: 1 1 8rem; min-width: 0; }
+.tagbox { margin: .4rem 0; }
+.marquee { fill: rgba(61,92,140,.14); stroke: #3D5C8C; stroke-dasharray: 5 4; stroke-width: 1.4; pointer-events: none; }

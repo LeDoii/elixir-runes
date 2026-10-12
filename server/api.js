@@ -7,6 +7,7 @@ import * as mine from "./mine.js";
 import { handleAdmin } from "./admin.js";
 import { listGallery, getGalleryItem, checkCombo } from "./gallery.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
+import { cleanTags, parseTags } from "./lib/tags.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
 const MAX_BODY = 4096;          // octets : une bindrune de 6 runes en fait moins de 1 500
@@ -21,7 +22,7 @@ async function createCode(request, env) {
   let body;
   try { body = JSON.parse(text); } catch (e) { return json({ error: "JSON invalide." }, 400); }
 
-  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description);
+  const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description), tags = cleanTags(body && body.tags);
   if (!name || !d) return json({ error: "Bindrune invalide." }, 400);
 
   const ip = await ipHash(request, env), now = Date.now();
@@ -32,8 +33,8 @@ async function createCode(request, env) {
   for (let i = 0; i < 5; i++) {                       // collision de code : on retire un autre code
     const code = newCode();
     try {
-      await env.DB.prepare("INSERT INTO shared_bindrunes (code, name, description, data, created_at, ip_hash, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(code, name, description, JSON.stringify(d), now, ip, user ? user.id : null).run();
+      await env.DB.prepare("INSERT INTO shared_bindrunes (code, name, description, tags, data, created_at, ip_hash, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(code, name, description, JSON.stringify(tags), JSON.stringify(d), now, ip, user ? user.id : null).run();
       return json({ code, display: formatCode(code) }, 201);
     } catch (e) {
       if (!/UNIQUE|constraint/i.test(String(e && e.message ? e.message : e))) throw e;
@@ -46,12 +47,12 @@ async function readCode(rawCode, env) {
   if (!env.DB) return noDb();
   const code = normalizeCode(rawCode);
   if (!code) return json({ error: "Code invalide." }, 400);
-  const row = await env.DB.prepare("SELECT name, description, data FROM shared_bindrunes WHERE code = ?").bind(code).first();
+  const row = await env.DB.prepare("SELECT name, description, tags, data FROM shared_bindrunes WHERE code = ?").bind(code).first();
   if (!row) return json({ error: "Code introuvable." }, 404);
   let d;
   try { d = validateBindrune(JSON.parse(row.data)); } catch (e) { d = null; }
   if (!d) return json({ error: "Données illisibles." }, 500);
-  return json({ name: row.name, description: row.description, d }, 200, { "Cache-Control": "public, max-age=300" });   // un code ne change jamais
+  return json({ name: row.name, description: row.description, tags: parseTags(row.tags), d }, 200, { "Cache-Control": "public, max-age=300" });   // un code ne change jamais
 }
 
 export async function handleApi(request, env) {

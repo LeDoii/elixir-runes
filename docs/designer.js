@@ -16,7 +16,8 @@
   const anchors = Bindrunes.anchors;                         // extrémités et angles de chaque rune, sans doublon
 
   const svg = $("dz");
-  let items = [], links = [], selected = null, nextId = 1, snapMark = null, drag = null;
+  let items = [], links = [], nextId = 1, snapMark = null, drag = null, marquee = null;
+  let sel = new Set();                                       // identifiants des runes sélectionnées (une, ou plusieurs avec le cadre de sélection)
   const advanced = () => $("dz-adv").checked;                 // mode avancé : jusqu'à 6 runes, une même rune plusieurs fois
   const maxRunes = () => (advanced() ? 6 : 4);
   const hasDuplicates = () => new Set(items.map((i) => i.name)).size < items.length;
@@ -31,7 +32,7 @@
   function loadState(json) {
     const s = JSON.parse(json);
     items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId);
-    if (!itemById(selected)) selected = null;
+    sel = new Set([...sel].filter((id) => itemById(id)));
     snapMark = null;
   }
   function undo() { if (!past.length) return; future.push(stateJson()); loadState(past.pop()); say("Annulé."); render(); }
@@ -39,6 +40,13 @@
 
   const abs = (it) => anchors(it.name).map((p) => [p[0] + it.x, p[1] + it.y]);
   const itemById = (id) => items.find((i) => i.id === id);
+  const selItems = () => items.filter((i) => sel.has(i.id));
+  /** Les runes sélectionnées et celles qui leur sont liées : ce qui bouge ensemble. */
+  const selMembers = () => {
+    const ids = new Set();
+    selItems().forEach((i) => groupOf(i).forEach((m) => ids.add(m.id)));
+    return items.filter((i) => ids.has(i.id));
+  };
 
   /* ---- ensembles : runes liées par des points d'ancrage de liaison */
   function groupOf(it) {
@@ -139,13 +147,13 @@
     drawCanvas();
     svg.innerHTML = "";
     el("rect", { width: VW, height: VH, fill: "transparent", id: "dz-bg" }, svg);
-    const sel = itemById(selected), grp = sel ? groupOf(sel) : [];
+    const grp = selMembers();
     items.forEach((it) => {
       const gr = el("g", { transform: "translate(" + it.x + " " + it.y + ")", "data-id": it.id, style: "cursor:" + (drag && drag.it === it ? "grabbing" : "grab") }, svg);
       byName(it.name).strokes.forEach((s) => {
         el("polyline", { points: s.pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "transparent", "stroke-width": 34, "pointer-events": "stroke", class: "ui" }, gr);
       });
-      if (it.id === selected) {
+      if (sel.has(it.id)) {
         selectionRect(gr, "#fff", { "stroke-width": 2 });
         selectionRect(gr, "#20201E", { "stroke-width": 1.4, "stroke-dashoffset": 5 });
       } else if (grp.includes(it)) {
@@ -159,12 +167,17 @@
         el("circle", { cx: a[0], cy: a[1], r: isLink ? 7 : 5, fill: isLink ? LINK_COLOR : "#fff", stroke: isLink ? "#fff" : "#20201E", "stroke-width": isLink ? 2.4 : 1.8, class: "ui", "pointer-events": "none" }, gr);
       });
     });
+    if (marquee && marquee.moved) {
+      const m = marqueeRect();
+      el("rect", { x: m[0], y: m[1], width: m[2] - m[0], height: m[3] - m[1], class: "marquee" }, svg);
+    }
     if (snapMark) {
       el("circle", { cx: snapMark[0], cy: snapMark[1], r: 13, fill: "none", stroke: "#fff", "stroke-width": 3, class: "ui", "pointer-events": "none" }, svg);
       el("circle", { cx: snapMark[0], cy: snapMark[1], r: 13, fill: "none", stroke: "#2a140a", "stroke-width": 1.4, class: "ui", "pointer-events": "none" }, svg);
     }
     renderList();
     renderBrings();
+    tagEd.refresh();
     $("dz-count").textContent = "· " + items.length + " / " + maxRunes();
     document.querySelectorAll(".pal").forEach((b) => {
       b.classList.toggle("full", items.length >= maxRunes());
@@ -179,11 +192,11 @@
     if (!items.length) { ul.innerHTML = '<li style="cursor:default;color:var(--grey2);font-style:italic">Aucune rune pour l\'instant.</li>'; return; }
     items.forEach((it) => {
       const li = document.createElement("li"), n = groupOf(it).length;
-      li.setAttribute("aria-current", String(it.id === selected));
+      li.setAttribute("aria-current", String(sel.has(it.id)));
       li.innerHTML = '<i style="background:' + it.color + '"></i><span class="nm">' + it.name + (n > 1 ? "<small>Ensemble de " + n + " runes</small>" : "") + "</span>" +
         '<label><input type="checkbox"' + (it.snap ? " checked" : "") + "> Aimant</label>" +
         '<button class="rm" title="Retirer" aria-label="Retirer ' + it.name + '">✕</button>';
-      li.addEventListener("click", () => { selected = it.id; render(); });
+      li.addEventListener("click", (e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(it.id)) sel.delete(it.id); else sel.add(it.id); } else sel = new Set([it.id]); render(); });
       li.querySelector("label").addEventListener("click", (e) => e.stopPropagation());
       li.querySelector("input").addEventListener("change", (e) => { record(); it.snap = e.target.checked; render(); });
       li.querySelector(".rm").addEventListener("click", (e) => { e.stopPropagation(); remove(it.id); });
@@ -212,14 +225,16 @@
     items.push(it);
     settle([it]);
     snapMark = null;
-    selected = it.id;
+    sel = new Set([it.id]);
     render();
   }
-  function remove(id) {
+  const remove = (id) => removeMany([id]);
+  function removeMany(ids) {
+    if (!ids.length) return;
     record();
-    items = items.filter((i) => i.id !== id);
-    links = links.filter((l) => l.a !== id && l.b !== id);
-    if (selected === id) selected = null;
+    items = items.filter((i) => !ids.includes(i.id));
+    links = links.filter((l) => !ids.includes(l.a) && !ids.includes(l.b));
+    ids.forEach((id) => sel.delete(id));
     say(""); render();
   }
 
@@ -249,19 +264,52 @@
     const r = svg.getBoundingClientRect();
     return [((e.clientX - r.left) / r.width) * VW, ((e.clientY - r.top) / r.height) * VH];
   }
+  /* ---- cadre de sélection : clic gauche maintenu sur le fond de la plaque ; Maj / Ctrl ajoute à la sélection */
+  const marqueeRect = () => [Math.min(marquee.x0, marquee.x1), Math.min(marquee.y0, marquee.y1), Math.max(marquee.x0, marquee.x1), Math.max(marquee.y0, marquee.y1)];
+  /** Une rune est prise si le cadre touche un de ses traits (épaisseur comprise). */
+  function touches(it, [x0, y0, x1, y1]) {
+    const inside = (x, y) => x >= x0 - HW && x <= x1 + HW && y >= y0 - HW && y <= y1 + HW;
+    return byName(it.name).strokes.some((s) => s.pts.some((p, i) => {
+      const a = [p[0] + it.x, p[1] + it.y];
+      if (!i) return inside(a[0], a[1]);
+      const q = s.pts[i - 1], b = [q[0] + it.x, q[1] + it.y], n = Math.max(1, Math.ceil(Math.hypot(a[0] - b[0], a[1] - b[1]) / 5));
+      for (let k = 0; k <= n; k++) if (inside(b[0] + ((a[0] - b[0]) * k) / n, b[1] + ((a[1] - b[1]) * k) / n)) return true;
+      return false;
+    }));
+  }
   svg.addEventListener("pointerdown", (e) => {
+    if (e.button > 0) return;
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const g = e.target.closest("g[data-id]");
-    if (!g || !e.target.classList.contains("ui")) { if (e.target.id === "dz-bg") { selected = null; render(); } return; }
+    if (!g || !e.target.classList.contains("ui")) {
+      if (e.target.id === "dz-bg") {
+        const [px, py] = svgPoint(e);
+        svg.setPointerCapture(e.pointerId);
+        marquee = { x0: px, y0: py, x1: px, y1: py, base: additive ? new Set(sel) : new Set(), cx: e.clientX, cy: e.clientY, moved: false };
+        if (!additive && sel.size) { sel = new Set(); render(); }
+      }
+      return;
+    }
     const it = itemById(Number(g.dataset.id));
     if (!it) return;
+    if (additive) { if (sel.has(it.id)) sel.delete(it.id); else sel.add(it.id); render(); return; }
     items = items.filter((i) => i !== it).concat(it);        // passe au premier plan
-    selected = it.id;
+    if (!sel.has(it.id)) sel = new Set([it.id]);             // une rune de la sélection multiple entraîne les autres
     svg.setPointerCapture(e.pointerId);
-    const members = groupOf(it), [px, py] = svgPoint(e);
+    const members = selMembers(), [px, py] = svgPoint(e);
     drag = { it, members, starts: members.map((m) => [m.x, m.y]), px, py, cx: e.clientX, cy: e.clientY, moved: false, pt: e.target.dataset.pt === undefined ? null : Number(e.target.dataset.pt) };
     render();
   });
   svg.addEventListener("pointermove", (e) => {
+    if (marquee) {
+      if (!marquee.moved && Math.hypot(e.clientX - marquee.cx, e.clientY - marquee.cy) < 4) return;
+      marquee.moved = true;
+      [marquee.x1, marquee.y1] = svgPoint(e);
+      const r = marqueeRect();
+      sel = new Set([...marquee.base, ...items.filter((it) => touches(it, r)).map((it) => it.id)]);
+      render();
+      return;
+    }
     if (!drag) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) < 4) return;   // un simple clic ne déplace rien
     if (!drag.moved) record();                               // un déplacement = une seule étape d'historique
@@ -272,9 +320,17 @@
     render();
   });
   const endDrag = (e) => {
+    if (marquee) {
+      const was = marquee.moved;
+      marquee = null;
+      if (was) say(sel.size > 1 ? sel.size + " runes sélectionnées : glisse l'une d'elles pour les déplacer ensemble, Suppr pour les retirer." : sel.size ? "" : "Aucune rune dans le cadre.");
+      render();
+      return;
+    }
     if (!drag) return;
     const d = drag;
     drag = null; snapMark = null;
+    if (!d.moved && d.pt === null && sel.size > 1) sel = new Set([d.it.id]);   // simple clic sur une rune : elle seule reste sélectionnée
     if (!d.moved && d.pt !== null && e.type === "pointerup") clickAnchor(d.it, d.pt);
     else render();
   };
@@ -282,24 +338,24 @@
   svg.addEventListener("pointercancel", endDrag);
 
   window.addEventListener("keydown", (e) => {
-    if ($("design").hidden || selected === null) return;
+    if ($("design").hidden || !sel.size) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
-    const it = itemById(selected);
-    if (!it) return;
+    const members = selMembers();
+    if (!members.length) return;
     const step = e.shiftKey ? 10 : 1;
     const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
-    if (mv) { e.preventDefault(); if (!nudgeTimer) record(); clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 500); const g = groupOf(it); g.forEach((m) => { m.x += mv[0]; m.y += mv[1]; }); fit(g); render(); }
-    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); remove(it.id); }
+    if (mv) { e.preventDefault(); if (!nudgeTimer) record(); clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 500); members.forEach((m) => { m.x += mv[0]; m.y += mv[1]; }); fit(members); render(); }
+    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeMany([...sel]); }
+    else if (e.key === "Escape") { sel = new Set(); render(); }
   });
 
   /* ---- centrage : la sélection (rune ou ensemble) ou toute la composition */
   $("dz-center").addEventListener("click", () => {
-    const it = itemById(selected);
-    if (!it) { say("Sélectionne d'abord une rune."); return; }
+    const g = selMembers();
+    if (!g.length) { say("Sélectionne d'abord une rune."); return; }
     record();
-    const g = groupOf(it);
     centerOn(g); fit(g);
-    say(g.length > 1 ? "Ensemble de " + g.length + " runes centré." : "« " + it.name + " » centrée.");
+    say(g.length > 1 ? (sel.size > 1 ? "Sélection de " + g.length + " runes centrée." : "Ensemble de " + g.length + " runes centré.") : "« " + g[0].name + " » centrée.");
     render();
   });
   $("dz-center-all").addEventListener("click", () => {
@@ -366,12 +422,13 @@
     }
     say(""); render();
   });
-  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record(); items = []; links = []; selected = null; say(""); render(); });
+  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record(); items = []; links = []; sel = new Set(); say(""); render(); });
   $("dz-undo").addEventListener("click", undo);
   $("dz-redo").addEventListener("click", redo);
   window.addEventListener("keydown", (e) => {                // Ctrl+Z / Ctrl+Y (Ctrl+Maj+Z) dans le concepteur
     if ($("design").hidden || (e.target.matches && e.target.matches("input, select, textarea"))) return;
     const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === "a") { e.preventDefault(); sel = new Set(items.map((i) => i.id)); say(items.length > 1 ? "Toutes les runes sont sélectionnées." : ""); render(); return; }
     if ((e.ctrlKey || e.metaKey) && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
     else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
   });
@@ -404,6 +461,7 @@
       const r = byName(it.name), d = document.createElement("div");
       d.className = "bring";
       d.innerHTML = '<h4><i style="background:' + it.color + '"></i>' + r.name + "</h4>" +
+        "<h5>Étiquettes</h5>" + Tags.locked([it.name]).map((t) => '<span class="tag locked">' + Tags.label(t) + "</span>").join(" ") +
         "<h5>Sens</h5><ul>" + r.sens.map((t) => "<li>" + t + "</li>").join("") + "</ul>" +
         "<h5>Traits</h5><ul>" + r.strokes.map((s) => "<li>" + s.name + "</li>").join("") + "</ul>";
       box.appendChild(d);
@@ -411,6 +469,9 @@
   }
 
   /* ---- enregistrement : liste, renommage, partage et import se gèrent dans l'onglet « Mes bindrunes » */
+  let svTags = [];                                           // étiquettes choisies (les verrouillées se déduisent des runes posées)
+  const tagEd = Tags.editor({ locked: () => Tags.locked(items.map((i) => i.name)), get: () => svTags, set: (t) => { svTags = Tags.clean(t); } });
+  $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
   const snapshot = () => ({
     r: items.map((i) => ({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color })),
@@ -424,15 +485,15 @@
     items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, snap: e.m !== 0, color: e.c }));
     links = (d.l || []).map(([i, j, pa, pb]) => ({ a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
-    selected = null; snapMark = null;
+    sel = new Set(); snapMark = null;
     $("dz-adv").checked = items.length > 4 || hasDuplicates();
     $("dz-strata").checked = d.t === 1;
     Supports.set(d.s);
     say(""); render();
     return true;
   }
-  function openSaved(name, d, description) {
-    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svmsg("« " + name + " » ouverte."); window.showTab("design"); }
+  function openSaved(name, d, description, tags) {
+    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.clean(tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
   function refreshOpen() {
     const sel = $("dz-open");
@@ -442,10 +503,10 @@
   Bindrunes.onChange(refreshOpen); refreshOpen();
   $("dz-open").addEventListener("change", (e) => {
     const rec = Bindrunes.get(e.target.value);
-    if (rec) openSaved(rec.name, rec.d, rec.description);
+    if (rec) openSaved(rec.name, rec.d, rec.description, rec.tags);
     e.target.value = "";
   });
-  window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d, e.detail.description));
+  window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d, e.detail.description, e.detail.tags));
   $("sv-manage").addEventListener("click", () => window.showTab("mine"));
   $("sv-save").addEventListener("click", () => {
     const name = Bindrunes.cleanName($("sv-name").value);
@@ -453,7 +514,7 @@
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
     const old = Bindrunes.get(name);
     if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
-    if (!Bindrunes.save(name, snapshot(), $("sv-desc").value)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
+    if (!Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
     const done = "« " + name + " » enregistrée (onglet « Mes bindrunes »).";
     svmsg(done);
     Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("sv-msg").textContent === done) svmsg(done + " " + t); });
@@ -461,5 +522,5 @@
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });
 
   render();
-  window.__designer = { undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
+  window.__designer = { getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
 })();

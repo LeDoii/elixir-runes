@@ -3,6 +3,7 @@ import { privateJson } from "./lib/http.js";
 import { sessionUser, isAdmin, sameOrigin } from "./lib/auth.js";
 import { validateBindrune } from "./lib/validate.js";
 import { like, intParam } from "./lib/sql.js";
+import { parseTags } from "./lib/tags.js";
 
 const PAGE = 30;
 const EXPORT_MAX = 5000;
@@ -25,8 +26,8 @@ async function logAction(env, admin, action, target, detail) {
 }
 
 /* ---------------------------------------------------------------- bindrunes (comptes et codes courts) */
-const UNION = "SELECT 'account' AS source, id, name, description, published, data, user_id, created_at, updated_at AS at FROM bindrunes " +
-  "UNION ALL SELECT 'code' AS source, code AS id, name, description, 0 AS published, data, user_id, created_at, created_at AS at FROM shared_bindrunes";
+const UNION = "SELECT 'account' AS source, id, name, description, tags, published, data, user_id, created_at, updated_at AS at FROM bindrunes " +
+  "UNION ALL SELECT 'code' AS source, code AS id, name, description, tags, 0 AS published, data, user_id, created_at, created_at AS at FROM shared_bindrunes";
 const FROM = " FROM (" + UNION + ") x LEFT JOIN users u ON u.id = x.user_id";
 
 function filters(q) {
@@ -48,7 +49,7 @@ function shape(r) {
   let d = null;
   try { d = validateBindrune(JSON.parse(r.data)); } catch (e) { /* ligne illisible : affichée sans aperçu */ }
   return {
-    source: r.source, id: r.id, name: r.name, description: r.description, published: !!r.published, d, created_at: r.created_at, at: r.at,
+    source: r.source, id: r.id, name: r.name, description: r.description, tags: parseTags(r.tags), published: !!r.published, d, created_at: r.created_at, at: r.at,
     user: r.user_id ? { id: r.user_id, name: r.global_name || r.username || null } : null,
   };
 }
