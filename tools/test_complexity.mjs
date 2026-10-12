@@ -17,7 +17,7 @@ check("le score reste entre 0 et 100", [one, six].every((r) => r.score >= 0 && r
 check("chaque élément respecte son maximum", six.parts.every((p) => p.pts >= 0 && p.pts <= p.max) && six.parts.reduce((a, p) => a + p.max, 0) === 100);
 check("le score est la somme des éléments", six.score === six.parts.reduce((a, p) => a + p.pts, 0));
 const calm = C.rate(plate("Gebo", "Mannaz")), clash = C.rate(plate("Isa", "Raidho"));
-check("sens opposés : points ajoutés et oppositions listées", clash.parts[4].pts === 16 && clash.oppositions.length === 2 && calm.parts[4].pts === 0);
+check("sens opposés : points ajoutés et oppositions listées", clash.parts[4].pts === 8 && clash.oppositions.length === 1 && calm.parts[4].pts === 0);
 const noClash = C.rate(plate("Isa", { n: "Raidho", t: [2] }));
 check("décocher le sens qui s'oppose retire l'opposition", noClash.oppositions.length === 0 && noClash.score < clash.score);
 const dup = C.rate(plate("Isa", "Isa"));

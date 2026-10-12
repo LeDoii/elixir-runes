@@ -338,15 +338,20 @@
   svg.addEventListener("pointercancel", endDrag);
 
   window.addEventListener("keydown", (e) => {
-    if ($("design").hidden || !sel.size) return;
+    if ($("design").hidden) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
+    if (e.key === "Escape") {                                // Échap : désélectionne d'abord, puis quitte le mode étendu
+      if (sel.size) { sel = new Set(); render(); } else if (expanded) setExpanded(false);
+      return;
+    }
+    if (!sel.size) return;
     const members = selMembers();
     if (!members.length) return;
     const step = e.shiftKey ? 10 : 1;
     const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
     if (mv) { e.preventDefault(); if (!nudgeTimer) record(); clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 500); members.forEach((m) => { m.x += mv[0]; m.y += mv[1]; }); fit(members); render(); }
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeMany([...sel]); }
-    else if (e.key === "Escape") { sel = new Set(); render(); }
+
   });
 
   /* ---- centrage : la sélection (rune ou ensemble) ou toute la composition */
@@ -433,6 +438,19 @@
     else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
   });
 
+  /* ---- mode étendu : la conception occupe toute la fenêtre, plaque agrandie (Échap pour en sortir) */
+  let expanded = false;
+  function setExpanded(on) {
+    expanded = on;
+    $("design").classList.toggle("expanded", on);
+    document.body.style.overflow = on ? "hidden" : "";
+    $("dz-expand").textContent = on ? "Quitter le mode étendu" : "Mode étendu";
+    $("dz-expand").setAttribute("aria-pressed", String(on));
+    if (on) $("design").scrollTop = 0;
+  }
+  $("dz-expand").addEventListener("click", () => setExpanded(!expanded));
+  window.addEventListener("hashchange", () => { if (expanded && $("design").hidden) setExpanded(false); });
+
   /* ---- export PNG : la composition est d'abord centrée ; le canevas seul (pas d'ancrages ni de sélection) */
   $("dz-export").addEventListener("click", () => {
     if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
@@ -463,7 +481,8 @@
       d.className = "bring";
       d.innerHTML = '<h4><i style="background:' + it.color + '"></i>' + r.name + "</h4>" +
         "<h5>Sens (coche ceux que la bindrune garde)</h5><ul class=\"sens\">" + r.sens.map((t, i) =>
-          '<li><label><input type="checkbox" data-i="' + i + '"' + (kept.includes(i) ? " checked" : "") + '> <span class="tag locked">' + Tags.label(Tags.norm(Tags.RUNE_TAGS[r.name][i])) + "</span> " + t + "</label></li>").join("") + "</ul>" +
+          '<li><label><input type="checkbox" data-i="' + i + '"' + (Tags.RUNE_TAGS[r.name][i].length ? (kept.includes(i) ? " checked" : "") : " disabled") + '> ' +
+          (Tags.RUNE_TAGS[r.name][i].length ? Tags.RUNE_TAGS[r.name][i].map((x) => '<span class="tag locked">' + Tags.label(Tags.norm(x)) + "</span>").join(" ") : '<span class="hint">(sans étiquette)</span>') + " " + t + "</label></li>").join("") + "</ul>" +
         "<h5>Traits</h5><ul>" + r.strokes.map((s) => "<li>" + s.name + "</li>").join("") + "</ul>";
       d.querySelectorAll("input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => {
         const i = Number(cb.dataset.i), next = cb.checked ? kept.concat(i).sort((x, y) => x - y) : kept.filter((k) => k !== i);
@@ -484,7 +503,7 @@
     const c = Complexity.rate(platesD());
     box.innerHTML = '<p class="cplx-head"><strong>' + c.level + "</strong> · " + c.score + ' / 100</p><div class="cplx-bar"><i style="width:' + c.score + '%"></i></div><ul>' +
       c.parts.map((p) => "<li><span>" + p.label + " <small>(" + p.detail + ")</small></span><b>" + p.pts + " / " + p.max + "</b></li>").join("") + "</ul>" +
-      (c.oppositions.length ? '<p class="hint">Sens qui s\'opposent : ' + c.oppositions.map((o) => o.runes[0] + " (" + Tags.label(o.tags[0]) + ") et " + o.runes[1] + " (" + Tags.label(o.tags[1]) + ")").join(" ; ") + ".</p>" : "") +
+      (c.oppositions.length ? '<p class="hint">Sens qui s\'opposent : ' + c.oppositions.map((o) => o.runes[0] + " (" + Tags.label(o.tags[0]) + ") et " + o.runes[1] + " (" + Tags.label(o.tags[1]) + ") : " + o.families[0] + " contre " + o.families[1]).join(" ; ") + ".</p>" : "") +
       '<p class="hint">Évaluation du site (nombre de runes, difficulté de tracé, traits, répétitions, sens opposés) : un repère pour comparer, pas une règle du livre.</p>';
   }
 
@@ -544,5 +563,5 @@
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });
 
   render();
-  window.__designer = { getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
+  window.__designer = { setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
 })();

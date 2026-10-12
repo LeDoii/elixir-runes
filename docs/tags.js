@@ -1,11 +1,12 @@
 /* Étiquettes des bindrunes.
  *
- * - Étiquettes des runes (RUNE_TAGS) : une par sens du Chapitre 7, dans l'ordre des sens de la rune (data.js). Quand deux sens
- *   disent la même chose, ils partagent le même mot. Le choix des mots est une lecture du livre (à valider).
+ * - Étiquettes des runes (RUNE_TAGS) : pour chaque sens du Chapitre 7, dans l'ordre des sens de la rune (data.js), la liste de ses
+ *   étiquettes (vide si le sens n'en a pas). Choix de l'utilisateur ; les synonymes sont conservés.
  * - Dans une bindrune, chaque rune garde tout ou partie de ses sens (champ « t » de la rune : indices des sens gardés ; absent = tous).
  *   Les étiquettes gardées ne sont pas modifiables à la main : on les coche ou décoche par rune.
  * - Étiquettes ajoutées : choisies dans la même liste (VOCAB) ou libres (2 à 20 caractères), MAX_TAGS au plus.
- * - DISSONANT : couples d'étiquettes qui s'opposent dans les sens du livre (sert à l'évaluation de la complexité ; à valider).
+ * - FAMILIES / OPPOSED : chaque étiquette est rattachée à une famille de sens ; certaines familles s'opposent (sert à l'évaluation
+ *   de la complexité ; à valider).
  *
  * Les étiquettes enregistrées sont normalisées : minuscules, sans ponctuation autre que - et '.
  * À garder identique à server/lib/tags.js (test de parité : tools/test_tags.mjs). */
@@ -16,22 +17,60 @@
   const MAX_TAGS = 6, MIN_LEN = 2, MAX_LEN = 20;
 
   const RUNE_TAGS = {
-  Fehu: ["Abondance", "Maîtrise", "Partage", "Cupidité"], Uruz: ["Vitalité", "Santé"], Thurisaz: ["Thor", "Défense"],
-  Ansuz: ["Parole", "Écoute", "Communication"], Raidho: ["Mouvement", "Voyage", "Cycles"], Kenaz: ["Connaissance", "Lumière"],
-  Gebo: ["Échange", "Don", "Équilibre"], Wunjo: ["Joie", "Accomplissement"], Hagalaz: ["Destruction", "Transformation"],
-  Nauthiz: ["Contrainte", "Épreuve"], Isa: ["Immobilité", "Patience"], Jera: ["Cycles", "Récompense", "Temps"],
-  Eihwaz: ["Renaissance", "Transformation"], Perthro: ["Mystère", "Hasard"], Algiz: ["Protection", "Élan", "Défense", "Divin"],
-  Sowilo: ["Victoire", "Lumière"], Tiwaz: ["Justice", "Honneur"], Berkano: ["Renaissance", "Croissance"], Ehwaz: ["Partenariat", "Progrès"],
-  Mannaz: ["Humanité", "Collaboration"], Laguz: ["Eau", "Intuition"], Ingwaz: ["Fertilité", "Potentiel"], Dagaz: ["Éveil", "Nouveau départ"],
-  Othala: ["Héritage", "Transmission"],
+    Fehu: [["Abondance"], ["Maîtrise"], ["Partage"], ["Cupidité"]],
+    Uruz: [["Force vitale", "Endurance"], ["Santé"]],
+    Thurisaz: [[], ["Force de défense", "Dissipation"]],
+    Ansuz: [["Parole", "Expression"], ["Écoute"], ["Communication", "Sagesse"]],
+    Raidho: [["Mouvement", "Rythme"], ["Voyage"], ["Ordre cosmique", "Cycle naturel"]],
+    Kenaz: [["Connaissance", "Révélation", "Créativité"], ["Feu", "Lumière"]],
+    Gebo: [["Don", "Échange", "Partenariat"], [], ["Équilibre"]],
+    Wunjo: [["Joie", "Bonheur", "Harmonie"], ["Réalisation", "Satisfaction", "Partage"]],
+    Hagalaz: [["Grêle", "Force destructrice", "Bouleversement"], ["Transformation", "Changement"]],
+    Nauthiz: [["Contrainte", "Nécessité"], ["Épreuve", "Limitation", "Croissance"]],
+    Isa: [["Glace", "Immobilité", "Gel", "Stagnation"], ["Patience", "Réflexion"]],
+    Jera: [["Cycle des saisons", "Récolte"], ["Récompense"], ["Temps"]],
+    Eihwaz: [["Renaissance", "Mort"], ["Transformation", "Continuité", "Lien inter-mondes"]],
+    Perthro: [["Mystère", "Destin"], ["Hasard", "Secret", "Opportunité"]],
+    Algiz: [["Protection"], [], ["Défense"], ["Énergie divine"]],
+    Sowilo: [["Énergie solaire", "Victoire", "Clarté"], ["Lumière", "Succès", "Guidance"]],
+    Tiwaz: [["Justice", "Courage", "Sacrifice"], ["Honneur", "Leadership"]],
+    Berkano: [["Renaissance", "Fertilité"], ["Croissance", "Famille", "Nouveau départ", "Guérison", "Prospérité"]],
+    Ehwaz: [["Partenariat", "Confiance mutuelle"], ["Mouvement", "Progrès", "Coopération"]],
+    Mannaz: [["Humanité", "Soi"], ["Collaboration", "Conscience de soi", "Relation sociale"]],
+    Laguz: [["Eau", "Source de vie", "Inconscient"], ["Intuition", "Émotion", "Flux", "Énergie vitale"]],
+    Ingwaz: [["Fertilité", "Paix", "Abondance"], ["Potentiel", "Réalisation", "Plénitude"]],
+    Dagaz: [["Jour", "Aube", "Transformation", "Éveil"], ["Nouveau départ", "Prospérité", "Accomplissement"]],
+    Othala: [["Héritage", "Possession familiale", "Tradition"], ["Transmission", "Savoir", "Identité culturelle", "Origine"]],
   };
-  const DISSONANT = [
-  ["Cupidité", "Partage"], ["Cupidité", "Don"], ["Cupidité", "Honneur"], ["Cupidité", "Justice"],
-  ["Immobilité", "Mouvement"], ["Immobilité", "Voyage"], ["Immobilité", "Progrès"], ["Immobilité", "Élan"], ["Immobilité", "Transformation"], ["Immobilité", "Croissance"], ["Immobilité", "Éveil"],
-  ["Destruction", "Protection"], ["Destruction", "Santé"], ["Destruction", "Croissance"], ["Destruction", "Fertilité"], ["Destruction", "Héritage"], ["Destruction", "Équilibre"], ["Destruction", "Vitalité"],
-  ["Contrainte", "Mouvement"], ["Contrainte", "Voyage"], ["Épreuve", "Joie"],
-  ["Hasard", "Maîtrise"], ["Mystère", "Connaissance"], ["Patience", "Élan"], ["Transformation", "Héritage"],
-];
+  /** Familles de sens : chaque étiquette est rattachée à la famille la plus proche. */
+  const FAMILIES = {
+    "Abondance": ["Abondance", "Prospérité", "Récolte", "Potentiel", "Plénitude"],
+    "Cupidité": ["Cupidité"],
+    "Union": ["Partage", "Don", "Échange", "Partenariat", "Confiance mutuelle", "Coopération", "Collaboration", "Relation sociale", "Humanité", "Famille", "Soi", "Conscience de soi"],
+    "Maîtrise": ["Maîtrise", "Ordre cosmique", "Leadership", "Guidance"],
+    "Justice": ["Justice", "Honneur", "Courage", "Sacrifice"],
+    "Vitalité": ["Force vitale", "Endurance", "Santé", "Guérison", "Source de vie", "Énergie vitale", "Fertilité", "Croissance", "Renaissance"],
+    "Protection": ["Protection", "Défense", "Force de défense", "Dissipation"],
+    "Destruction": ["Force destructrice", "Grêle", "Bouleversement", "Mort"],
+    "Renouveau": ["Transformation", "Changement", "Nouveau départ", "Aube", "Éveil", "Jour"],
+    "Mouvement": ["Voyage", "Mouvement", "Rythme", "Flux"],
+    "Cycle": ["Cycle des saisons", "Cycle naturel", "Continuité"],
+    "Élan": ["Progrès"],
+    "Immobilité": ["Immobilité", "Glace", "Gel", "Stagnation"],
+    "Patience": ["Patience", "Temps", "Réflexion"],
+    "Épreuve": ["Épreuve", "Contrainte", "Nécessité", "Limitation"],
+    "Harmonie": ["Harmonie", "Équilibre", "Joie", "Bonheur", "Satisfaction", "Paix"],
+    "Accomplissement": ["Accomplissement", "Réalisation", "Victoire", "Succès", "Récompense"],
+    "Lumière": ["Lumière", "Feu", "Énergie solaire", "Clarté", "Révélation"],
+    "Connaissance": ["Connaissance", "Savoir", "Sagesse", "Créativité", "Transmission", "Écoute"],
+    "Communication": ["Parole", "Expression", "Communication"],
+    "Mystère": ["Mystère", "Secret", "Destin", "Hasard", "Opportunité", "Inconscient"],
+    "Intuition": ["Intuition", "Émotion", "Eau"],
+    "Spirituel": ["Énergie divine", "Lien inter-mondes"],
+    "Héritage": ["Héritage", "Tradition", "Possession familiale", "Origine", "Identité culturelle"],
+  };
+  /** Familles qui s'opposent (évaluation de la complexité). */
+  const OPPOSED = [["Cupidité", "Union"], ["Cupidité", "Justice"], ["Immobilité", "Mouvement"], ["Immobilité", "Élan"], ["Immobilité", "Renouveau"], ["Immobilité", "Vitalité"], ["Destruction", "Protection"], ["Destruction", "Vitalité"], ["Destruction", "Harmonie"], ["Destruction", "Héritage"], ["Épreuve", "Harmonie"], ["Épreuve", "Mouvement"], ["Mystère", "Maîtrise"], ["Mystère", "Connaissance"], ["Patience", "Élan"], ["Renouveau", "Héritage"]];
 
   /** « Épreuve  ! » → « épreuve » ; "" si l'étiquette est trop courte. */
   function norm(s) {
@@ -47,7 +86,7 @@
   }
   const label = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
   /** Liste des étiquettes proposées : toutes celles des runes, sans doublon, par ordre alphabétique. */
-  const VOCAB = Array.from(new Set([].concat(...Object.values(RUNE_TAGS)))).sort((x, y) => x.localeCompare(y, "fr"));
+  const VOCAB = Array.from(new Set([].concat(...Object.values(RUNE_TAGS).map((l) => [].concat(...l))))).sort((x, y) => x.localeCompare(y, "fr"));
   const IMPOSED = new Set(VOCAB.map(norm));
   const isImposed = (t) => IMPOSED.has(t);
 
@@ -59,23 +98,34 @@
   /** Étiquettes des runes d'une bindrune d = { r: [{ n, t }] } : celles des sens gardés, sans doublon, dans l'ordre des runes. */
   function derive(d) {
     const out = [];
-    ((d && d.r) || []).forEach((r) => keptIndexes(r).forEach((i) => { const k = norm(RUNE_TAGS[r.n][i]); if (!out.includes(k)) out.push(k); }));
+    ((d && d.r) || []).forEach((r) => keptIndexes(r).forEach((i) => RUNE_TAGS[r.n][i].forEach((t) => { const k = norm(t); if (!out.includes(k)) out.push(k); })));
     return out;
   }
   /** Toutes les étiquettes d'une bindrune : celles de ses runes, puis celles qui ont été ajoutées. */
   const all = (d, extra) => { const base = derive(d); return base.concat(clean(extra).filter((t) => !base.includes(t))); };
   /** Étiquettes ajoutées : une liste complète (comme la renvoie le serveur) privée de celles qui viennent des runes. */
   const extras = (d, list) => { const base = derive(d); return clean(list, 60).filter((t) => !base.includes(t)).slice(0, MAX_TAGS); };
-  /** Couples d'étiquettes opposées entre runes différentes (une étiquette partagée par les deux runes ne compte pas). */
+  const FAMILY_OF = {};
+  Object.keys(FAMILIES).forEach((f) => FAMILIES[f].forEach((t) => { FAMILY_OF[norm(t)] = f; }));
+  /** Famille de sens d'une étiquette (normalisée) ; undefined pour une étiquette libre. */
+  const familyOf = (t) => FAMILY_OF[t];
+  /**
+   * Oppositions entre runes différentes : une famille d'une rune contre la famille opposée d'une autre (OPPOSED).
+   * Chaque opposition compte une fois par couple de familles et par couple de runes, quel que soit le nombre de mots.
+   */
   function dissonances(d) {
-    const per = ((d && d.r) || []).map((r) => keptIndexes(r).map((i) => norm(RUNE_TAGS[r.n][i])));
-    const found = [], seen = new Set();
-    DISSONANT.forEach(([x, y]) => {
-      const a = norm(x), b = norm(y);
+    const runes = (d && d.r) || [];
+    const per = runes.map((r) => {
+      const byFam = {};
+      keptIndexes(r).forEach((i) => RUNE_TAGS[r.n][i].forEach((t) => { const f = FAMILY_OF[norm(t)]; if (f && !byFam[f]) byFam[f] = norm(t); }));
+      return byFam;
+    });
+    const found = [];
+    OPPOSED.forEach(([x, y]) => {
       for (let i = 0; i < per.length; i++) for (let j = 0; j < per.length; j++) {
-        if (i === j || !per[i].includes(a) || !per[j].includes(b)) continue;
-        const key = [a, b].join("|") + "#" + Math.min(i, j) + "," + Math.max(i, j);
-        if (!seen.has(key)) { seen.add(key); found.push({ tags: [a, b], runes: [d.r[i].n, d.r[j].n] }); }
+        if (i === j || !per[i][x] || !per[j][y]) continue;
+        if (found.some((o) => o.families[0] === x && o.families[1] === y && o.ij[0] === Math.min(i, j) && o.ij[1] === Math.max(i, j))) continue;
+        found.push({ families: [x, y], tags: [per[i][x], per[j][y]], runes: [runes[i].n, runes[j].n], ij: [Math.min(i, j), Math.max(i, j)] });
       }
     });
     return found;
@@ -163,5 +213,5 @@
     return { el: box, refresh: () => draw(false) };
   }
 
-  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, DISSONANT, norm, clean, label, isImposed, keptIndexes, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
+  return { MAX_TAGS, MAX_LEN, VOCAB, RUNE_TAGS, FAMILIES, OPPOSED, familyOf, norm, clean, label, isImposed, keptIndexes, derive, all, extras, dissonances, locked: derive, chip, chips, editor };
 });

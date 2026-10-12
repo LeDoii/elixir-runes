@@ -1,0 +1,495 @@
+{
+ "Fehu": [
+  {
+   "sens": "Fehu symbolise l'abondance et la richesse sous la forme du bétail.",
+   "garde": true,
+   "etiquette": "Abondance",
+   "ajouts": []
+  },
+  {
+   "sens": "Le contrôle de la nature que cela implique.",
+   "garde": true,
+   "etiquette": "Maîtrise",
+   "ajouts": []
+  },
+  {
+   "sens": "Cette richesse doit être partagée pour être prospère.",
+   "garde": true,
+   "etiquette": "Partage",
+   "ajouts": []
+  },
+  {
+   "sens": "Sans quoi elle suscitera cupidité et envie.",
+   "garde": true,
+   "etiquette": "Cupidité",
+   "ajouts": []
+  }
+ ],
+ "Uruz": [
+  {
+   "sens": "Symbolisant la force vitale et l'endurance.",
+   "garde": true,
+   "etiquette": "Force vitale",
+   "ajouts": [
+    "Endurance"
+   ]
+  },
+  {
+   "sens": "Uruz aide à revitaliser le corps et à renforcer le système immunitaire.",
+   "garde": true,
+   "etiquette": "Santé",
+   "ajouts": []
+  }
+ ],
+ "Thurisaz": [
+  {
+   "sens": "Associée au marteau de Thor.",
+   "garde": false,
+   "etiquette": "Thor",
+   "ajouts": []
+  },
+  {
+   "sens": "Cette rune invoque une force puissante pour repousser les menaces et dissiper les obstacles.",
+   "garde": true,
+   "etiquette": "Force de défense",
+   "ajouts": [
+    "Dissipation d'obstacle"
+   ]
+  }
+ ],
+ "Ansuz": [
+  {
+   "sens": "Ansuz symbolise le pouvoir de la parole et de l'expression.",
+   "garde": true,
+   "etiquette": "Parole",
+   "ajouts": [
+    "Expression"
+   ]
+  },
+  {
+   "sens": "Elle invite à être attentif aux messages, aux signes et aux enseignements qui se présentent.",
+   "garde": true,
+   "etiquette": "Écoute",
+   "ajouts": []
+  },
+  {
+   "sens": "Elle invite à communiquer avec clarté et sagesse.",
+   "garde": true,
+   "etiquette": "Communication",
+   "ajouts": [
+    "Sagesse"
+   ]
+  }
+ ],
+ "Raidho": [
+  {
+   "sens": "Raidho est liée au voyage, au mouvement et au rythme.",
+   "garde": true,
+   "etiquette": "Voyage",
+   "ajouts": [
+    "Mouvement",
+    "Rythme"
+   ]
+  },
+  {
+   "sens": "Elle représente le voyage physique ou spirituel.",
+   "garde": true,
+   "etiquette": "Voyage",
+   "ajouts": []
+  },
+  {
+   "sens": "L'ordre cosmique et les cycles naturels.",
+   "garde": true,
+   "etiquette": "Ordre cosmique",
+   "ajouts": [
+    "Cycle naturel"
+   ]
+  }
+ ],
+ "Kenaz": [
+  {
+   "sens": "Kenaz est la rune de la connaissance, de la révélation et de la créativité.",
+   "garde": true,
+   "etiquette": "Connaissance",
+   "ajouts": [
+    "Révélation",
+    "Créativité"
+   ]
+  },
+  {
+   "sens": "Elle est souvent associée à la torche ou au feu, symbolisant la lumière qui dissipe les ténèbres de l'ignorance.",
+   "garde": true,
+   "etiquette": "Feu",
+   "ajouts": [
+    "Lumière"
+   ]
+  }
+ ],
+ "Gebo": [
+  {
+   "sens": "Gebo symbolise le don, l'échange et le partenariat.",
+   "garde": true,
+   "etiquette": "Don",
+   "ajouts": [
+    "Échange",
+    "Partenariat"
+   ]
+  },
+  {
+   "sens": "Elle représente le cadeau, qu'il soit matériel ou spirituel.",
+   "garde": false,
+   "etiquette": "",
+   "ajouts": []
+  },
+  {
+   "sens": "Elle souligne l'importance de l'équilibre entre donner et recevoir.",
+   "garde": true,
+   "etiquette": "Équilibre",
+   "ajouts": []
+  }
+ ],
+ "Wunjo": [
+  {
+   "sens": "La joie, le bonheur et l'harmonie.",
+   "garde": true,
+   "etiquette": "Joie",
+   "ajouts": [
+    "Bonheur",
+    "Harmonie"
+   ]
+  },
+  {
+   "sens": "Elle est le signe des réalisations, de la satisfaction et des moments de bonheur partagé.",
+   "garde": true,
+   "etiquette": "Réalisation",
+   "ajouts": [
+    "Satisfaction",
+    "Partage"
+   ]
+  }
+ ],
+ "Hagalaz": [
+  {
+   "sens": "Hagalaz représente la grêle, symbolisant les forces naturelles destructrices et les bouleversements inattendus.",
+   "garde": true,
+   "etiquette": "Grêle",
+   "ajouts": [
+    "Force naturelle destructrice",
+    "Bouversement innattendu"
+   ]
+  },
+  {
+   "sens": "Cette rune évoque les crises nécessaires pour provoquer des changements et des transformations profondes.",
+   "garde": true,
+   "etiquette": "Transformation profonde",
+   "ajouts": [
+    "Changement"
+   ]
+  }
+ ],
+ "Nauthiz": [
+  {
+   "sens": "Nauthiz incarne la contrainte et la nécessité.",
+   "garde": true,
+   "etiquette": "Contrainte",
+   "ajouts": [
+    "nécessité"
+   ]
+  },
+  {
+   "sens": "Elle reflète les épreuves et les limitations qui, bien que difficiles, encouragent la croissance personnelle et la résilience face aux défis.",
+   "garde": true,
+   "etiquette": "Épreuve",
+   "ajouts": [
+    "Limitation",
+    "Croissance personnelle"
+   ]
+  }
+ ],
+ "Isa": [
+  {
+   "sens": "Isa symbolise la glace, représentant l'immobilité, le gel et la stagnation.",
+   "garde": true,
+   "etiquette": "Glace",
+   "ajouts": [
+    "Immobilité",
+    "Gel",
+    "Stagnation"
+   ]
+  },
+  {
+   "sens": "Cette rune invite à la patience et à la réflexion, suggérant que parfois, l'inaction est la meilleure approche.",
+   "garde": true,
+   "etiquette": "Patience",
+   "ajouts": [
+    "Réflexion"
+   ]
+  }
+ ],
+ "Jera": [
+  {
+   "sens": "Jera est associée au cycle des saisons et à la récolte.",
+   "garde": true,
+   "etiquette": "Cycles des saisons",
+   "ajouts": [
+    "Récolte"
+   ]
+  },
+  {
+   "sens": "Elle symbolise les récompenses obtenues grâce aux efforts passés.",
+   "garde": true,
+   "etiquette": "Récompense",
+   "ajouts": []
+  },
+  {
+   "sens": "Elle rappelle que chaque chose arrive en son temps.",
+   "garde": true,
+   "etiquette": "Temps",
+   "ajouts": []
+  }
+ ],
+ "Eihwaz": [
+  {
+   "sens": "Eihwaz représente l'arbre d'if, symbole de la mort et de la renaissance.",
+   "garde": true,
+   "etiquette": "Renaissance",
+   "ajouts": [
+    "Mort"
+   ]
+  },
+  {
+   "sens": "Cette rune évoque la transformation, la continuité et la connexion entre les mondes.",
+   "garde": true,
+   "etiquette": "Transformation",
+   "ajouts": [
+    "Continuité",
+    "Connexion inter-mondes"
+   ]
+  }
+ ],
+ "Perthro": [
+  {
+   "sens": "Perthro est liée au mystère et au destin.",
+   "garde": true,
+   "etiquette": "Mystère",
+   "ajouts": [
+    "Destin"
+   ]
+  },
+  {
+   "sens": "Elle suggère les secrets cachés, les opportunités inattendues et le jeu des forces du hasard dans la vie.",
+   "garde": true,
+   "etiquette": "Hasard",
+   "ajouts": [
+    "Secret",
+    "Opportunités innatendues"
+   ]
+  }
+ ],
+ "Algiz": [
+  {
+   "sens": "Algiz symbolise la protection et la défense.",
+   "garde": true,
+   "etiquette": "Protection",
+   "ajouts": []
+  },
+  {
+   "sens": "Représentant l'élan avec ses bois levés.",
+   "garde": false,
+   "etiquette": "Élan",
+   "ajouts": []
+  },
+  {
+   "sens": "Cette rune est un bouclier contre les dangers.",
+   "garde": true,
+   "etiquette": "Défense",
+   "ajouts": []
+  },
+  {
+   "sens": "Une connexion avec les énergies divines.",
+   "garde": true,
+   "etiquette": "Énergie divine",
+   "ajouts": []
+  }
+ ],
+ "Sowilo": [
+  {
+   "sens": "Sowilo incarne l'énergie solaire, la victoire et la clarté.",
+   "garde": true,
+   "etiquette": "Énergie Solaire",
+   "ajouts": [
+    "Victoire",
+    "Clarté"
+   ]
+  },
+  {
+   "sens": "Elle apporte lumière, succès et guidance, dissipant les ténèbres et les doutes.",
+   "garde": true,
+   "etiquette": "Lumière",
+   "ajouts": [
+    "Succès",
+    "Guidance"
+   ]
+  }
+ ],
+ "Tiwaz": [
+  {
+   "sens": "Tiwaz est dédiée au dieu Tyr, symbole de justice, de courage et de sacrifice.",
+   "garde": true,
+   "etiquette": "Justice",
+   "ajouts": [
+    "Courage",
+    "Sacrifice"
+   ]
+  },
+  {
+   "sens": "Cette rune représente l'honneur, le leadership et la détermination à défendre ce qui est juste.",
+   "garde": true,
+   "etiquette": "Honneur",
+   "ajouts": [
+    "Le leadership"
+   ]
+  }
+ ],
+ "Berkano": [
+  {
+   "sens": "Berkano est associée au bouleau, arbre de la renaissance et de la fertilité.",
+   "garde": true,
+   "etiquette": "Renaissance",
+   "ajouts": [
+    "Fertilité"
+   ]
+  },
+  {
+   "sens": "Elle symbolise la croissance, la famille et les nouveaux départs, favorisant la guérison et la prospérité.",
+   "garde": true,
+   "etiquette": "Croissance",
+   "ajouts": [
+    "Famille",
+    "Nouveau départ",
+    "Guérison",
+    "Prospérité"
+   ]
+  }
+ ],
+ "Ehwaz": [
+  {
+   "sens": "Ehwaz représente le cheval, emblème de la confiance mutuelle et du partenariat.",
+   "garde": true,
+   "etiquette": "Partenariat",
+   "ajouts": [
+    "Confiance mutuelle"
+   ]
+  },
+  {
+   "sens": "Cette rune évoque le mouvement harmonieux, le progrès et la coopération entre individus.",
+   "garde": true,
+   "etiquette": "Mouvement",
+   "ajouts": [
+    "Progrès",
+    "Coopération"
+   ]
+  }
+ ],
+ "Mannaz": [
+  {
+   "sens": "Mannaz incarne l'humanité et le soi.",
+   "garde": true,
+   "etiquette": "Humanité",
+   "ajouts": [
+    "Le soi"
+   ]
+  },
+  {
+   "sens": "Elle souligne l'importance de la conscience de soi, des relations sociales et de la collaboration pour le bien commun.",
+   "garde": true,
+   "etiquette": "Collaboration",
+   "ajouts": [
+    "Conscience de soi",
+    "Relation sociales"
+   ]
+  }
+ ],
+ "Laguz": [
+  {
+   "sens": "Laguz est liée à l'eau, source de vie et symbole de l'inconscient.",
+   "garde": true,
+   "etiquette": "Eau",
+   "ajouts": [
+    "Source de vie",
+    "L'inconscient"
+   ]
+  },
+  {
+   "sens": "Cette rune représente l'intuition, les émotions et le flux constant de l'énergie vitale.",
+   "garde": true,
+   "etiquette": "Intuition",
+   "ajouts": [
+    "Émotion",
+    "Flux",
+    "Énergie vitale"
+   ]
+  }
+ ],
+ "Ingwaz": [
+  {
+   "sens": "Ingwaz est associée au dieu Ing, représentant la fertilité, la paix et l'abondance.",
+   "garde": true,
+   "etiquette": "Fertilité",
+   "ajouts": [
+    "Paix",
+    "Abondance"
+   ]
+  },
+  {
+   "sens": "Elle symbolise le potentiel latent, les réalisations et la plénitude.",
+   "garde": true,
+   "etiquette": "Potentiel",
+   "ajouts": [
+    "Réalisation",
+    "Plénitude"
+   ]
+  }
+ ],
+ "Dagaz": [
+  {
+   "sens": "Dagaz signifie « jour » et symbolise l'aube, la transformation et l'éveil.",
+   "garde": true,
+   "etiquette": "Jour",
+   "ajouts": [
+    "L'aube",
+    "Transformation",
+    "L'éveil"
+   ]
+  },
+  {
+   "sens": "Cette rune annonce de nouveaux commencements, la prospérité et la réalisation des objectifs.",
+   "garde": true,
+   "etiquette": "Nouveau départ",
+   "ajouts": [
+    "Prospérité",
+    "Réalisation des objectifs"
+   ]
+  }
+ ],
+ "Othala": [
+  {
+   "sens": "Othala représente l'héritage ancestral, les possessions familiales et les traditions.",
+   "garde": true,
+   "etiquette": "Héritage",
+   "ajouts": [
+    "Possession familiale",
+    "Tradition"
+   ]
+  },
+  {
+   "sens": "Elle souligne l'importance des racines, de l'identité culturelle et de la transmission du savoir.",
+   "garde": true,
+   "etiquette": "Transmission du savoir",
+   "ajouts": [
+    "Identité culturelle",
+    "Origines"
+   ]
+  }
+ ]
+}

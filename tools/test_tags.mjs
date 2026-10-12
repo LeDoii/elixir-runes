@@ -24,24 +24,26 @@ check("liste non tableau : vide", T.clean("x").length === 0 && T.clean(null).len
 
 /* ---- une étiquette par sens */
 const sensOk = window.RUNES.runes.every((r) => (T.RUNE_TAGS[r.name] || []).length === r.sens.length);
-check("chaque rune : exactement une étiquette par sens du livre", sensOk && window.RUNES.runes.length === 24);
-check("aucune rune ne répète la même étiquette", RUNES.every((r) => new Set(S.RUNE_TAGS[r].map(S.normTag)).size === S.RUNE_TAGS[r].length));
-check("étiquettes de rune : 2 à 20 caractères", RUNES.every((r) => S.RUNE_TAGS[r].every((t) => S.normTag(t).length >= 2 && S.normTag(t) === t.toLowerCase().normalize("NFC"))));
-check("liste proposée = étiquettes des runes, sans doublon", T.VOCAB.length === new Set(T.VOCAB.map(T.norm)).size && T.VOCAB.every((v) => RUNES.some((r) => T.RUNE_TAGS[r].includes(v))));
-check("couples opposés : étiquettes connues, jamais un couple avec lui-même", T.DISSONANT.every(([a, b]) => a !== b && T.VOCAB.includes(a) && T.VOCAB.includes(b)));
-check("Algiz : Protection, Élan, Défense, Divin", T.derive({ r: [{ n: "Algiz" }] }).join() === "protection,élan,défense,divin");
+check("chaque rune : une liste d'étiquettes par sens du livre (vide si volontairement sans étiquette)", sensOk && window.RUNES.runes.length === 24 && RUNES.every((r) => S.RUNE_TAGS[r].every(Array.isArray)));
+check("aucune rune ne répète la même étiquette", RUNES.every((r) => { const f = S.RUNE_TAGS[r].flat().map(S.normTag); return new Set(f).size === f.length; }));
+check("étiquettes de rune : 2 à 20 caractères, sans article ni majuscule parasite", RUNES.every((r) => S.RUNE_TAGS[r].flat().every((t) => t.length >= 2 && t.length <= 20 && S.normTag(t).length >= 2 && !/^(le|la|les|l') /i.test(t))));
+check("liste proposée = étiquettes des runes, sans doublon", T.VOCAB.length === new Set(T.VOCAB.map(T.norm)).size && T.VOCAB.length === new Set(RUNES.flatMap((r) => T.RUNE_TAGS[r].flat().map(T.norm))).size);
+check("familles : chaque étiquette de rune a une famille, aucune famille vide", T.VOCAB.every((v) => T.familyOf(T.norm(v))) && Object.values(T.FAMILIES).every((m) => m.length) && T.OPPOSED.every(([a, b]) => a !== b && T.FAMILIES[a] && T.FAMILIES[b]));
+check("familles : exemples", T.familyOf("mort") === "Destruction" && T.familyOf("force vitale") === "Vitalité" && T.familyOf("force destructrice") === "Destruction" && T.familyOf("mon projet") === undefined);
+check("Algiz : Protection, Défense, Énergie divine (le sens de l'élan n'a pas d'étiquette)", T.derive({ r: [{ n: "Algiz" }] }).join() === "protection,défense,énergie divine");
+check("Raidho : Voyage une seule fois", T.RUNE_TAGS.Raidho.flat().filter((t) => t === "Voyage").length === 1);
 
 /* ---- sens gardés par rune */
-check("rune sans « t » : tous les sens", T.derive(plate(rune("Isa"))).join() === "immobilité,patience");
+check("rune sans « t » : tous les sens", T.derive(plate(rune("Isa"))).join() === "glace,immobilité,gel,stagnation,patience,réflexion");
 check("sens gardés : seulement ceux-là", T.derive(plate(rune("Algiz", { t: [0, 2] }))).join() === "protection,défense");
-check("« t » vide : aucune étiquette de cette rune", T.derive(plate(rune("Algiz", { t: [] }), rune("Isa"))).join() === "immobilité,patience");
-check("indices invalides ou doublons ignorés", T.derive(plate(rune("Isa", { t: [1, 1, 9, -1, "a", 0.5] }))).join() === "patience");
-check("étiquette partagée entre runes : une seule fois", T.derive(plate(rune("Thurisaz"), rune("Algiz"))).filter((t) => t === "défense").length === 1);
-check("toutes : celles des runes puis celles ajoutées", T.all(plate(rune("Isa")), ["Mon projet", "patience", "x"]).join() === "immobilité,patience,mon projet");
+check("« t » vide : aucune étiquette de cette rune", T.derive(plate(rune("Algiz", { t: [] }), rune("Isa"))).join() === "glace,immobilité,gel,stagnation,patience,réflexion");
+check("indices invalides ou doublons ignorés", T.derive(plate(rune("Isa", { t: [1, 1, 9, -1, "a", 0.5] }))).join() === "patience,réflexion");
+check("étiquette partagée entre runes : une seule fois", T.derive(plate(rune("Kenaz"), rune("Sowilo"))).filter((t) => t === "lumière").length === 1);
+check("toutes : celles des runes puis celles ajoutées", T.all(plate(rune("Isa")), ["Mon projet", "patience", "x"]).join() === "glace,immobilité,gel,stagnation,patience,réflexion,mon projet");
 check("ajoutées : on retire celles qui viennent des runes", T.extras(plate(rune("Isa")), ["immobilité", "mon projet", "patience"]).join() === "mon projet");
-check("couples opposés : Isa (immobilité) et Raidho (mouvement)", T.dissonances(plate(rune("Isa"), rune("Raidho"))).length === 2);
-check("un couple ne compte pas dans une même rune", T.dissonances(plate(rune("Hagalaz"))).length === 0 && T.dissonances(plate(rune("Fehu"))).length === 0);
-check("couples : le sens non gardé ne compte plus", T.dissonances(plate(rune("Isa"), rune("Raidho", { t: [2] }))).length === 0);
+check("oppositions : Isa (immobilité) et Raidho (mouvement), une seule fois même avec plusieurs mots", T.dissonances(plate(rune("Isa"), rune("Raidho"))).length === 1 && T.dissonances(plate(rune("Isa"), rune("Raidho")))[0].families.join() === "Immobilité,Mouvement");
+check("une opposition à l'intérieur d'une même rune ne compte pas (Eihwaz : renaissance et mort)", T.dissonances(plate(rune("Eihwaz"))).length === 0);
+check("le sens non gardé ne compte plus", T.dissonances(plate(rune("Isa"), rune("Raidho", { t: [2] }))).length === 0 && T.dissonances(plate(rune("Isa"), rune("Raidho", { t: [0] }))).length === 1);
 check("sans opposition : rien", T.dissonances(plate(rune("Gebo"), rune("Mannaz"))).length === 0);
 
 /* ---- parité navigateur / serveur */
@@ -70,16 +72,16 @@ const gal = async (qs) => (await call(env, "/api/gallery?" + qs)).json();
 
 await save(alice, "Gebo et Mannaz", ["Protection", "  Voyage-éclair ", "protection", "x"]);
 let items = await mineOf(alice);
-check("enregistrement : étiquettes des runes puis ajoutées, normalisées", items[0].tags.join() === "échange,don,équilibre,humanité,collaboration,protection,voyage-éclair", items[0].tags.join());
+check("enregistrement : étiquettes des runes puis ajoutées, normalisées", items[0].tags.join() === "don,échange,partenariat,équilibre,humanité,soi,collaboration,conscience de soi,relation sociale,protection,voyage-éclair", items[0].tags.join());
 await save(alice, "Gebo et Mannaz", "pas une liste");
-check("étiquettes ajoutées non liste : seules celles des runes", (await mineOf(alice))[0].tags.join() === "échange,don,équilibre,humanité,collaboration");
+check("étiquettes ajoutées non liste : seules celles des runes", (await mineOf(alice))[0].tags.join() === "don,échange,partenariat,équilibre,humanité,soi,collaboration,conscience de soi,relation sociale");
 await save(alice, "Gebo et Mannaz", ["a1", "b2", "c3", "d4", "e5", "f6", "g7", "h8"]);
-check("6 étiquettes ajoutées au plus", (await mineOf(alice))[0].tags.length === 5 + 6);
+check("6 étiquettes ajoutées au plus", (await mineOf(alice))[0].tags.length === 9 + 6);
 const keep = { r: [rune("Gebo", { t: [0] }), rune("Mannaz", { t: [1], x: 236 })], s: "bois", t: 0, l: [] };
 await save(alice, "Choix par rune", ["Mon projet"], keep);
 items = await mineOf(alice);
 const ch = items.find((i) => i.name === "Choix par rune");
-check("choix par rune : seuls les sens gardés donnent des étiquettes", ch.tags.join() === "échange,collaboration,mon projet", ch.tags.join());
+check("choix par rune : seuls les sens gardés donnent des étiquettes", ch.tags.join() === "don,échange,partenariat,collaboration,conscience de soi,relation sociale,mon projet", ch.tags.join());
 check("choix par rune : « t » conservé dans les données", JSON.stringify(ch.d.r.map((r) => r.t)) === "[[0],[1]]");
 let r = await save(alice, "Aucune étiquette", [], plate(rune("Gebo", { t: [] })));
 check("aucune étiquette du tout : refusé (400)", r.status === 400 && !(await mineOf(alice)).some((i) => i.name === "Aucune étiquette"));
@@ -110,7 +112,7 @@ check("recherche texte : % reste littéral", (await gal("q=" + encodeURIComponen
 g = await gal("tag=protection&q=algiz");
 check("filtre et recherche se combinent", g.total === 1 && g.items[0].name === "Algiz seule");
 g = await gal("");
-check("la galerie renvoie toutes les étiquettes", g.items.find((i) => i.name === "Algiz seule").tags.join() === "protection,élan,défense,divin");
+check("la galerie renvoie toutes les étiquettes", g.items.find((i) => i.name === "Algiz seule").tags.join() === "protection,défense,énergie divine");
 const id = (await mineOf(alice)).find((i) => i.name === "Gebo et Mannaz").id;
 check("fiche d'une bindrune : étiquettes comprises", (await (await call(env, "/api/gallery/" + id)).json()).tags.includes("protection"));
 check("aucune donnée de compte dans la réponse", !JSON.stringify(await gal("")).includes(ALICE));
@@ -118,16 +120,16 @@ check("aucune donnée de compte dans la réponse", !JSON.stringify(await gal("")
 /* ---- ligne ancienne (publiée avant les étiquettes par sens) : calculée à la première lecture */
 env.DB.raw.prepare("INSERT INTO bindrunes (id, user_id, name, name_key, description, data, published, published_at, created_at, updated_at) VALUES ('old2', ?, 'Vieille', 'vieille', '', ?, 1, 5, 1, 1)").run(BOB, JSON.stringify(plate(rune("Kenaz"))));
 g = await gal("tag=lumière");
-check("ancienne ligne : étiquettes calculées à la demande", g.items.some((i) => i.name === "Vieille") && JSON.parse(env.DB.raw.prepare("SELECT tags FROM bindrunes WHERE id = 'old2'").get().tags).join() === "connaissance,lumière");
+check("ancienne ligne : étiquettes calculées à la demande", g.items.some((i) => i.name === "Vieille") && JSON.parse(env.DB.raw.prepare("SELECT tags FROM bindrunes WHERE id = 'old2'").get().tags).join() === "connaissance,révélation,créativité,feu,lumière");
 env.DB.raw.exec("UPDATE bindrunes SET tags = 'pas du json' WHERE id = 'old2'");
 check("colonne corrompue : la galerie répond quand même", (await call(env, "/api/gallery?tag=protection")).status === 200);
 
 /* ---- codes courts */
 const sc = await (await post(env, "/api/codes", { name: "Avec étiquettes", tags: ["Mon projet", "joie"], d: plate(rune("Wunjo", { t: [0] })) }, { "CF-Connecting-IP": "9.9.9.9" })).json();
 const item = await (await call(env, "/api/codes/" + sc.code)).json();
-check("code court : étiquettes des runes et ajoutées", item.tags.join() === "joie,mon projet", JSON.stringify(item.tags));
+check("code court : étiquettes des runes et ajoutées", item.tags.join() === "joie,bonheur,harmonie,mon projet", JSON.stringify(item.tags));
 const sc2 = await (await post(env, "/api/codes", { name: "Sans", d: good.d }, { "CF-Connecting-IP": "9.9.9.9" })).json();
-check("code court sans ajout : étiquettes des runes", (await (await call(env, "/api/codes/" + sc2.code)).json()).tags.length === 5);
+check("code court sans ajout : étiquettes des runes", (await (await call(env, "/api/codes/" + sc2.code)).json()).tags.length === 9);
 
 /* ---- administration */
 const ADMIN = "111111111111111111";
@@ -135,6 +137,6 @@ const aenv = baseEnv({ ADMIN_IDS: ADMIN });
 const admin = await loginAs(aenv, { id: ADMIN, username: "root", global_name: "Root" });
 await post(aenv, "/api/my/bindrunes", { name: "Admin test", tags: ["Paix"], d: plate(rune("Isa")) }, same(admin.cookie));
 const al = await (await call(aenv, "/api/admin/bindrunes", { headers: { Cookie: admin.cookie } })).json();
-check("admin : voit les étiquettes", al.items[0].tags.join() === "immobilité,patience,paix", JSON.stringify(al.items[0]));
+check("admin : voit les étiquettes", al.items[0].tags.join() === "glace,immobilité,gel,stagnation,patience,réflexion,paix", JSON.stringify(al.items[0]));
 
 finish();

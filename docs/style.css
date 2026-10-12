@@ -243,3 +243,9 @@ button.tag:hover, button.tag:focus-visible { background: rgba(164,85,31,.14); ou
 .cplx-head { margin: .2rem 0; font-size: 1.1rem; }
 .cplx-bar { height: 6px; background: rgba(32,32,30,.12); border-radius: 3px; overflow: hidden; }
 .cplx-bar i { display: block; height: 100%; background: var(--warm); }
+
+/* ---- mode étendu du concepteur */
+#design.expanded { position: fixed; inset: 0; z-index: 40; overflow: auto; background: var(--paper); padding: .8rem 1.2rem 2rem; }
+#design.expanded .grid2.design { grid-template-columns: minmax(0, 3fr) minmax(300px, 1fr); max-width: none; }
+#design.expanded .dz-wrap { max-width: calc((100vh - 130px) * 1.25); margin-left: auto; margin-right: auto; }
+@media (max-width: 800px) { #design.expanded .grid2.design { grid-template-columns: 1fr; } }
