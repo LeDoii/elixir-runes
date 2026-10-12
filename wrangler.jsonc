@@ -9,6 +9,10 @@
     // Le Worker n'est appelé que pour l'API ; le reste du site est servi directement comme fichiers statiques.
     "run_worker_first": ["/api/*"]
   },
+  // Identifiant public de l'application Discord (ce n'est pas un secret). Le secret, lui, reste dans le tableau de bord.
+  "vars": {
+    "DISCORD_CLIENT_ID": "1559174538145562735"
+  },
   "d1_databases": [
     {
       "binding": "DB",

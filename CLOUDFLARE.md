@@ -27,9 +27,11 @@ Sans la base, l'API répond 503 et le site masque les boutons de codes courts : 
 2. OAuth2 > Redirects > ajouter `https://elixir-runes.ledoii.workers.dev/api/auth/callback` (exactement).
 3. Copier le Client ID (public) et le Client Secret (secret : ne jamais le mettre dans le dépôt ni dans un message).
 4. Cloudflare > Worker `elixir-runes` > Settings > Variables and Secrets :
-   - `DISCORD_CLIENT_ID` (texte) ; `DISCORD_CLIENT_SECRET` (**secret**) ;
-   - `ADMIN_IDS` (texte) : identifiants Discord des administrateurs, séparés par des virgules ;
+   - `DISCORD_CLIENT_ID` : déjà dans `wrangler.jsonc` (`vars`), car il est public. Une variable en texte ajoutée seulement dans le tableau de bord serait écrasée au prochain déploiement ;
+   - `DISCORD_CLIENT_SECRET` (**secret**) ;
+   - `ADMIN_IDS` (**secret**) : identifiants Discord des administrateurs, séparés par des virgules ;
    - `IP_SALT` (secret, facultatif) : chaîne aléatoire.
+   Les secrets ne sont pas touchés par les déploiements.
 5. Redéployer si besoin. Tant que ces variables manquent, `/api/me` répond `login: false` et le site cache la connexion.
 
 ## Mise en place
