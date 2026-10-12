@@ -22,33 +22,50 @@
   }
 
   /* ------------------------------------------------------------------ onglets */
-  const tabs = { runes: $("tab-runes"), draw: $("tab-draw") };
+  const tabs = { runes: $("tab-runes"), draw: $("tab-draw"), design: $("tab-design") };
+  const HASH = { runes: "#", draw: "#dessin", design: "#concepteur" };
   function show(which) {
     Object.keys(tabs).forEach((k) => {
       tabs[k].setAttribute("aria-selected", String(k === which));
       $(k).hidden = k !== which;
     });
-    history.replaceState(null, "", which === "draw" ? "#dessin" : "#");
+    history.replaceState(null, "", HASH[which]);
   }
   tabs.runes.addEventListener("click", () => show("runes"));
   tabs.draw.addEventListener("click", () => show("draw"));
+  tabs.design.addEventListener("click", () => show("design"));
 
   /* ------------------------------------------------------------------ galerie et fiche */
   const gallery = $("gallery"), dlg = $("dlg");
+  const DIFF = window.DIFFICULTY || {};
+  const LEVELS = ["Très facile", "Facile", "Moyen", "Difficile", "Très difficile"];
+  const pips = (lvl) => '<span class="pips" aria-hidden="true">' + [1, 2, 3, 4, 5].map((i) => '<i' + (i <= lvl ? ' class="on"' : "") + "></i>").join("") + "</span>";
   let current = null;
-  D.runes.forEach((r) => {
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.className = "card";
-    b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + '</span><span class="gl">' + r.glyph + "</span>";
-    b.addEventListener("click", () => openRune(r.name));
-    li.appendChild(b);
-    gallery.appendChild(li);
-  });
+  function renderGallery() {
+    const sort = $("gallery-sort").value;
+    const list = D.runes.slice();
+    if (sort !== "lib") list.sort((a, b) => (DIFF[a.name].rank - DIFF[b.name].rank) * (sort === "easy" ? 1 : -1));
+    gallery.innerHTML = "";
+    list.forEach((r) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      const d = DIFF[r.name];
+      b.className = "card";
+      b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + '</span><span class="gl">' + r.glyph + "</span>" +
+        (d ? pips(d.level) + '<span class="lv">' + LEVELS[d.level - 1] + (sort !== "lib" ? " · n° " + d.rank : "") + "</span>" : "");
+      b.addEventListener("click", () => openRune(r.name));
+      li.appendChild(b);
+      gallery.appendChild(li);
+    });
+  }
+  $("gallery-sort").addEventListener("change", renderGallery);
+  renderGallery();
   function openRune(name) {
     current = byName(name);
     $("dlg-glyph").textContent = current.glyph;
     $("dlg-name").textContent = current.name;
+    const d = DIFF[name];
+    $("dlg-diff").innerHTML = d ? pips(d.level) + " " + LEVELS[d.level - 1] + " · n° " + d.rank + " sur 24 en difficulté" : "";
     $("dlg-parts").innerHTML = current.strokes.map((s) => "<li>" + s.name + "</li>").join("");
     replay();
     if (!dlg.open) dlg.showModal();
@@ -301,6 +318,6 @@
 
   /* ------------------------------------------------------------------ démarrage */
   render();
-  if (location.hash === "#dessin") show("draw");
+  if (location.hash === "#dessin") show("draw"); else if (location.hash === "#concepteur") show("design");
   window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, engrave: () => els.engrave.click() };
 })();

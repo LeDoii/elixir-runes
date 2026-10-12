@@ -15,6 +15,7 @@
     <nav class="tabs" role="tablist">
       <button role="tab" id="tab-runes" aria-controls="runes" aria-selected="true">Les runes</button>
       <button role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">Dessin libre</button>
+      <button role="tab" id="tab-design" aria-controls="design" aria-selected="false">Concepteur</button>
     </nav>
   </header>
 
@@ -22,7 +23,17 @@
     <!-- ============================ GALERIE ============================ -->
     <section id="runes" role="tabpanel" aria-labelledby="tab-runes">
       <p class="hint center-text">Clique sur une rune pour voir son tracé, trait par trait.</p>
+      <div class="field sortbar">
+        <label for="gallery-sort">Ordre</label>
+        <select id="gallery-sort">
+          <option value="lib">Ordre de la bibliothèque</option>
+          <option value="easy">Du plus facile au plus difficile</option>
+          <option value="hard">Du plus difficile au plus facile</option>
+        </select>
+      </div>
       <ul id="gallery" class="gallery"></ul>
+      <p class="hint center-text">La difficulté combine deux mesures : la précision moyenne obtenue par des tracés simulés à main levée (80 par rune)
+        et la complexité de la forme (nombre de traits, longueur, changements de direction, angles différents).</p>
     </section>
 
     <!-- ============================ DESSIN LIBRE ============================ -->
@@ -81,6 +92,35 @@
         </div>
       </div>
     </section>
+
+    <!-- ============================ CONCEPTEUR DE BINDRUNE ============================ -->
+    <section id="design" role="tabpanel" aria-labelledby="tab-design" hidden>
+      <div class="grid2 design">
+        <div class="plate-wrap">
+          <svg id="dz" viewBox="0 0 800 640" aria-label="Zone de conception de la bindrune"></svg>
+          <div class="row center wrap">
+            <button id="dz-export" class="btn ghost">Exporter en PNG</button>
+            <button id="dz-clear" class="btn ghost">Tout retirer</button>
+          </div>
+          <p id="dz-msg" class="hint center-text" role="status"></p>
+        </div>
+        <div class="text">
+          <h2>Concepteur de bindrune</h2>
+          <p>Choisis des runes dans la palette, glisse-les sur la plaque et assemble-les. Les extrémités et les angles
+            de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent.</p>
+          <h3>Palette <span id="dz-count" class="count"></span></h3>
+          <div id="palette" class="palette"></div>
+          <div class="field">
+            <label class="check"><input type="checkbox" id="dz-magnet" checked> Magnétisme</label>
+            <label class="check"><input type="checkbox" id="dz-adv"> Mode avancé (jusqu'à 6 runes au lieu de 4)</label>
+          </div>
+          <h3>Sur la plaque</h3>
+          <ul id="dz-list" class="dz-list"></ul>
+          <p class="hint">Glisse une rune pour la déplacer ; flèches du clavier pour ajuster (Maj : par 10), Suppr pour retirer.
+            La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <dialog id="dlg">
@@ -89,6 +129,7 @@
       <div>
         <p class="gl" id="dlg-glyph"></p>
         <h2 id="dlg-name"></h2>
+        <p class="diff" id="dlg-diff"></p>
         <h3>Traits</h3>
         <ul class="parts" id="dlg-parts"></ul>
         <div class="row wrap">
@@ -107,7 +148,9 @@
   </footer>
 
   <script src="data.js"></script>
+  <script src="difficulty.js"></script>
   <script src="scoring.js"></script>
   <script src="app.js"></script>
+  <script src="designer.js"></script>
 </body>
 </html>
