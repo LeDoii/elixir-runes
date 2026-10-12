@@ -216,3 +216,6 @@ textarea#sv-desc { margin-top: .6rem; }
 .mcard .desc, .bring .desc { margin: .1rem 0 .5rem; font-size: .98rem; line-height: 1.35; }
 .mcard .author { margin: .1rem 0 .1rem; font-style: italic; color: var(--ink); }
 .badge.pub { border-color: #12A26A; color: #0d7a50; }
+
+.pal.taken { opacity: .38; }
+.pal.taken span::after { content: " ✓"; }

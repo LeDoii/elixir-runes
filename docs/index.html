@@ -196,6 +196,8 @@
             <svg id="dz" viewBox="0 0 800 640" aria-label="Zone de conception de la bindrune"></svg>
           </div>
           <div class="row center wrap">
+            <button id="dz-undo" class="btn ghost" disabled>Annuler</button>
+            <button id="dz-redo" class="btn ghost" disabled>Rétablir</button>
             <button id="dz-center" class="btn ghost">Centrer la sélection</button>
             <button id="dz-center-all" class="btn ghost">Tout centrer</button>
             <button id="dz-export" class="btn ghost">Exporter en PNG</button>
@@ -221,7 +223,7 @@
           <div class="field">
             <label class="check"><input type="checkbox" id="dz-magnet" checked> Magnétisme</label>
             <label class="check"><input type="checkbox" id="dz-strata"> Strates colorées (une couleur par rune, sans l'effet du support)</label>
-            <label class="check"><input type="checkbox" id="dz-adv"> Mode avancé (jusqu'à 6 runes au lieu de 4)</label>
+            <label class="check"><input type="checkbox" id="dz-adv"> Mode avancé (jusqu'à 6 runes au lieu de 4, et une même rune plusieurs fois)</label>
           </div>
           <h3>Sur la plaque</h3>
           <ul id="dz-list" class="dz-list"></ul>
