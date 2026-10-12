@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Les runes · atelier de tracé</title>
+  <meta name="description" content="Les 24 runes et un atelier de dessin libre, avec ou sans modèle. Outil fan-made, non affilié à l'équipe d'Elixir RP.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <p class="label">Runes · Elixir RP · fan-made</p>
+    <h1>Les runes</h1>
+    <p class="sub">Vingt-quatre runes à découvrir, à tracer, à reconnaître</p>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-runes" aria-controls="runes" aria-selected="true">Les runes</button>
+      <button role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">Dessin libre</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============================ GALERIE ============================ -->
+    <section id="runes" role="tabpanel" aria-labelledby="tab-runes">
+      <p class="hint center-text">Clique sur une rune pour voir son tracé, trait par trait.</p>
+      <ul id="gallery" class="gallery"></ul>
+    </section>
+
+    <!-- ============================ DESSIN LIBRE ============================ -->
+    <section id="draw" role="tabpanel" aria-labelledby="tab-draw" hidden>
+      <div class="grid2">
+        <div class="plate-wrap">
+          <canvas id="canvas" class="square" width="720" height="720" aria-label="Zone de dessin"></canvas>
+          <div class="row center wrap">
+            <button id="btn-undo" class="btn ghost">Annuler le trait</button>
+            <button id="btn-clear" class="btn ghost">Tout effacer</button>
+            <button id="btn-engrave" class="btn" hidden>Graver</button>
+          </div>
+          <p id="msg" class="hint center-text" role="status"></p>
+        </div>
+        <div class="text">
+          <h2>Dessin libre</h2>
+          <p>Dessine à la souris ou au doigt, d'un trait ou de plusieurs. <strong>Sans modèle</strong>, le site cherche
+            la rune la plus proche de ton dessin. <strong>Avec un modèle</strong>, tu t'entraînes à la tracer
+            et tu obtiens un pourcentage de précision.</p>
+          <div class="field">
+            <label for="model">Modèle</label>
+            <select id="model"></select>
+          </div>
+          <div class="field" id="field-help" hidden>
+            <label for="help">Aide</label>
+            <select id="help">
+              <option value="guide">Guidé : modèle visible</option>
+              <option value="faint">Estompé : modèle à peine visible</option>
+              <option value="memory">De mémoire : aucun modèle</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="check"><input type="checkbox" id="align" checked> Calage automatique (taille et position libres)</label>
+            <p class="hint">Le calage recentre et redimensionne ton dessin, sans corriger la rotation. Sans modèle, il est toujours actif.</p>
+          </div>
+
+          <div id="out-free" class="result">
+            <h3>Rune la plus proche</h3>
+            <p class="top1" id="free-top">—</p>
+            <p class="hint" id="free-hint">Dessine une rune pour lancer la recherche.</p>
+            <ul id="free-list" class="match"></ul>
+            <button id="free-open" class="link" hidden></button>
+          </div>
+
+          <div id="out-model" class="result" hidden>
+            <div class="score"><span id="score-total">0</span><small>%</small></div>
+            <p id="score-verdict" class="verdict"></p>
+            <dl class="detail">
+              <div><dt>Couverture du modèle</dt><dd id="score-cov">0 %</dd></div>
+              <div><dt>Précision du tracé</dt><dd id="score-prec">0 %</dd></div>
+            </dl>
+            <p class="hint">Rouge sur la plaque : parties du modèle manquées ou traits trop éloignés.</p>
+            <p class="best" id="best"></p>
+            <button id="btn-retry" class="btn ghost">Recommencer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg">
+    <div class="dlg">
+      <div id="dlg-svg"></div>
+      <div>
+        <p class="gl" id="dlg-glyph"></p>
+        <h2 id="dlg-name"></h2>
+        <h3>Traits</h3>
+        <ul class="parts" id="dlg-parts"></ul>
+        <div class="row wrap">
+          <button class="btn" id="dlg-train">S'entraîner</button>
+          <button class="btn ghost" id="dlg-replay">Rejouer le tracé</button>
+          <button class="btn ghost" id="dlg-close">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <footer>
+    <p><strong>Outil fan-made d'exposition et d'entraînement.</strong> Non affilié à l'équipe d'Elixir RP.
+      Les runes sont présentées par leur nom et leur forme seulement.</p>
+    <p class="small">Polices Italiana et Crimson Pro (licence SIL OFL). Tout le calcul se fait dans ton navigateur ; rien n'est envoyé.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="scoring.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
