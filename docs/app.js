@@ -108,14 +108,25 @@
     ctx.stroke();
   }
   function drawModel(ctx, rune, color, alpha, tf) {
+    let paths = rune.strokes.map((s) => s.pts.map(map));
+    let width = D.strokeWidth * SCALE;
+    if (tf) {                                                 // modèle recalé sur le dessin
+      paths = paths.map((p) => p.map(([x, y]) => [(x - tf.rcx) / tf.k + tf.ucx, (y - tf.rcy) / tf.k + tf.ucy]));
+      width /= tf.k;
+      const all = paths.flat(), M = 14;                       // le masque reste toujours entièrement dans le cadre
+      const x0 = Math.min(...all.map((p) => p[0])), x1 = Math.max(...all.map((p) => p[0]));
+      const y0 = Math.min(...all.map((p) => p[1])), y1 = Math.max(...all.map((p) => p[1]));
+      const sc = Math.min(1, (W - 2 * M) / Math.max(x1 - x0, 1), (W - 2 * M) / Math.max(y1 - y0, 1));
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const nx = Math.min(W - M - ((x1 - x0) * sc) / 2, Math.max(M + ((x1 - x0) * sc) / 2, cx));
+      const ny = Math.min(W - M - ((y1 - y0) * sc) / 2, Math.max(M + ((y1 - y0) * sc) / 2, cy));
+      paths = paths.map((p) => p.map(([x, y]) => [(x - cx) * sc + nx, (y - cy) * sc + ny]));
+      width *= sc;
+    }
     ctx.save();
-    ctx.globalAlpha = alpha; ctx.strokeStyle = color;
-    ctx.lineWidth = D.strokeWidth * SCALE * (tf ? 1 / tf.k : 1); ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3;
-    rune.strokes.forEach((s) => {
-      let pts = s.pts.map(map);
-      if (tf) pts = pts.map(([x, y]) => [(x - tf.rcx) / tf.k + tf.ucx, (y - tf.rcy) / tf.k + tf.ucy]);   // modèle recalé sur le dessin
-      strokePath(ctx, pts);
-    });
+    ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3;
+    paths.forEach((p) => strokePath(ctx, p));
     ctx.restore();
   }
   function truncate(pts, upto) {                              // début du tracé, sur une longueur donnée (animation de gravure)
