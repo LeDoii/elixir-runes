@@ -142,6 +142,8 @@
             <svg id="dz" viewBox="0 0 800 640" aria-label="Zone de conception de la bindrune"></svg>
           </div>
           <div class="row center wrap">
+            <button id="dz-center" class="btn ghost">Centrer la sélection</button>
+            <button id="dz-center-all" class="btn ghost">Tout centrer</button>
             <button id="dz-export" class="btn ghost">Exporter en PNG</button>
             <button id="dz-clear" class="btn ghost">Tout retirer</button>
           </div>
@@ -154,7 +156,7 @@
         <div class="text">
           <h2>Concepteur de bindrune</h2>
           <p>Choisis des runes dans la palette, glisse-les sur la plaque et assemble-les. Les extrémités et les angles
-            de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent.</p>
+            de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie.</p>
           <div class="field">
             <label for="dz-support">Support de gravure</label>
             <select id="dz-support"></select>

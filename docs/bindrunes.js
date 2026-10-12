@@ -12,6 +12,18 @@
   const byName = (n) => D.runes.find((r) => r.name === n);
   const listeners = [];
 
+  /** Points d'ancrage d'une rune (extrémités et angles de chaque trait, sans doublon). */
+  const anchorCache = {};
+  function anchors(name) {
+    if (anchorCache[name]) return anchorCache[name];
+    const seen = new Set(), out = [];
+    byName(name).strokes.forEach((s) => s.pts.forEach((p) => {
+      const k = p[0] + "," + p[1];
+      if (!seen.has(k)) { seen.add(k); out.push(p); }
+    }));
+    return (anchorCache[name] = out);
+  }
+
   /* ------------------------------------------------------------------ validation */
   const cleanName = (s) => String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
   const isNum = (v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 2000;
@@ -24,7 +36,10 @@
       if (!e || typeof e.n !== "string" || !byName(e.n) || !isNum(e.x) || !isNum(e.y)) return null;
       r.push({ n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] });
     }
-    return { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0 };
+    const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
+      k[0] !== k[1] && k[0] >= 0 && k[1] >= 0 && k[0] < r.length && k[1] < r.length &&
+      k[2] >= 0 && k[3] >= 0 && k[2] < anchors(r[k[0]].n).length && k[3] < anchors(r[k[1]].n).length);
+    return { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
   }
 
   /* ------------------------------------------------------------------ stockage */
@@ -245,7 +260,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { COLORS, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
 
   const hash = location.hash;                                  // lien de partage reçu (ancien format #concepteur= inclus)

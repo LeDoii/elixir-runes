@@ -181,3 +181,5 @@ textarea { font: inherit; width: 100%; padding: .55rem .6rem; background: #f3eee
 @media (max-width: 420px) { .mcard, .inbox { grid-template-columns: 80px 1fr; } }
 .tabs { flex-wrap: wrap; }
 @media (max-width: 600px) { .tabs button { padding: .7rem .6rem; letter-spacing: .1em; font-size: .7rem; } }
+
+.dz-list .nm small { display: block; color: var(--grey2); font-family: "Crimson Pro", Georgia, serif; text-transform: none; letter-spacing: 0; font-size: .8rem; }
