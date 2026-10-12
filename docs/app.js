@@ -88,7 +88,7 @@
     D.runes.map((r) => '<option value="' + r.name + '">' + r.glyph + "  " + r.name + "</option>").join("");
 
   let strokes = [], cur = null, locked = false, overlay = null, burn = null;
-  let ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
+  let centered = false, ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
 
   function strokePath(ctx, pts) {
     ctx.beginPath();
@@ -131,7 +131,10 @@
       if (els.help.value === "guide") { const gd = Supports.guide(false); drawModel(g, m, gd.color, gd.alpha); }
       else if (els.help.value === "faint") { const gd = Supports.guide(true); drawModel(g, m, gd.color, gd.alpha); }
     }
-    if (!m && preview && ranking.length) { const gd = Supports.guide(false); drawModel(g, byName(preview), gd.color, gd.alpha); }
+    if (!m && preview && ranking.length) {                   // masque calé sur le dessin, qui reste proche de la taille standard
+      const hit = ranking.find((r) => r.name === preview), gd = Supports.guide(false);
+      if (hit) drawModel(g, byName(preview), gd.color, gd.alpha, hit.fit);
+    }
     const list = overlay ? overlay.aligned : strokes.concat(cur ? [cur] : []);
     const paths = [];
     list.forEach((s, si) => {
@@ -167,9 +170,13 @@
       : "Correspondance faible (" + Math.round(best.total) + " %) : le dessin ne ressemble clairement à aucune rune.") +
       " Ton dessin compte " + plural(best.userShapes, "forme") + " et " + plural(best.userLoops, "boucle") + ".";
     if (!preview || !ranking.some((r) => r.name === preview)) preview = best.name;
-    // le dessin est recentré et mis à l'échelle sur le masque de la rune retenue : le masque reste toujours dans le cadre
-    const fitted = S.score(byName(preview), map, strokes, Object.assign({ align: true }, FREE_TOL));
-    if (fitted) strokes = fitted.aligned;
+    if (!centered) {                                          // recentrage au premier trait seulement
+      const fitted = S.score(byName(preview), map, strokes, Object.assign({ align: true }, FREE_TOL));
+      if (fitted) {
+        strokes = fitted.aligned; centered = true;
+        ranking = S.recognize(D.runes, map, strokes, Object.assign({ align: true }, FREE_TOL));
+      }
+    }
     ranking.slice(0, 5).forEach((r) => {
       const li = document.createElement("li");
       li.setAttribute("aria-current", String(r.name === preview));
@@ -198,7 +205,7 @@
     overlay = null; burn = null; locked = false;
     [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
     els.msg.textContent = "";
-    strokes = []; cur = null; preview = null; ranking = [];
+    strokes = []; cur = null; preview = null; ranking = []; centered = false;
     if (!m) updateRanking(); else render();
   }
   Supports.bindSelect($("support"), $("support-note"));
@@ -237,7 +244,7 @@
   cv.addEventListener("pointerup", end);
   cv.addEventListener("pointercancel", end);
 
-  function changed() { preview = null; els.msg.textContent = ""; if (!modelRune()) updateRanking(); else render(); }
+  function changed() { preview = null; if (!strokes.length) centered = false; els.msg.textContent = ""; if (!modelRune()) updateRanking(); else render(); }
   els.undo.addEventListener("click", () => { if (!locked) { strokes.pop(); changed(); } });
   els.clear.addEventListener("click", () => { if (!locked) { strokes = []; changed(); } });
   window.addEventListener("keydown", (e) => {
@@ -302,5 +309,5 @@
   /* ------------------------------------------------------------------ démarrage */
   render();
   if (location.hash === "#dessin") show("draw"); else if (location.hash === "#concepteur") show("design");
-  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, engrave: () => els.engrave.click() };
+  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, engrave: () => els.engrave.click() };
 })();
