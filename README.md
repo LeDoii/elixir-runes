@@ -6,7 +6,8 @@ Galerie des 24 runes et atelier de **dessin libre**, pour le serveur de jeu de r
 
 - **Les runes** : les 24 runes, chacune avec son tracé animé trait par trait.
 - **Dessin libre** :
-  - **sans modèle**, le site compare ton dessin aux 24 runes et affiche les plus proches, avec un pourcentage de correspondance ;
+  - **sans modèle**, l'option « Envoyer la gravure » (activée par défaut) lance la recherche au clic : le tracé est gravé, recentré, puis le site compare ; désactivée, la recherche se met à jour à chaque trait ;
+  - le site compare ton dessin aux 24 runes et affiche les plus proches, avec un pourcentage de correspondance ;
   - **avec un modèle**, tu t'entraînes à tracer la rune choisie (guidé, estompé ou de mémoire) et tu obtiens un pourcentage de précision.
 
 - **Concepteur** : assemblage d'une bindrune. 4 runes au maximum (6 en mode avancé), choisies dans la palette par clic ou glisser-déposer, déplaçables sur la plaque. Les extrémités et les angles de chaque rune portent un point d'ancrage visible qui s'aimante à ceux des autres runes. Le magnétisme se coupe globalement ou rune par rune (actif par défaut). Export PNG.

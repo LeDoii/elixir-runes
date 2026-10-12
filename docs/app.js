@@ -80,7 +80,7 @@
   const cv = $("canvas"), g = cv.getContext("2d");
   const els = {
     model: $("model"), help: $("help"), fieldHelp: $("field-help"), align: $("align"), msg: $("msg"),
-    undo: $("btn-undo"), clear: $("btn-clear"), engrave: $("btn-engrave"), retry: $("btn-retry"),
+    send: $("send"), fieldSend: $("field-send"), freeRetry: $("free-retry"), undo: $("btn-undo"), clear: $("btn-clear"), engrave: $("btn-engrave"), retry: $("btn-retry"),
     outFree: $("out-free"), outModel: $("out-model"), top: $("free-top"), hint: $("free-hint"), list: $("free-list"), open: $("free-open"),
     total: $("score-total"), verdict: $("score-verdict"), cov: $("score-cov"), prec: $("score-prec"), best: $("best"),
   };
@@ -88,7 +88,7 @@
     D.runes.map((r) => '<option value="' + r.name + '">' + r.glyph + "  " + r.name + "</option>").join("");
 
   let strokes = [], cur = null, locked = false, overlay = null, burn = null;
-  let centered = false, ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
+  let centered = false, sent = false, ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
 
   function strokePath(ctx, pts) {
     ctx.beginPath();
@@ -156,7 +156,14 @@
   }
 
   /* ---- reconnaissance (sans modèle) */
+  const sendMode = () => !modelRune() && els.send.checked;
   function updateRanking() {
+    els.freeRetry.hidden = !sent;
+    if (sendMode() && !sent) {                                // la recherche attend l'envoi de la gravure
+      ranking = []; preview = null; els.list.innerHTML = "";
+      els.top.textContent = "—"; els.hint.textContent = "Dessine la rune, puis envoie la gravure pour lancer la recherche.";
+      els.open.hidden = true; render(); return;
+    }
     ranking = S.recognize(D.runes, map, strokes, Object.assign({ align: true }, FREE_TOL));
     els.list.innerHTML = "";
     if (!ranking.length) {
@@ -199,15 +206,34 @@
   function onModelChange() {
     const m = !!modelRune();
     els.fieldHelp.hidden = !m;
-    els.engrave.hidden = !m;
     els.outFree.hidden = m;
     els.outModel.hidden = true;
-    overlay = null; burn = null; locked = false;
+    overlay = null; burn = null; locked = false; sent = false;
     [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
     els.msg.textContent = "";
     strokes = []; cur = null; preview = null; ranking = []; centered = false;
+    syncControls();
     if (!m) updateRanking(); else render();
   }
+  function syncControls() {                                   // bouton d'envoi / de gravure selon le mode
+    const m = !!modelRune();
+    els.fieldSend.hidden = m;
+    els.engrave.hidden = !(m || els.send.checked);
+    els.engrave.textContent = m ? "Graver" : "Envoyer la gravure";
+  }
+  els.send.addEventListener("change", () => {
+    try { localStorage.setItem("runes-send", els.send.checked ? "1" : "0"); } catch (e) { /* ignoré */ }
+    sent = false; locked = false; overlay = null; burn = null; centered = false; preview = null; ranking = [];
+    [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
+    els.msg.textContent = "";
+    syncControls(); updateRanking();
+  });
+  els.freeRetry.addEventListener("click", () => {
+    sent = false; locked = false; centered = false; preview = null; ranking = []; strokes = [];
+    [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
+    els.msg.textContent = "";
+    updateRanking();
+  });
   Supports.bindSelect($("support"), $("support-note"));
   Supports.onChange(render);
   els.model.addEventListener("change", onModelChange);
@@ -261,24 +287,41 @@
   }
   const bestKey = () => "runes-best-" + els.model.value + "-" + els.help.value + (els.align.checked ? "-calage" : "-libre");
 
-  els.engrave.addEventListener("click", () => {
-    if (locked) return;
-    const m = modelRune();
-    const res = S.score(m, map, strokes, Object.assign({ align: els.align.checked }, MODEL_TOL));
-    if (!res) { els.msg.textContent = "Le tracé est trop court pour être gravé."; return; }
-    locked = true;
-    [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = true));
-    overlay = { aligned: res.aligned, missed: res.missed, excess: res.excess, showDiff: false };
+  function animateBurn(aligned, done) {                       // gravure animée du tracé, puis rappel
     let acc = 0;
-    const offsets = res.aligned.map(strokeLen).map((l) => { const o = acc; acc += l; return o; });
+    const offsets = aligned.map(strokeLen).map((l) => { const o = acc; acc += l; return o; });
     burn = { total: acc, offsets, progress: 0 };
     const t0 = performance.now(), dur = Math.min(2600, 700 + acc * 2.2);
     (function frame(now) {
       burn.progress = Math.min(1, (now - t0) / dur);
       render();
       if (burn.progress < 1) requestAnimationFrame(frame);
-      else { burn = null; overlay.showDiff = true; render(); showResult(res); }
+      else { burn = null; done(); }
     })(t0);
+  }
+
+  els.engrave.addEventListener("click", () => {
+    if (locked) return;
+    const m = modelRune();
+    if (!m) {                                                 // envoi de la gravure : recherche de la rune la plus proche
+      const rk = S.recognize(D.runes, map, strokes, Object.assign({ align: true }, FREE_TOL));
+      if (!rk.length) { els.msg.textContent = "Le tracé est trop court pour être envoyé."; return; }
+      const fitted = S.score(byName(rk[0].name), map, strokes, Object.assign({ align: true }, FREE_TOL));
+      locked = true;
+      [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = true));
+      overlay = { aligned: fitted.aligned, showDiff: false };
+      animateBurn(fitted.aligned, () => {
+        overlay = null; strokes = fitted.aligned; sent = true; centered = true; preview = null;
+        updateRanking();
+      });
+      return;
+    }
+    const res = S.score(m, map, strokes, Object.assign({ align: els.align.checked }, MODEL_TOL));
+    if (!res) { els.msg.textContent = "Le tracé est trop court pour être gravé."; return; }
+    locked = true;
+    [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = true));
+    overlay = { aligned: res.aligned, missed: res.missed, excess: res.excess, showDiff: false };
+    animateBurn(res.aligned, () => { overlay.showDiff = true; render(); showResult(res); });
   });
 
   function showResult(res) {
@@ -307,7 +350,8 @@
   });
 
   /* ------------------------------------------------------------------ démarrage */
-  render();
+  try { if (localStorage.getItem("runes-send") === "0") els.send.checked = false; } catch (e) { /* ignoré */ }
+  syncControls(); updateRanking();
   if (location.hash === "#dessin") show("draw"); else if (location.hash === "#concepteur") show("design");
-  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, engrave: () => els.engrave.click() };
+  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
 })();

@@ -70,6 +70,10 @@
               <option value="memory">De mémoire : aucun modèle</option>
             </select>
           </div>
+          <div class="field" id="field-send">
+            <label class="check"><input type="checkbox" id="send" checked> Envoyer la gravure</label>
+            <p class="hint">Activé : tu dessines, puis tu envoies la gravure pour lancer la recherche. Désactivé : la recherche se met à jour à chaque trait.</p>
+          </div>
           <div class="field">
             <label class="check"><input type="checkbox" id="align" checked> Calage automatique (taille et position libres)</label>
             <p class="hint">Le calage recentre et redimensionne ton dessin, sans corriger la rotation. Sans modèle, il est toujours actif.</p>
@@ -81,6 +85,7 @@
             <p class="hint" id="free-hint">Dessine une rune pour lancer la recherche.</p>
             <ul id="free-list" class="match"></ul>
             <button id="free-open" class="link" hidden></button>
+            <div class="row"><button id="free-retry" class="btn ghost" hidden>Recommencer</button></div>
           </div>
 
           <div id="out-model" class="result" hidden>
