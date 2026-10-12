@@ -1,4 +1,4 @@
-// Réponses JSON, CORS (lecture et envoi sans cookie : l'API est ouverte), empreinte de l'adresse IP.
+// Réponses JSON, CORS (lecture et envoi sans cookie : l'API publique est ouverte), empreinte de l'adresse IP.
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -6,11 +6,25 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
+/** Réponse de l'API publique (codes courts) : CORS ouvert, aucun cookie. */
 export function json(body, status = 200, extra = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: Object.assign({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }, CORS, extra),
   });
+}
+
+/** Réponse liée à un compte : jamais de CORS (le site seul peut la lire), jamais de cache partagé. */
+export function privateJson(body, status = 200, cookies = []) {
+  const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store" });
+  cookies.forEach((c) => headers.append("Set-Cookie", c));
+  return new Response(JSON.stringify(body), { status, headers });
+}
+
+export function redirect(location, cookies = []) {
+  const headers = new Headers({ Location: location, "Cache-Control": "no-store" });
+  cookies.forEach((c) => headers.append("Set-Cookie", c));
+  return new Response(null, { status: 302, headers });
 }
 
 export const preflight = () => new Response(null, { status: 204, headers: CORS });

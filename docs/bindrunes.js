@@ -248,6 +248,7 @@
       act(acts, "Lien", () => copyText(shareUrl(rec), "Lien", rec));
       act(acts, "Code", () => copyText(shareCode(rec), "Code", rec));
       if (apiOk) act(acts, "Code court", () => shortCode(rec));
+      if (window.Account && window.Account.user()) act(acts, "Sur mon compte", () => window.Account.upload(rec));
       act(acts, "Exporter", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json"));
       act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
       info.appendChild(h); info.appendChild(meta); info.appendChild(acts);
@@ -304,7 +305,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

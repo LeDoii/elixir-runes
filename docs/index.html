@@ -40,6 +40,30 @@
     <!-- ============================ MES BINDRUNES ============================ -->
     <section id="mine" role="tabpanel" aria-labelledby="tab-mine" hidden>
       <div id="inbox" class="inbox" hidden></div>
+      <div id="account" class="account" hidden>
+        <div id="acc-out">
+          <button id="acc-login" class="btn">Se connecter avec Discord</button>
+          <p class="hint">Facultatif : relie tes bindrunes à ton compte pour les retrouver partout. Le site ne reçoit que ton identifiant et ton pseudo Discord.</p>
+        </div>
+        <div id="acc-in" hidden>
+          <p class="acc-bar">Connecté en tant que <strong id="acc-name"></strong> ·
+            <button type="button" class="link" id="acc-logout">Se déconnecter</button> ·
+            <button type="button" class="link" id="acc-delete">Supprimer mon compte</button></p>
+          <h3>Sur mon compte</h3>
+          <p id="acc-empty" class="hint">Aucune bindrune sur ton compte. Utilise « Sur mon compte » sous une bindrune enregistrée.</p>
+          <ul id="acc-list" class="mine-grid"></ul>
+        </div>
+        <p id="acc-msg" class="hint" role="status"></p>
+        <details class="privacy">
+          <summary>Confidentialité</summary>
+          <p>Avec la connexion Discord, le site reçoit seulement ton <strong>identifiant</strong> et ton <strong>pseudo</strong> (permission « identify ») :
+            ni e-mail, ni liste de serveurs, ni messages. Ils servent à rattacher tes bindrunes à ton compte.</p>
+          <p>Les bindrunes enregistrées sur ton compte sont visibles par toi et par l'administrateur du site. Un code court créé en étant connecté
+            est lui aussi rattaché à ton compte. Les bindrunes de ce navigateur, elles, ne quittent jamais ton appareil tant que tu ne les envoies pas.</p>
+          <p>Tu peux te déconnecter ou supprimer ton compte quand tu veux : tes bindrunes en ligne sont alors effacées. Les codes courts déjà partagés
+            restent valables mais ne sont plus liés à toi. Ce site est un projet de fan, non affilié à l'équipe d'Elixir RP.</p>
+        </details>
+      </div>
       <div class="grid2 mine-top">
         <div class="text">
           <h2>Mes bindrunes</h2>
@@ -220,6 +244,7 @@
   <script src="supports.js"></script>
   <script src="scoring.js"></script>
   <script src="bindrunes.js"></script>
+  <script src="account.js"></script>
   <script src="app.js"></script>
   <script src="designer.js"></script>
 </body>

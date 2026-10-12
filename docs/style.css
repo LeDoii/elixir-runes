@@ -183,3 +183,10 @@ textarea { font: inherit; width: 100%; padding: .55rem .6rem; background: #f3eee
 @media (max-width: 600px) { .tabs button { padding: .7rem .6rem; letter-spacing: .1em; font-size: .7rem; } }
 
 .dz-list .nm small { display: block; color: var(--grey2); font-family: "Crimson Pro", Georgia, serif; text-transform: none; letter-spacing: 0; font-size: .8rem; }
+
+.account { margin-bottom: 1.4rem; padding: .9rem 1rem; border: 1px solid var(--line); background: rgba(255,255,255,.3); }
+.account h3 { margin-top: .6rem; }
+.acc-bar { margin: 0 0 .4rem; }
+.privacy { margin-top: .6rem; font-size: .95rem; }
+.privacy summary { cursor: pointer; font-family: ui-monospace, Consolas, monospace; font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--grey2); }
+.privacy p { margin: .5rem 0 0; }

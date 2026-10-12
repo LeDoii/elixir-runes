@@ -35,7 +35,7 @@ Les sens affichés sur la fiche de chaque rune sont les descriptions du Chapitre
 
 ## Hébergement et API
 
-GitHub Pages sert le site seul. Sur Cloudflare, un Worker (`server/`, `wrangler.jsonc`) sert le site et ajoute les codes courts de partage (base D1). Voir `CLOUDFLARE.md`.
+GitHub Pages sert le site seul. Sur Cloudflare, un Worker (`server/`, `wrangler.jsonc`) sert le site et ajoute les codes courts de partage (base D1). Connexion Discord facultative (permission `identify` seulement) pour retrouver ses bindrunes sur son compte. Voir `CLOUDFLARE.md`.
 
 ## Licence
 
