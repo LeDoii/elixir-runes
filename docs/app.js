@@ -76,24 +76,6 @@
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   $("dlg-train").addEventListener("click", () => { dlg.close(); setModel(current.name); show("draw"); });
 
-  /* ------------------------------------------------------------------ plaque de cuivre */
-  let plateCache = null;
-  function plate() {
-    if (plateCache) return plateCache;
-    const c = document.createElement("canvas");
-    c.width = c.height = W;
-    const g = c.getContext("2d");
-    const grad = g.createRadialGradient(W * 0.38, W * 0.32, 40, W / 2, W / 2, W * 0.85);
-    grad.addColorStop(0, "#E2A982"); grad.addColorStop(0.55, "#CD8F66"); grad.addColorStop(1, "#A9704C");
-    g.fillStyle = grad; g.fillRect(0, 0, W, W);
-    let seed = 11;
-    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    g.globalAlpha = 0.05;
-    for (let i = 0; i < 1400; i++) { g.fillStyle = rnd() > 0.5 ? "#fff" : "#000"; g.fillRect(rnd() * W, rnd() * W, 40 + rnd() * 200, 1); }
-    plateCache = c;
-    return c;
-  }
-
   /* ------------------------------------------------------------------ dessin libre */
   const cv = $("canvas"), g = cv.getContext("2d");
   const els = {
@@ -124,7 +106,7 @@
     });
     ctx.restore();
   }
-  function burnLine(ctx, pts, upto, width) {
+  function truncate(pts, upto) {                              // début du tracé, sur une longueur donnée (animation de gravure)
     let remaining = upto;
     const path = [pts[0]];
     for (let i = 1; i < pts.length && remaining > 0; i++) {
@@ -136,34 +118,30 @@
         remaining = 0;
       }
     }
-    ctx.save();
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.strokeStyle = "rgba(120,55,15,.35)"; ctx.lineWidth = width + 7; strokePath(ctx, path);
-    ctx.strokeStyle = "#2a140a"; ctx.lineWidth = width; strokePath(ctx, path);
-    ctx.strokeStyle = "rgba(255,170,90,.18)"; ctx.lineWidth = Math.max(1, width * 0.25); strokePath(ctx, path);
-    ctx.restore();
+    return path;
   }
   const strokeLen = (s) => s.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - s[i - 1][0], p[1] - s[i - 1][1]) : 0), 0);
   const modelRune = () => (els.model.value ? byName(els.model.value) : null);
 
   function render() {
     g.clearRect(0, 0, W, W);
-    g.drawImage(plate(), 0, 0);
+    g.drawImage(Supports.plate(Supports.current(), W, W), 0, 0);
     const m = modelRune();
     if (m && !overlay) {
-      if (els.help.value === "guide") drawModel(g, m, "#3D5C8C", 0.4);
-      else if (els.help.value === "faint") drawModel(g, m, "#5a3320", 0.1);
+      if (els.help.value === "guide") { const gd = Supports.guide(false); drawModel(g, m, gd.color, gd.alpha); }
+      else if (els.help.value === "faint") { const gd = Supports.guide(true); drawModel(g, m, gd.color, gd.alpha); }
     }
     if (!m && preview && ranking.length) {
       const hit = ranking.find((r) => r.name === preview);
-      if (hit && hit.fit) drawModel(g, byName(preview), "#3D5C8C", 0.35, hit.fit);
+      if (hit && hit.fit) { const gd = Supports.guide(false); drawModel(g, byName(preview), gd.color, gd.alpha, hit.fit); }
     }
     const list = overlay ? overlay.aligned : strokes.concat(cur ? [cur] : []);
+    const paths = [];
     list.forEach((s, si) => {
       if (s.length < 2) return;
-      const upto = burn ? Math.max(0, burn.progress * burn.total - burn.offsets[si]) : Infinity;
-      burnLine(g, s, upto, overlay ? 8 : 6);
+      paths.push(burn ? truncate(s, Math.max(0, burn.progress * burn.total - burn.offsets[si])) : s);
     });
+    if (paths.length) Supports.engrave(g, paths, overlay ? 8 : 7, Supports.current(), { cap: "round" });
     if (overlay && overlay.showDiff) {
       g.save();
       g.strokeStyle = "rgba(61,92,140,.85)"; g.lineWidth = 1.6; g.setLineDash([6, 5]);
@@ -221,6 +199,8 @@
     strokes = []; cur = null; preview = null; ranking = [];
     if (!m) updateRanking(); else render();
   }
+  Supports.bindSelect($("support"), $("support-note"));
+  Supports.onChange(render);
   els.model.addEventListener("change", onModelChange);
   els.help.addEventListener("change", render);
 

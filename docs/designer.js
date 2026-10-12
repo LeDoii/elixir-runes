@@ -54,26 +54,44 @@
     if (parent) parent.appendChild(e);
     return e;
   }
+  /* ---- fond et tracé : dessinés sur le canevas, avec l'effet du support */
+  const cv = $("dz-canvas"), ctx = cv.getContext("2d"), RES = cv.width / VW;
+  function drawCanvas() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(Supports.plate(Supports.current(), cv.width, cv.height), 0, 0);
+    ctx.setTransform(RES, 0, 0, RES, 0, 0);
+    const placed = items.map((it) => ({ it, paths: byName(it.name).strokes.map((s) => s.pts.map((p) => [p[0] + it.x, p[1] + it.y])) }));
+    if ($("dz-strata").checked) {
+      ctx.save(); ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3; ctx.lineWidth = D.strokeWidth;
+      placed.forEach(({ it, paths }) => {
+        ctx.strokeStyle = it.color; ctx.globalAlpha = 0.88;
+        ctx.beginPath();
+        paths.forEach((p) => p.forEach((pt, i) => (i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]))));
+        ctx.stroke();
+      });
+      ctx.restore();
+    } else if (placed.length) {
+      Supports.engrave(ctx, placed.reduce((a, x) => a.concat(x.paths), []), D.strokeWidth, Supports.current(), { cap: "butt" });
+    }
+  }
+
+  /* ---- rendu : le SVG ne porte que l'interaction (zones de prise, ancrages, sélection) */
   function render() {
+    drawCanvas();
     svg.innerHTML = "";
-    const defs = el("defs", {}, svg);
-    const grad = el("radialGradient", { id: "dz-copper", cx: "38%", cy: "32%", r: "85%" }, defs);
-    [["0", "#E2A982"], ["0.55", "#CD8F66"], ["1", "#A9704C"]].forEach(([o, c]) => el("stop", { offset: o, "stop-color": c }, grad));
-    el("rect", { width: VW, height: VH, fill: "url(#dz-copper)", id: "dz-bg" }, svg);
+    el("rect", { width: VW, height: VH, fill: "transparent", id: "dz-bg" }, svg);
     items.forEach((it) => {
       const gr = el("g", { transform: "translate(" + it.x + " " + it.y + ")", "data-id": it.id, style: "cursor:" + (drag && drag.it === it ? "grabbing" : "grab") }, svg);
-      const rune = byName(it.name);
-      rune.strokes.forEach((s) => {
-        const pts = s.pts.map((p) => p.join(",")).join(" ");
-        el("polyline", { points: pts, fill: "none", stroke: it.color, "stroke-opacity": 0.88, "stroke-width": D.strokeWidth, "stroke-linecap": "butt", "stroke-linejoin": "miter", "pointer-events": "none" }, gr);
-        el("polyline", { points: pts, fill: "none", stroke: "transparent", "stroke-width": 34, "pointer-events": "stroke", class: "ui" }, gr);
+      byName(it.name).strokes.forEach((s) => {
+        el("polyline", { points: s.pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "transparent", "stroke-width": 34, "pointer-events": "stroke", class: "ui" }, gr);
       });
       if (it.id === selected) {
         const [x0, y0, x1, y1] = D.bbox;
-        el("rect", { x: x0 - 22, y: y0 - 14, width: x1 - x0 + 44, height: y1 - y0 + 28, fill: "none", stroke: it.color, "stroke-dasharray": "6 5", "stroke-width": 1.6, rx: 4, class: "ui", "pointer-events": "none" }, gr);
+        el("rect", { x: x0 - 22, y: y0 - 14, width: x1 - x0 + 44, height: y1 - y0 + 28, fill: "none", stroke: "#fff", "stroke-dasharray": "6 5", "stroke-width": 2, rx: 4, class: "ui", "pointer-events": "none" }, gr);
+        el("rect", { x: x0 - 22, y: y0 - 14, width: x1 - x0 + 44, height: y1 - y0 + 28, fill: "none", stroke: "#20201E", "stroke-dasharray": "6 5", "stroke-dashoffset": 5, "stroke-width": 1.4, rx: 4, class: "ui", "pointer-events": "none" }, gr);
       }
       if (magnet() && it.snap) {
-        anchors(it.name).forEach((a) => el("circle", { cx: a[0], cy: a[1], r: 5, fill: "#fff", stroke: it.color, "stroke-width": 2, class: "ui", "pointer-events": "none" }, gr));
+        anchors(it.name).forEach((a) => el("circle", { cx: a[0], cy: a[1], r: 5, fill: "#fff", stroke: "#20201E", "stroke-width": 1.8, class: "ui", "pointer-events": "none" }, gr));
       }
     });
     if (snapMark) {
@@ -228,27 +246,19 @@
   });
   $("dz-clear").addEventListener("click", () => { items = []; selected = null; say(""); render(); });
 
-  /* ---- export PNG (sans les points d'ancrage ni la sélection) */
+  /* ---- export PNG : le canevas seul (pas d'ancrages ni de sélection) */
   $("dz-export").addEventListener("click", () => {
     if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
-    const clone = svg.cloneNode(true);
-    clone.querySelectorAll(".ui").forEach((n) => n.remove());
-    clone.setAttribute("xmlns", NS); clone.setAttribute("width", VW * 2); clone.setAttribute("height", VH * 2);
-    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" }));
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement("canvas");
-      c.width = VW * 2; c.height = VH * 2;
-      c.getContext("2d").drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      c.toBlob((b) => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(b); a.download = "bindrune.png"; a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      });
-    };
-    img.src = url;
+    cv.toBlob((b) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b); a.download = "bindrune-" + Supports.current() + ".png"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
   });
+
+  Supports.bindSelect($("dz-support"), $("dz-support-note"));
+  Supports.onChange(render);
+  $("dz-strata").addEventListener("change", render);
 
   render();
   window.__designer = { add, getItems: () => items, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };

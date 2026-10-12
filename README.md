@@ -10,6 +10,7 @@ Galerie des 24 runes et atelier de **dessin libre**, pour le serveur de jeu de r
   - **avec un modèle**, tu t'entraînes à tracer la rune choisie (guidé, estompé ou de mémoire) et tu obtiens un pourcentage de précision.
 
 - **Concepteur** : assemblage d'une bindrune. 4 runes au maximum (6 en mode avancé), choisies dans la palette par clic ou glisser-déposer, déplaçables sur la plaque. Les extrémités et les angles de chaque rune portent un point d'ancrage visible qui s'aimante à ceux des autres runes. Le magnétisme se coupe globalement ou rune par rune (actif par défaut). Export PNG.
+- **Support de gravure** (Dessin libre et Concepteur) : bois (pyrogravure), pierre, métal (cuivre ciré ou acier brossé), os, défense, papier (encre), tissu (fil, pour un habit), cristal. Le fond et l'effet du tracé changent avec le support. Les supports et leur stabilité viennent des notes sur les bindrunes (bois, pierre, métal stables ; os, défense, papier, tissu instables ; cristal : amplifie la puissance ; aucun être vivant). Le rendu visuel de chaque effet est une interprétation. Le Concepteur permet aussi d'afficher les strates colorées (une couleur par rune).
 - **Difficulté** : chaque rune a un niveau (1 à 5) et un rang sur 24 ; la galerie se trie par difficulté.
 
 ## Comment ça marche
@@ -20,6 +21,7 @@ Le dessin est comparé à chaque rune point par point, sur sa ligne centrale : *
 
 ## Contenu
 
+- `docs/supports.js` : fonds et effets de gravure.
 - `docs/` : site statique (GitHub Pages, branche `main`, dossier `/docs`).
 - `tools/build_data.py` : régénère `docs/data.js` depuis la bibliothèque de runes (`Devoir/Bindrune/Runes/runes.json`, grille commune).
 - `tools/test_recognition.js` : test de reconnaissance.

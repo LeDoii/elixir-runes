@@ -126,7 +126,9 @@ dialog::backdrop { background: rgba(32,32,30,.55); }
 /* ------------------------------------------------------------------ concepteur */
 .grid2.design { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
 @media (max-width: 800px) { .grid2.design { grid-template-columns: 1fr; } }
-#dz { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 12px 30px rgba(32,32,30,.28); touch-action: none; user-select: none; }
+.dz-wrap { position: relative; border-radius: 14px; box-shadow: 0 12px 30px rgba(32,32,30,.28); overflow: hidden; }
+.plate-wrap canvas#dz-canvas { width: 100%; height: auto; display: block; border-radius: 0; box-shadow: none; cursor: default; background: none; }
+#dz { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; }
 .count { font-weight: 400; color: var(--grey2); letter-spacing: .1em; }
 .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: .4rem; margin-bottom: 1rem; }
 .pal { background: rgba(255,255,255,.3); border: 1px solid var(--line); padding: .3rem .1rem .15rem; cursor: grab; text-align: center; border-radius: 2px;
