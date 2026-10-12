@@ -138,7 +138,7 @@
   }
 
   /* ---------------------------------------------------------------- journal */
-  const ACTIONS = { delete_bindrune: "a supprimé la bindrune", delete_code: "a supprimé le code court", ban: "a bloqué", unban: "a débloqué", unpublish: "a dépublié de la galerie" };
+  const ACTIONS = { backup: "a téléchargé une sauvegarde :", delete_bindrune: "a supprimé la bindrune", delete_code: "a supprimé le code court", ban: "a bloqué", unban: "a débloqué", unpublish: "a dépublié de la galerie" };
   async function loadLog() {
     const ul = $("l-list");
     try {
@@ -149,11 +149,38 @@
     } catch (e) { ul.textContent = e.message; }
   }
 
+  /* ---------------------------------------------------------------- santé du site */
+  const num = (n) => Number(n).toLocaleString("fr-FR");
+  async function loadHealth() {
+    try {
+      const h = await api("/api/admin/health"), c = h.counts;
+      const rows = [
+        ["Base de données", h.db.ok ? "OK" : "Panne", h.db.size_bytes != null ? (h.db.size_bytes / 1048576).toFixed(2).replace(".", ",") + " Mo sur " + h.limits.storage_gb + " Go" : ""],
+        ["Comptes", c.users, ""], ["Bindrunes", c.bindrunes, c.published + " publiées"], ["Codes courts", c.codes, ""],
+        ["Erreurs (24 h)", c.errors_24h, c.errors_24h ? "à examiner ci-dessous" : "aucune"],
+      ];
+      const ul = $("h-stats"); ul.innerHTML = "";
+      rows.forEach(([t, n, sub]) => { const li = el("li"); li.appendChild(el("strong", "", String(n))); li.appendChild(el("span", "", t)); if (sub) li.appendChild(el("small", "", sub)); ul.appendChild(li); });
+      const us = $("h-usage"); us.innerHTML = "";
+      if (!h.usage.length) us.appendChild(el("li", "hint", "Aucune écriture enregistrée pour l'instant."));
+      h.usage.forEach((x) => us.appendChild(el("li", "", x.day + " · " + num(x.mutations) + " écriture" + (x.mutations > 1 ? "s" : "") + " · " + num(x.errors) + " erreur" + (x.errors > 1 ? "s" : ""))));
+      const er = $("h-errors"); er.innerHTML = "";
+      if (!h.errors.length) er.appendChild(el("li", "hint", "Aucune erreur enregistrée."));
+      h.errors.forEach((x) => er.appendChild(el("li", "", fmt(x.at) + " · " + x.method + " " + x.path + " · " + x.message)));
+      const L = h.limits;
+      $("h-limits").textContent = "Limites du plan gratuit de Cloudflare : " + num(L.requests_per_day) + " requêtes par jour (Workers), " + num(L.rows_read_per_day) + " lignes lues et " +
+        num(L.rows_written_per_day) + " lignes écrites par jour (D1), " + L.storage_gb + " Go de stockage. Au-delà, les requêtes de la base échouent jusqu'à minuit UTC (Cloudflare envoie un e-mail). " +
+        "L'usage exact se lit dans le tableau de bord Cloudflare : D1, puis Metrics ; ici, seules les écritures et les erreurs de ce site sont comptées.";
+    } catch (e) { $("h-limits").textContent = e.message; }
+  }
+  $("h-refresh").addEventListener("click", loadHealth);
+
   /* ---------------------------------------------------------------- onglets et démarrage */
-  const tabs = { bind: $("t-bind"), users: $("t-users"), log: $("t-log") }, panels = { bind: $("p-bind"), users: $("p-users"), log: $("p-log") };
+  const tabs = { bind: $("t-bind"), users: $("t-users"), log: $("t-log"), health: $("t-health") }, panels = { bind: $("p-bind"), users: $("p-users"), log: $("p-log"), health: $("p-health") };
   function select(which) {
     Object.keys(tabs).forEach((k) => { tabs[k].setAttribute("aria-selected", String(k === which)); panels[k].hidden = k !== which; });
     if (which === "log") loadLog();
+    if (which === "health") loadHealth();
     if (which === "users") loadUsers(state.users.page);
   }
   Object.keys(tabs).forEach((k) => tabs[k].addEventListener("click", () => select(k)));

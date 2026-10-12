@@ -1,0 +1,14 @@
+# Contrôle automatique à chaque envoi sur GitHub : syntaxe, migrations, configuration et tests (tools/check.mjs).
+name: Contrôle
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --no-warnings tools/check.mjs

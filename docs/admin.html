@@ -19,6 +19,7 @@
       <button role="tab" id="t-bind" aria-selected="true">Bindrunes</button>
       <button role="tab" id="t-users" aria-selected="false">Utilisateurs</button>
       <button role="tab" id="t-log" aria-selected="false">Journal</button>
+      <button role="tab" id="t-health" aria-selected="false">Santé</button>
     </nav>
   </header>
 
@@ -57,6 +58,21 @@
 
       <section id="p-log" hidden>
         <ul id="l-list" class="loglist"></ul>
+      </section>
+
+      <section id="p-health" hidden>
+        <ul id="h-stats" class="statgrid"></ul>
+        <div class="toolbar">
+          <a id="h-backup" class="btn" href="/api/admin/backup" download>Télécharger une sauvegarde (JSON)</a>
+          <button id="h-refresh" class="btn ghost" type="button">Actualiser</button>
+        </div>
+        <p class="hint">La sauvegarde contient les comptes (identifiants et pseudos Discord), les bindrunes, les codes courts et le journal : garde-la hors du site.
+          Pour restaurer : <code>node tools/restore_backup.mjs sauvegarde.json &gt; restauration.sql</code>, puis colle le résultat dans la console du tableau de bord D1.</p>
+        <h3>Écritures et erreurs, 7 derniers jours</h3>
+        <ul id="h-usage" class="loglist"></ul>
+        <h3>Dernières erreurs du serveur</h3>
+        <ul id="h-errors" class="loglist"></ul>
+        <p id="h-limits" class="hint"></p>
       </section>
     </div>
   </main>

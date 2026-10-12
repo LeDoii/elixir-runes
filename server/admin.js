@@ -140,6 +140,40 @@ async function logList(env) {
   return privateJson({ items: rows.results || [] });
 }
 
+/* ---------------------------------------------------------------- santé du site et sauvegarde */
+// Limites du plan gratuit de Cloudflare (Workers : 100 000 requêtes par jour ; D1 : 5 millions de lignes lues, 100 000 écrites par jour, 5 Go).
+// Depuis le 1er septembre 2026, au-delà, les requêtes D1 échouent jusqu'à minuit UTC.
+const LIMITS = { requests_per_day: 100000, rows_read_per_day: 5000000, rows_written_per_day: 100000, storage_gb: 5 };
+
+async function health(env) {
+  const probe = await env.DB.prepare("SELECT 1 AS ok").run();
+  const r = await env.DB.prepare(
+    "SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM bindrunes) AS bindrunes, (SELECT COUNT(*) FROM bindrunes WHERE published = 1) AS published, " +
+    "(SELECT COUNT(*) FROM shared_bindrunes) AS codes, (SELECT COUNT(*) FROM error_log WHERE at > ?) AS errors_24h").bind(Date.now() - DAY).first();
+  const usage = await env.DB.prepare("SELECT day, mutations, errors FROM usage_daily ORDER BY day DESC LIMIT 7").all();
+  const errors = await env.DB.prepare("SELECT id, at, method, path, message FROM error_log ORDER BY id DESC LIMIT 20").all();
+  const size = probe && probe.meta && Number.isFinite(probe.meta.size_after) ? probe.meta.size_after : null;
+  return privateJson({ db: { ok: true, size_bytes: size }, counts: r, usage: usage.results || [], errors: errors.results || [], limits: LIMITS });
+}
+
+const BACKUP_MAX = 50000;
+/** Copie complète des données (sans les sessions ni les empreintes d'adresses) : à garder hors du site, à restaurer avec tools/restore_backup.mjs. */
+async function backup(env, admin) {
+  const table = async (sql) => (await env.DB.prepare(sql + " LIMIT " + BACKUP_MAX).all()).results || [];
+  const data = {
+    format: "elixir-runes-backup", version: 1, exported_at: new Date().toISOString(),
+    users: await table("SELECT id, username, global_name, created_at, last_login, banned FROM users"),
+    bindrunes: await table("SELECT id, user_id, name, name_key, description, tags, data, combo, published, published_at, created_at, updated_at FROM bindrunes"),
+    shared_bindrunes: await table("SELECT code, name, description, tags, data, created_at, user_id FROM shared_bindrunes"),
+    admin_log: await table("SELECT id, at, admin_id, admin_name, action, target, detail FROM admin_log"),
+  };
+  await logAction(env, admin, "backup", "sauvegarde", data.users.length + " comptes, " + data.bindrunes.length + " bindrunes, " + data.shared_bindrunes.length + " codes");
+  return new Response(JSON.stringify(data), { status: 200, headers: {
+    "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store",
+    "Content-Disposition": 'attachment; filename="sauvegarde-runes-' + data.exported_at.slice(0, 10) + '.json"',
+  } });
+}
+
 /** Routes /api/admin/* ; retourne une Response. */
 export async function handleAdmin(request, env, path, method) {
   const mutates = method !== "GET";
@@ -150,6 +184,8 @@ export async function handleAdmin(request, env, path, method) {
   if (path === "/api/admin/export" && method === "GET") return exportBindrunes(request, env);
   if (path === "/api/admin/users" && method === "GET") return listUsers(request, env);
   if (path === "/api/admin/log" && method === "GET") return logList(env);
+  if (path === "/api/admin/health" && method === "GET") return health(env);
+  if (path === "/api/admin/backup" && method === "GET") return backup(env, g.user);
   let m = path.match(/^\/api\/admin\/bindrunes\/account\/([A-Za-z0-9_-]{1,40})\/unpublish$/);
   if (m && method === "POST") return unpublish(env, g.user, m[1]);
   m = path.match(/^\/api\/admin\/bindrunes\/(account|code)\/([A-Za-z0-9_-]{1,40})$/);

@@ -8,6 +8,7 @@ import { handleAdmin } from "./admin.js";
 import { listGallery, getGalleryItem, checkCombo } from "./gallery.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
 import { allTags, parseTags } from "./lib/tags.js";
+import { recordError, recordMutation } from "./lib/monitor.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
 const MAX_BODY = 4096;          // octets : une bindrune de 6 runes en fait moins de 1 500
@@ -56,7 +57,7 @@ async function readCode(rawCode, env) {
   return json({ name: row.name, description: row.description, tags: parseTags(row.tags), d }, 200, { "Cache-Control": "public, max-age=300" });   // un code ne change jamais
 }
 
-export async function handleApi(request, env) {
+async function route(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "");
   if (path !== "/api" && !path.startsWith("/api/")) return null;
@@ -92,6 +93,17 @@ export async function handleApi(request, env) {
     return json({ error: "Route inconnue." }, 404);
   } catch (e) {
     console.error("Erreur API :", e && e.stack ? e.stack : e);
+    await recordError(env, request, e);
     return json({ error: "Erreur du serveur." }, 500);
   }
+}
+
+export async function handleApi(request, env) {
+  const res = await route(request, env);
+  // Écritures réussies comptées pour le suivi : comptes, bindrunes, codes courts (pas /api/combo, qui ne fait que lire).
+  if (res && env.DB && (request.method === "POST" || request.method === "DELETE") && res.status < 400) {
+    const path = new URL(request.url).pathname;
+    if (path.startsWith("/api/my/") || path === "/api/codes" || path === "/api/me") await recordMutation(env);
+  }
+  return res;
 }
