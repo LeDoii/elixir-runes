@@ -17,6 +17,8 @@ Galerie des 24 runes et atelier de **dessin libre**, pour le serveur de jeu de r
 
 Le dessin est comparé à chaque rune point par point, sur sa ligne centrale : **couverture** (part de la rune recouverte) × **précision** (part du dessin qui tombe sur la rune). Le calage automatique recentre et redimensionne le dessin sans corriger la rotation. Tout se calcule dans le navigateur.
 
+La reconnaissance tient aussi compte de la **topologie** : nombre de formes (deux tracés qui se rejoignent n'en font qu'une) et de boucles (le rond du R, les deux ventres du B). Une forme ou une boucle de différence retire 20 % ou 15 % à la correspondance. `node tools/test_topology.js` compare avec et sans ce réglage (de 229 à 235 réussites sur 240 pour un tremblement fort, de 209 à 215 pour un tremblement très fort).
+
 `node tools/test_recognition.js` vérifie la reconnaissance sur des copies tremblées, tournées et redimensionnées de chaque rune (93 à 100 % de réussite au premier rang).
 
 ## Contenu

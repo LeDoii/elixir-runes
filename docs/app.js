@@ -162,8 +162,10 @@
     }
     const best = ranking[0];
     els.top.textContent = best.name;
-    els.hint.textContent = best.total >= 70 ? "Correspondance : " + Math.round(best.total) + " %."
-      : "Correspondance faible (" + Math.round(best.total) + " %) : le dessin ne ressemble clairement à aucune rune.";
+    const plural = (n, w) => n + " " + w + (n > 1 ? "s" : "");
+    els.hint.textContent = (best.total >= 70 ? "Correspondance : " + Math.round(best.total) + " %."
+      : "Correspondance faible (" + Math.round(best.total) + " %) : le dessin ne ressemble clairement à aucune rune.") +
+      " Ton dessin compte " + plural(best.userShapes, "forme") + " et " + plural(best.userLoops, "boucle") + ".";
     if (!preview || !ranking.some((r) => r.name === preview)) preview = best.name;
     // le dessin est recentré et mis à l'échelle sur le masque de la rune retenue : le masque reste toujours dans le cadre
     const fitted = S.score(byName(preview), map, strokes, Object.assign({ align: true }, FREE_TOL));
@@ -229,12 +231,13 @@
     if (!cur) return;
     if (cur.length > 1) strokes.push(cur);
     cur = null;
+    preview = null;                                          // le masque suit à nouveau la meilleure correspondance
     if (!modelRune()) updateRanking(); else render();
   };
   cv.addEventListener("pointerup", end);
   cv.addEventListener("pointercancel", end);
 
-  function changed() { els.msg.textContent = ""; if (!modelRune()) updateRanking(); else render(); }
+  function changed() { preview = null; els.msg.textContent = ""; if (!modelRune()) updateRanking(); else render(); }
   els.undo.addEventListener("click", () => { if (!locked) { strokes.pop(); changed(); } });
   els.clear.addEventListener("click", () => { if (!locked) { strokes = []; changed(); } });
   window.addEventListener("keydown", (e) => {
@@ -299,5 +302,5 @@
   /* ------------------------------------------------------------------ démarrage */
   render();
   if (location.hash === "#dessin") show("draw"); else if (location.hash === "#concepteur") show("design");
-  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, engrave: () => els.engrave.click() };
+  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, engrave: () => els.engrave.click() };
 })();

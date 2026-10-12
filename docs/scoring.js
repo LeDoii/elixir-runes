@@ -120,15 +120,85 @@
     };
   }
 
-  /** Classe toutes les runes selon leur ressemblance avec le tracé (meilleure d'abord). */
+
+  /* ------------------------------------------------------------------ topologie : nombre de formes et de boucles
+   * Un dessin est ramené à une grille normalisée (indépendante de la taille), épaissi comme un trait gravé.
+   *  - formes : blocs d'encre séparés (deux tracés qui se rejoignent ne font qu'une forme) ;
+   *  - boucles : espaces fermés entièrement entourés d'encre (le rond du R, les deux ventres du B...).
+   * Le dessin et chaque rune passent par le même traitement, donc les écarts de tremblement s'annulent en grande partie.
+   */
+  const GRID = 96, MARGIN = 10, RADIUS = 2.6, MIN_HOLE = 8;
+
+  function topology(strokes) {
+    const pts = toPoints(strokes);
+    if (pts.length < 2) return { shapes: 0, loops: 0 };
+    const b = bbox(pts), k = (GRID - 2 * MARGIN) / Math.max(b.w, b.h, 1);
+    const ink = new Uint8Array(GRID * GRID);
+    const ox = GRID / 2 - (b.x0 + b.w / 2) * k, oy = GRID / 2 - (b.y0 + b.h / 2) * k, r2 = RADIUS * RADIUS;
+    const stamp = (x, y) => {
+      for (let j = Math.floor(y - RADIUS); j <= Math.ceil(y + RADIUS); j++)
+        for (let i = Math.floor(x - RADIUS); i <= Math.ceil(x + RADIUS); i++)
+          if (i >= 0 && j >= 0 && i < GRID && j < GRID && (i - x) * (i - x) + (j - y) * (j - y) <= r2) ink[j * GRID + i] = 1;
+    };
+    strokes.forEach((s) => {
+      if (s.length < 2) return;
+      samplePolyline(s.map(([x, y]) => [x * k + ox, y * k + oy]), 0.6).forEach(([x, y]) => stamp(x, y));
+    });
+    const flood = (value, eight) => {                               // composantes connexes de la valeur donnée
+      const seen = new Uint8Array(GRID * GRID), comps = [];
+      for (let start = 0; start < ink.length; start++) {
+        if (seen[start] || ink[start] !== value) continue;
+        const stack = [start]; seen[start] = 1;
+        let area = 0, border = false;
+        while (stack.length) {
+          const c = stack.pop(), x = c % GRID, y = (c / GRID) | 0;
+          area++;
+          if (x === 0 || y === 0 || x === GRID - 1 || y === GRID - 1) border = true;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if ((!dx && !dy) || (!eight && dx && dy)) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+            const n = ny * GRID + nx;
+            if (!seen[n] && ink[n] === value) { seen[n] = 1; stack.push(n); }
+          }
+        }
+        comps.push({ area, border });
+      }
+      return comps;
+    };
+    return {
+      shapes: flood(1, true).length,
+      loops: flood(0, false).filter((c) => !c.border && c.area >= MIN_HOLE).length,
+    };
+  }
+
+  const runeTopo = new WeakMap();
+  function runeTopology(rune) {
+    if (!runeTopo.has(rune)) runeTopo.set(rune, topology(rune.strokes.map((s) => s.pts)));
+    return runeTopo.get(rune);
+  }
+
+  /**
+   * Classe toutes les runes selon leur ressemblance avec le tracé (meilleure d'abord).
+   * La ressemblance géométrique est corrigée par la topologie : une forme ou une boucle de trop ou de moins
+   * (opts.shapePenalty, opts.loopPenalty : facteurs multiplicatifs, 1 = ignoré).
+   */
   function recognize(runes, map, strokes, opts) {
+    opts = opts || {};
+    const sp = opts.shapePenalty === undefined ? 0.8 : opts.shapePenalty;
+    const lp = opts.loopPenalty === undefined ? 0.85 : opts.loopPenalty;
+    const user = topology(strokes);
     const out = [];
     runes.forEach((r) => {
       const res = score(r, map, strokes, opts);
-      if (res) out.push({ name: r.name, total: res.total, coverage: res.coverage, precision: res.precision, fit: res.fit });
+      if (!res) return;
+      const t = runeTopology(r);
+      const f = (t.shapes === user.shapes ? 1 : sp) * (t.loops === user.loops ? 1 : lp);
+      out.push({ name: r.name, total: res.total * f, geometry: res.total, coverage: res.coverage, precision: res.precision, fit: res.fit,
+        shapes: t.shapes, loops: t.loops, userShapes: user.shapes, userLoops: user.loops });
     });
     return out.sort((a, b) => b.total - a.total);
   }
 
-  return { score, recognize, samplePolyline, fitParams, bbox, toPoints };
+  return { score, recognize, topology, runeTopology, samplePolyline, fitParams, bbox, toPoints };
 });
