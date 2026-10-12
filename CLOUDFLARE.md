@@ -1,6 +1,8 @@
 # Hébergement Cloudflare (gratuit)
 
-Le site est statique (`docs/`). L'API des codes courts est en Pages Functions (`functions/`), qui utilisent une base D1.
+Un seul Worker, `elixir-runes`, sert le site (fichiers statiques de `docs/`) et l'API des codes courts (`/api/*`),
+avec une base D1. La configuration est dans `wrangler.jsonc` ; le Worker est déployé par Workers Builds (relié au dépôt GitHub).
+
 Sans la base, l'API répond 503 et le site masque les boutons de codes courts : rien ne casse.
 
 ## Étape 1 : codes courts (sans compte)
@@ -12,13 +14,16 @@ Sans la base, l'API répond 503 et le site masque les boutons de codes courts : 
 
 ## Mise en place
 
-1. Projet Pages relié au dépôt : racine du projet vide, commande de build vide, dossier de sortie `docs`.
-2. Créer la base D1 `elixir-runes`, puis y appliquer `migrations/0001_init.sql`.
-3. Pages > projet > Settings > Bindings > Add > D1 database : nom de variable `DB`, base `elixir-runes`. Redéployer.
-4. (Facultatif) Variable `IP_SALT` : une chaîne aléatoire, pour saler l'empreinte des adresses IP.
+1. Base D1 `elixir-runes` (créée), schéma `migrations/0001_init.sql` appliqué.
+2. `wrangler.jsonc` à la racine : Worker `elixir-runes`, `assets.directory = ./docs`, liaison `DB` vers la base, `run_worker_first = ["/api/*"]`.
+3. Dans le tableau de bord, Worker `elixir-runes` > Settings > Build : commande de déploiement `npx wrangler deploy` (sans option `--assets`, la configuration vient du fichier).
+4. (Facultatif) Secret `IP_SALT` : une chaîne aléatoire, pour saler l'empreinte des adresses IP.
 
-Pas de fichier `wrangler.toml` à la racine : il prendrait la main sur la configuration du tableau de bord.
+## Fichiers
+
+- `server/worker.js` : point d'entrée ; `server/api.js` : routes ; `server/lib/` : validation, codes, réponses HTTP.
+- `server/lib/rune-data.js` est généré par `tools/build_data.py`.
 
 ## Tests
 
-`node tools/test_functions.mjs` : Functions avec une base D1 simulée (validation, codes, limites, collisions).
+`node tools/test_functions.mjs` : le Worker avec une base D1 simulée (validation, codes, limites, collisions, routes).

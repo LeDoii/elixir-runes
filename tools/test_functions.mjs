@@ -1,8 +1,6 @@
-// Tests des Pages Functions (codes courts) avec une base D1 simulée.
+// Tests du Worker (API des codes courts) avec une base D1 simulée.
 // À lancer depuis SiteRunes/ : node tools/test_functions.mjs
-import { onRequestPost } from "../functions/api/codes/index.js";
-import { onRequestGet } from "../functions/api/codes/[code].js";
-import { onRequestGet as health } from "../functions/api/health.js";
+import worker from "../server/worker.js";
 import { normalizeCode, newCode } from "../server/lib/codes.js";
 
 // D1 minimale : seules les trois requêtes utilisées par les Functions.
@@ -32,9 +30,11 @@ function fakeDB() {
 
 let failed = 0;
 const check = (label, ok, extra = "") => { if (!ok) failed++; console.log((ok ? "ok   " : "ECHEC") + " " + label + (ok ? "" : " " + extra)); };
+const ASSETS = { fetch: async () => new Response("fichier statique", { status: 200 }) };
+const call = (env, path, init) => worker.fetch(new Request("https://x" + path, init), Object.assign({ ASSETS }, env));
 const post = (env, body, ip = "1.2.3.4") =>
-  onRequestPost({ env, request: new Request("https://x/api/codes", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { "CF-Connecting-IP": ip } }) });
-const get = (env, code) => onRequestGet({ env, params: { code } });
+  call(env, "/api/codes", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { "CF-Connecting-IP": ip } });
+const get = (env, code) => call(env, "/api/codes/" + encodeURIComponent(code), { method: "GET" });
 
 const env = { DB: fakeDB() };
 const good = { name: "  Ma   création ", d: { r: [{ n: "Gebo", x: 44, y: 64, m: 1, c: "#3D5C8C" }, { n: "Mannaz", x: 44, y: 64, m: 1, c: "#7A4E7A" }], s: "pierre", t: 0, l: [[0, 1, 0, 2], [0, 1, 99, 0], [1, 1, 0, 0]] } };
@@ -92,8 +92,19 @@ check("collision : réessaie et réussit", r.status === 201 && calls === 3, "app
 check("normalizeCode refuse O, I, L, 0, 1", normalizeCode("ABCDEFG0") === null && normalizeCode("ABCDEFGI") === null && normalizeCode("ABCDEFGL") === null);
 const codes = new Set(Array.from({ length: 2000 }, () => newCode()));
 check("2000 codes tirés, tous valides et distincts", codes.size === 2000 && [...codes].every((c) => normalizeCode(c) === c));
-r = health({ env });
+r = await call(env, "/api/health", { method: "GET" });
 check("health", (await r.json()).ok === true);
+r = await call(env, "/index.html", { method: "GET" });
+check("hors API : servi par les fichiers statiques", (await r.text()) === "fichier statique");
+r = await call(env, "/api/codes", { method: "GET" });
+check("GET /api/codes : 405", r.status === 405);
+r = await call(env, "/api/inconnue", { method: "GET" });
+check("route d'API inconnue : 404 JSON", r.status === 404 && (await r.json()).error === "Route inconnue.");
+r = await call(env, "/api/codes", { method: "OPTIONS" });
+check("OPTIONS (CORS) : 204", r.status === 204 && r.headers.get("Access-Control-Allow-Origin") === "*");
+const broken = { DB: { prepare() { throw new Error("boom"); } } };
+r = await post(broken, good);
+check("erreur interne : 500 JSON sans fuite", r.status === 500 && (await r.json()).error === "Erreur du serveur.");
 
 console.log(failed ? "\n" + failed + " échec(s)" : "\nTout est bon");
 process.exit(failed ? 1 : 0);
