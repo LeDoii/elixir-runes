@@ -116,6 +116,10 @@
             <button id="dz-clear" class="btn ghost">Tout retirer</button>
           </div>
           <p id="dz-msg" class="hint center-text" role="status"></p>
+          <h3>Ce que chaque rune apporte</h3>
+          <div id="dz-brings" class="brings"></div>
+          <h3>Ce que chaque rune apporte</h3>
+          <div id="dz-brings" class="brings"></div>
         </div>
         <div class="text">
           <h2>Concepteur de bindrune</h2>
@@ -137,6 +141,14 @@
           <ul id="dz-list" class="dz-list"></ul>
           <p class="hint">Glisse une rune pour la déplacer ; flèches du clavier pour ajuster (Maj : par 10), Suppr pour retirer.
             La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle.</p>
+          <h3>Mes bindrunes</h3>
+          <div class="save-row">
+            <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
+            <button id="sv-save" class="btn">Enregistrer</button>
+          </div>
+          <p id="sv-msg" class="hint" role="status"></p>
+          <ul id="sv-list" class="dz-list sv-list"></ul>
+          <p class="hint">Les créations sont gardées dans ce navigateur. « Lien » copie un lien qui rouvre la bindrune chez quelqu'un d'autre.</p>
         </div>
       </div>
     </section>

@@ -151,3 +151,16 @@ dialog { max-height: 92vh; overflow-y: auto; }
 .dlg { align-items: start; }
 .dlg ul.sens { padding-left: 1.1rem; margin: .4rem 0 1rem; font-size: 1.02rem; line-height: 1.4; }
 .dlg ul.sens li { margin-bottom: .35rem; }
+
+.brings { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .8rem; margin-top: .4rem; }
+.bring { border: 1px solid var(--line); background: rgba(255,255,255,.3); padding: .6rem .8rem; }
+.bring h4 { margin: 0 0 .3rem; font-family: "Italiana", serif; font-weight: 400; font-size: 1.5rem; display: flex; align-items: center; gap: .5rem; }
+.bring h4 i { width: .8rem; height: .8rem; border-radius: 50%; display: inline-block; }
+.bring h5 { margin: .5rem 0 .2rem; font-family: ui-monospace, Consolas, monospace; font-weight: 500; font-size: .66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--grey2); }
+.bring ul { margin: 0; padding-left: 1.05rem; font-size: .95rem; line-height: 1.35; }
+.save-row { display: flex; gap: .5rem; }
+.save-row input { flex: 1; min-width: 0; font: inherit; padding: .55rem .6rem; background: #f3eee2; border: 1px solid var(--grey); color: var(--ink); border-radius: 2px; }
+.sv-list li { grid-template-columns: 1fr auto auto auto; }
+.sv-list .nm { text-transform: none; letter-spacing: .02em; font-size: .95rem; font-family: "Crimson Pro", Georgia, serif; }
+.sv-list small { display: block; color: var(--grey2); font-size: .8rem; }
+.sv-list button.act { background: none; border: 0; padding: 0; font: inherit; font-size: .9rem; color: var(--warm); text-decoration: underline; cursor: pointer; }

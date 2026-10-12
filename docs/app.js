@@ -2,6 +2,7 @@
 (function () {
   "use strict";
   const D = window.RUNES, S = window.RuneScoring;
+  window.__initialHash = location.hash;                       // lien de partage du concepteur : lu par designer.js
   const W = 720, SCALE = 1.3;
   const GRID_CX = 256, GRID_CY = 256;                       // centre de la grille commune (colonne 2, ligne 6)
   const map = (p) => [(p[0] - GRID_CX) * SCALE + W / 2, (p[1] - GRID_CY) * SCALE + W / 2];
@@ -375,6 +376,6 @@
   /* ------------------------------------------------------------------ démarrage */
   try { if (localStorage.getItem("runes-send") === "0") els.send.checked = false; } catch (e) { /* ignoré */ }
   syncControls(); updateRanking();
-  if (location.hash === "#dessin") show("draw"); else if (location.hash === "#concepteur") show("design");
+  if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur") === 0) show("design");
   window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
 })();
