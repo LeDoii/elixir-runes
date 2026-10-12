@@ -2,6 +2,7 @@
 import { privateJson } from "./lib/http.js";
 import { sessionUser, sameOrigin, randomToken } from "./lib/auth.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
+import { comboKey } from "./lib/combo.js";
 
 const MAX_BODY = 4096;
 const MAX_PER_USER = 100;
@@ -33,17 +34,17 @@ export async function saveMine(request, env) {
   const name = cleanName(body && body.name), d = validateBindrune(body && body.d), description = cleanDescription(body && body.description);
   if (!name || !d) return privateJson({ error: "Bindrune invalide." }, 400);
 
-  const key = name.toLowerCase(), now = Date.now(), data = JSON.stringify(d);
+  const key = name.toLowerCase(), now = Date.now(), data = JSON.stringify(d), combo = comboKey(d);
   const existing = await env.DB.prepare("SELECT id FROM bindrunes WHERE user_id = ? AND name_key = ?").bind(user.id, key).first();
   if (existing) {
-    await env.DB.prepare("UPDATE bindrunes SET name = ?, description = ?, data = ?, updated_at = ? WHERE id = ? AND user_id = ?").bind(name, description, data, now, existing.id, user.id).run();
+    await env.DB.prepare("UPDATE bindrunes SET name = ?, description = ?, data = ?, combo = ?, updated_at = ? WHERE id = ? AND user_id = ?").bind(name, description, data, combo, now, existing.id, user.id).run();
     return privateJson({ id: existing.id, name, updated: true });
   }
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM bindrunes WHERE user_id = ?").bind(user.id).first();
   if (count && count.n >= MAX_PER_USER) return privateJson({ error: "Limite de " + MAX_PER_USER + " bindrunes sur le compte atteinte." }, 409);
   const id = randomToken(12);
-  await env.DB.prepare("INSERT INTO bindrunes (id, user_id, name, name_key, description, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .bind(id, user.id, name, key, description, data, now, now).run();
+  await env.DB.prepare("INSERT INTO bindrunes (id, user_id, name, name_key, description, data, combo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(id, user.id, name, key, description, data, combo, now, now).run();
   return privateJson({ id, name, updated: false }, 201);
 }
 

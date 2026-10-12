@@ -15,7 +15,7 @@ function d1(sqlite) {
 }
 function freshDb() {
   const sqlite = new DatabaseSync(":memory:");
-  ["0001_init.sql", "0002_accounts.sql", "0003_admin.sql", "0004_gallery.sql"].forEach((f) => sqlite.exec(readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")));
+  ["0001_init.sql", "0002_accounts.sql", "0003_admin.sql", "0004_gallery.sql", "0005_combo.sql"].forEach((f) => sqlite.exec(readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8")));
   return d1(sqlite);
 }
 

@@ -5,7 +5,7 @@ import { sessionUser } from "./lib/auth.js";
 import * as account from "./auth.js";
 import * as mine from "./mine.js";
 import { handleAdmin } from "./admin.js";
-import { listGallery, getGalleryItem } from "./gallery.js";
+import { listGallery, getGalleryItem, checkCombo } from "./gallery.js";
 import { validateBindrune, cleanName, cleanDescription } from "./lib/validate.js";
 import { newCode, normalizeCode, formatCode } from "./lib/codes.js";
 
@@ -78,6 +78,7 @@ export async function handleApi(request, env) {
     if (pm && method === "POST") return await mine.publishMine(request, env, pm[1]);
     if (accountRoute) return privateJson({ error: "Route inconnue ou méthode non autorisée." }, 404);
 
+    if (path === "/api/combo" && method === "POST") return await checkCombo(request, env);
     if (path === "/api/gallery" && method === "GET") return await listGallery(request, env);
     const gm = path.match(/^\/api\/gallery\/([A-Za-z0-9_-]{1,40})$/);
     if (gm && method === "GET") return await getGalleryItem(gm[1], env);
@@ -85,7 +86,7 @@ export async function handleApi(request, env) {
     if (path === "/api/codes" && method === "POST") return await createCode(request, env);
     const m = path.match(/^\/api\/codes\/([^/]+)$/);
     if (m && method === "GET") return await readCode(decodeURIComponent(m[1]), env);
-    if (path === "/api/health" || path === "/api/codes" || path === "/api/gallery" || gm || m) return json({ error: "Méthode non autorisée." }, 405);
+    if (path === "/api/health" || path === "/api/codes" || path === "/api/gallery" || path === "/api/combo" || gm || m) return json({ error: "Méthode non autorisée." }, 405);
     return json({ error: "Route inconnue." }, 404);
   } catch (e) {
     console.error("Erreur API :", e && e.stack ? e.stack : e);

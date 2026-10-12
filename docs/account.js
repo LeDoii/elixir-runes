@@ -92,6 +92,8 @@
     try {
       const j = await send(rec);
       await setPublished(j.id, j.name, true);
+      const t = await B.duplicateNotice(rec.name, rec.d);
+      if (t) say($("acc-msg").textContent + " " + t);
     } catch (e) { say("Publication impossible : " + e.message); }
   }
 

@@ -228,6 +228,27 @@
     } catch (e) { say("Import impossible : " + e.message); return null; }
   }
 
+  /**
+   * Cette combinaison de runes existe-t-elle déjà ? (mêmes runes, mêmes points d'ancrage : voir combo.js)
+   * Cherche dans les bindrunes de ce navigateur, dans celles du compte et dans la galerie publique.
+   * Retourne une phrase d'information, ou "" : jamais bloquant, sans aucune incidence sur l'enregistrement.
+   */
+  async function duplicateNotice(name, d) {
+    const nm = cleanName(name).toLowerCase(), key = Combo.key(d), parts = [], seen = new Set();
+    list().forEach((r) => { if (r.name.toLowerCase() !== nm && Combo.key(r.d) === key) parts.push("« " + r.name + " » (dans tes bindrunes de ce navigateur)"); });
+    if (apiOk) {
+      try {
+        const j = await apiCall("/api/combo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ d }) });
+        (j.mine || []).forEach((m) => { seen.add(m.id); if (m.name.toLowerCase() !== nm) parts.push("« " + m.name + " » (sur ton compte" + (m.published ? ", publiée" : "") + ")"); });
+        (j.gallery || []).forEach((g) => {
+          if (seen.has(g.id) || (g.own && g.name.toLowerCase() === nm)) return;
+          parts.push("« " + g.name + " » par " + (g.own ? "toi" : g.author) + " (galerie)");
+        });
+      } catch (e) { /* le serveur ne répond pas : on ne signale rien */ }
+    }
+    return parts.length ? "À noter : une combinaison identique existe déjà : " + parts.join(", ") + ". C'est seulement une information." : "";
+  }
+
   function renderTab() {
     const ul = $("mine-list");
     if (!ul) return;
@@ -323,7 +344,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

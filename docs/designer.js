@@ -412,7 +412,9 @@
     const old = Bindrunes.get(name);
     if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
     if (!Bindrunes.save(name, snapshot(), $("sv-desc").value)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
-    svmsg("« " + name + " » enregistrée (onglet « Mes bindrunes »).");
+    const done = "« " + name + " » enregistrée (onglet « Mes bindrunes »).";
+    svmsg(done);
+    Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("sv-msg").textContent === done) svmsg(done + " " + t); });
   });
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });
 

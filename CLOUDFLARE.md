@@ -52,9 +52,16 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 - Administration : état « publiée » et description visibles ; `POST /api/admin/bindrunes/account/<id>/unpublish` retire une bindrune de la galerie (journalisé `unpublish`) sans la supprimer du compte.
 - Migration `0004_gallery.sql`. Tests : `node --no-warnings tools/test_gallery.mjs`.
 
+## Étape 5 : combinaisons identiques
+
+À l'enregistrement d'une bindrune, le site prévient (information seule, sans aucun effet) si **la même combinaison** existe déjà : mêmes runes, même agencement les unes par rapport aux autres, au point d'ancrage près (réseau de 24 px en colonne et 16,5 px en ligne ; un déplacement d'ensemble ou quelques pixels d'écart ne comptent pas ; le nom, la description, les couleurs, l'aimant, les liaisons et le support non plus).
+- Empreinte : `docs/combo.js` (navigateur) et `server/lib/combo.js` (serveur), gardés identiques par `tools/test_combo.mjs`. Colonne `bindrunes.combo` (migration `0005_combo.sql`), calculée par le serveur à chaque enregistrement ; les anciennes lignes sont remplies à la demande.
+- `POST /api/combo` `{ d }` : retourne les bindrunes **publiées** dans la galerie (nom et auteur) et, si l'appelant est connecté, les siennes. Une bindrune privée n'est jamais révélée à un autre.
+- Le navigateur compare aussi avec les bindrunes de ce navigateur, au moment de « Enregistrer » dans le concepteur et de « Publier dans la galerie ».
+
 ## Mise en place
 
-1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql`, `0002_accounts.sql`, `0003_admin.sql` et `0004_gallery.sql` appliqués.
+1. Base D1 `elixir-runes` (créée), schémas `migrations/0001_init.sql`, `0002_accounts.sql`, `0003_admin.sql`, `0004_gallery.sql` et `0005_combo.sql` appliqués.
 2. `wrangler.jsonc` à la racine : Worker `elixir-runes`, `assets.directory = ./docs`, liaison `DB` vers la base, `run_worker_first = ["/api/*"]`.
 3. Dans le tableau de bord, Worker `elixir-runes` > Settings > Build : commande de déploiement `npx wrangler deploy` (sans option `--assets`, la configuration vient du fichier).
 4. (Facultatif) Secret `IP_SALT` : une chaîne aléatoire, pour saler l'empreinte des adresses IP.
@@ -66,4 +73,4 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 
 ## Tests
 
-`node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) `node --no-warnings tools/test_admin.mjs` (administration) et `node --no-warnings tools/test_gallery.mjs` (galerie) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.
+`node --no-warnings tools/test_functions.mjs` (codes, connexion, compte) `node --no-warnings tools/test_admin.mjs` (administration) `node --no-warnings tools/test_gallery.mjs` (galerie) et `node --no-warnings tools/test_combo.mjs` (combinaisons) : le Worker avec une vraie base SQLite en mémoire (migrations appliquées) et un faux Discord : codes, connexion, sessions, CSRF, bindrunes du compte, limites, bannissement, suppression du compte.
