@@ -164,3 +164,20 @@ dialog { max-height: 92vh; overflow-y: auto; }
 .sv-list .nm { text-transform: none; letter-spacing: .02em; font-size: .95rem; font-family: "Crimson Pro", Georgia, serif; }
 .sv-list small { display: block; color: var(--grey2); font-size: .8rem; }
 .sv-list button.act { background: none; border: 0; padding: 0; font: inherit; font-size: .9rem; color: var(--warm); text-decoration: underline; cursor: pointer; }
+
+.mine-top { margin-bottom: 1.2rem; }
+textarea { font: inherit; width: 100%; padding: .55rem .6rem; background: #f3eee2; border: 1px solid var(--grey); color: var(--ink); border-radius: 2px; resize: vertical; }
+.filebtn { display: inline-block; cursor: pointer; }
+.mine-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+.mcard, .inbox { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; align-items: center; border: 1px solid var(--line); background: rgba(255,255,255,.3); padding: .8rem; }
+.inbox { margin-bottom: 1.2rem; border-color: var(--warm); }
+.inbox h3 { margin: 0 0 .2rem; }
+.mprev { aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; padding: 10px; background: radial-gradient(circle at 38% 32%, #E2A982, #CD8F66 55%, #A9704C); }
+.mprev svg { width: 100%; height: 100%; }
+.mcard h4 { margin: 0; font-family: "Italiana", serif; font-weight: 400; font-size: 1.6rem; line-height: 1.1; overflow-wrap: anywhere; }
+.meta { margin: .2rem 0 .5rem; color: var(--grey2); font-size: .9rem; }
+.macts { display: flex; flex-wrap: wrap; gap: .3rem .9rem; }
+.macts button.act { background: none; border: 0; padding: 0; font: inherit; font-size: .92rem; color: var(--warm); text-decoration: underline; cursor: pointer; }
+@media (max-width: 420px) { .mcard, .inbox { grid-template-columns: 80px 1fr; } }
+.tabs { flex-wrap: wrap; }
+@media (max-width: 600px) { .tabs button { padding: .7rem .6rem; letter-spacing: .1em; font-size: .7rem; } }

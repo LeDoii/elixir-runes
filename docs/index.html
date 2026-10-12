@@ -14,6 +14,7 @@
     <p class="sub">Vingt-quatre runes à découvrir, à tracer, à reconnaître</p>
     <nav class="tabs" role="tablist">
       <button role="tab" id="tab-runes" aria-controls="runes" aria-selected="true">Les runes</button>
+      <button role="tab" id="tab-mine" aria-controls="mine" aria-selected="false">Mes bindrunes</button>
       <button role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">Dessin libre</button>
       <button role="tab" id="tab-design" aria-controls="design" aria-selected="false">Concepteur</button>
     </nav>
@@ -34,6 +35,35 @@
       <ul id="gallery" class="gallery"></ul>
       <p class="hint center-text">La difficulté combine deux mesures : la précision moyenne obtenue par des tracés simulés à main levée (80 par rune)
         et la complexité de la forme (nombre de traits, longueur, changements de direction, angles différents).</p>
+    </section>
+
+    <!-- ============================ MES BINDRUNES ============================ -->
+    <section id="mine" role="tabpanel" aria-labelledby="tab-mine" hidden>
+      <div id="inbox" class="inbox" hidden></div>
+      <div class="grid2 mine-top">
+        <div class="text">
+          <h2>Mes bindrunes</h2>
+          <p>Tes créations du concepteur sont gardées ici, dans ce navigateur. Tu peux les rouvrir, t'entraîner à les tracer,
+            les renommer, les partager par lien ou par fichier, et en importer.</p>
+          <p class="hint">Elles apparaissent aussi dans le choix du modèle du Dessin libre et dans le Concepteur.
+            Pour en créer une, passe par le Concepteur et clique sur « Enregistrer ».</p>
+        </div>
+        <div class="text">
+          <h3>Importer</h3>
+          <div class="field">
+            <label for="mine-import-text">Un lien, un code ou un contenu de fichier</label>
+            <textarea id="mine-import-text" rows="3" placeholder="Colle ici un lien de partage ou un code"></textarea>
+          </div>
+          <div class="row wrap">
+            <button id="mine-import-btn" class="btn">Importer</button>
+            <label class="btn ghost filebtn">Importer un fichier<input id="mine-file" type="file" accept=".json,application/json" hidden></label>
+            <button id="mine-export-all" class="btn ghost">Tout exporter</button>
+          </div>
+          <p id="mine-msg" class="hint" role="status"></p>
+        </div>
+      </div>
+      <p id="mine-empty" class="hint center-text">Aucune bindrune enregistrée pour l'instant.</p>
+      <ul id="mine-list" class="mine-grid"></ul>
     </section>
 
     <!-- ============================ DESSIN LIBRE ============================ -->
@@ -141,14 +171,17 @@
           <ul id="dz-list" class="dz-list"></ul>
           <p class="hint">Glisse une rune pour la déplacer ; flèches du clavier pour ajuster (Maj : par 10), Suppr pour retirer.
             La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle.</p>
-          <h3>Mes bindrunes</h3>
+          <h3>Enregistrer</h3>
           <div class="save-row">
             <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
             <button id="sv-save" class="btn">Enregistrer</button>
           </div>
+          <div class="field" style="margin-top:.8rem">
+            <label for="dz-open">Ouvrir une bindrune enregistrée</label>
+            <select id="dz-open"></select>
+          </div>
           <p id="sv-msg" class="hint" role="status"></p>
-          <ul id="sv-list" class="dz-list sv-list"></ul>
-          <p class="hint">Les créations sont gardées dans ce navigateur. « Lien » copie un lien qui rouvre la bindrune chez quelqu'un d'autre.</p>
+          <p class="hint">Liste, renommage, partage, import et export : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>.</p>
         </div>
       </div>
     </section>
@@ -184,6 +217,7 @@
   <script src="difficulty.js"></script>
   <script src="supports.js"></script>
   <script src="scoring.js"></script>
+  <script src="bindrunes.js"></script>
   <script src="app.js"></script>
   <script src="designer.js"></script>
 </body>

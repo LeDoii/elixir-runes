@@ -6,7 +6,7 @@
   const NS = "http://www.w3.org/2000/svg";
   const VW = 800, VH = 640;                                  // viewBox de la plaque (échelle 1 : la grille de la rune)
   const SNAP_R = 14;                                         // portée du magnétisme (unités de la plaque)
-  const COLORS = ["#3D5C8C", "#7A4E7A", "#A4551F", "#2B2B2E", "#4E7A53", "#8C3D3D"];
+  const COLORS = Bindrunes.COLORS;
   const byName = (n) => D.runes.find((r) => r.name === n);
 
   const svg = $("dz");
@@ -277,83 +277,49 @@
     });
   }
 
-  /* ---- bindrunes enregistrées (dans ce navigateur) et lien de partage */
-  const STORE = "runes-saved";
-  const readSaved = () => { try { const a = JSON.parse(localStorage.getItem(STORE) || "[]"); return Array.isArray(a) ? a.filter((x) => x && typeof x.name === "string" && x.d) : []; } catch (e) { return []; } };
-  const writeSaved = (a) => { try { localStorage.setItem(STORE, JSON.stringify(a)); return true; } catch (e) { return false; } };
+  /* ---- enregistrement : liste, renommage, partage et import se gèrent dans l'onglet « Mes bindrunes » */
   const svmsg = (t) => { $("sv-msg").textContent = t; };
   const snapshot = () => ({
     r: items.map((i) => ({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color })),
     s: Supports.current(), t: $("dz-strata").checked ? 1 : 0,
   });
-  /** Valide des données venant du stockage ou d'un lien : jamais de confiance. */
-  function restore(d) {
-    if (!d || !Array.isArray(d.r) || !d.r.length || d.r.length > 6) return false;
-    const next = [];
-    for (const e of d.r) {
-      if (!e || !byName(e.n) || !Number.isFinite(e.x) || !Number.isFinite(e.y) || Math.abs(e.x) > 2000 || Math.abs(e.y) > 2000) return false;
-      next.push({ id: nextId++, name: e.n, x: e.x, y: e.y, snap: e.m !== 0, color: COLORS.includes(e.c) ? e.c : COLORS[next.length % COLORS.length] });
-    }
-    items = next; selected = null; snapMark = null;
+  function restore(raw) {
+    const d = Bindrunes.validate(raw);
+    if (!d) return false;
+    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, snap: e.m !== 0, color: e.c }));
+    selected = null; snapMark = null;
     $("dz-adv").checked = items.length > 4;
     $("dz-strata").checked = d.t === 1;
-    if (Supports.list.some((s) => s.id === d.s)) Supports.set(d.s);
+    Supports.set(d.s);
     say(""); render();
     return true;
   }
-  const b64 = {
-    enc: (o) => { const u = new TextEncoder().encode(JSON.stringify(o)); let b = ""; u.forEach((c) => (b += String.fromCharCode(c))); return btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
-    dec: (t) => { const b = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, (c) => c.charCodeAt(0)))); },
-  };
-  function renderSaved() {
-    const ul = $("sv-list"), all = readSaved().sort((a, b) => b.at - a.at);
-    ul.innerHTML = "";
-    if (!all.length) { ul.innerHTML = '<li style="cursor:default;color:var(--grey2);font-style:italic">Aucune bindrune enregistrée.</li>'; return; }
-    all.forEach((rec) => {
-      const li = document.createElement("li");
-      const label = document.createElement("span"), nm = document.createElement("span"), sm = document.createElement("small");
-      nm.className = "nm"; nm.textContent = rec.name;
-      sm.textContent = (rec.d.r || []).map((e) => e.n).join(" · ");
-      label.appendChild(nm); label.appendChild(sm);
-      li.appendChild(label);
-      [["Ouvrir", () => { if (restore(rec.d)) { $("sv-name").value = rec.name; svmsg("« " + rec.name + " » ouverte."); } }],
-        ["Lien", () => share(rec)],
-        ["Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { writeSaved(readSaved().filter((x) => x.name !== rec.name)); renderSaved(); svmsg(""); } }]].forEach(([t, fn]) => {
-        const b = document.createElement("button");
-        b.className = "act"; b.type = "button"; b.textContent = t; b.addEventListener("click", fn);
-        li.appendChild(b);
-      });
-      ul.appendChild(li);
-    });
+  function openSaved(name, d) {
+    if (restore(d)) { $("sv-name").value = name; svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
-  function share(rec) {
-    const url = location.origin + location.pathname + "#concepteur=" + b64.enc({ name: rec.name, d: rec.d });
-    const done = () => svmsg("Lien copié.");
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("Copie ce lien :", url));
-    else prompt("Copie ce lien :", url);
+  function refreshOpen() {
+    const sel = $("dz-open");
+    sel.innerHTML = '<option value="">Choisir…</option>';
+    Bindrunes.list().forEach((b) => { const o = document.createElement("option"); o.value = b.name; o.textContent = b.name; sel.appendChild(o); });
   }
+  Bindrunes.onChange(refreshOpen); refreshOpen();
+  $("dz-open").addEventListener("change", (e) => {
+    const rec = Bindrunes.get(e.target.value);
+    if (rec) openSaved(rec.name, rec.d);
+    e.target.value = "";
+  });
+  window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d));
+  $("sv-manage").addEventListener("click", () => window.showTab("mine"));
   $("sv-save").addEventListener("click", () => {
-    const name = $("sv-name").value.trim().replace(/\s+/g, " ");
+    const name = Bindrunes.cleanName($("sv-name").value);
     if (!name) { svmsg("Donne un nom à ta bindrune."); return; }
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
-    const all = readSaved(), idx = all.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
-    if (idx >= 0 && !confirm("« " + all[idx].name + " » existe déjà. La remplacer ?")) return;
-    const rec = { name, at: Date.now(), d: snapshot() };
-    if (idx >= 0) all[idx] = rec; else all.push(rec);
-    if (!writeSaved(all)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
-    renderSaved();
-    svmsg("« " + name + " » enregistrée.");
+    const old = Bindrunes.get(name);
+    if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
+    if (!Bindrunes.save(name, snapshot())) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
+    svmsg("« " + name + " » enregistrée (onglet « Mes bindrunes »).");
   });
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });
-  renderSaved();
-  const hash = window.__initialHash || "";                    // lien de partage reçu
-  if (hash.indexOf("#concepteur=") === 0) {
-    try {
-      const shared = b64.dec(hash.slice(12));
-      if (restore(shared.d)) { $("sv-name").value = String(shared.name || "").slice(0, 40); svmsg("Bindrune partagée ouverte. Enregistre-la pour la garder."); }
-      else svmsg("Le lien de partage est invalide.");
-    } catch (e) { svmsg("Le lien de partage est invalide."); }
-  }
 
   render();
   window.__designer = { add, getItems: () => items, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };

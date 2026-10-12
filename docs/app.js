@@ -2,7 +2,6 @@
 (function () {
   "use strict";
   const D = window.RUNES, S = window.RuneScoring;
-  window.__initialHash = location.hash;                       // lien de partage du concepteur : lu par designer.js
   const W = 720, SCALE = 1.3;
   const GRID_CX = 256, GRID_CY = 256;                       // centre de la grille commune (colonne 2, ligne 6)
   const map = (p) => [(p[0] - GRID_CX) * SCALE + W / 2, (p[1] - GRID_CY) * SCALE + W / 2];
@@ -23,8 +22,8 @@
   }
 
   /* ------------------------------------------------------------------ onglets */
-  const tabs = { runes: $("tab-runes"), draw: $("tab-draw"), design: $("tab-design") };
-  const HASH = { runes: "#", draw: "#dessin", design: "#concepteur" };
+  const tabs = { runes: $("tab-runes"), mine: $("tab-mine"), draw: $("tab-draw"), design: $("tab-design") };
+  const HASH = { runes: "#", mine: "#bindrunes", draw: "#dessin", design: "#concepteur" };
   function show(which) {
     Object.keys(tabs).forEach((k) => {
       tabs[k].setAttribute("aria-selected", String(k === which));
@@ -33,7 +32,9 @@
     history.replaceState(null, "", HASH[which]);
   }
   tabs.runes.addEventListener("click", () => show("runes"));
+  tabs.mine.addEventListener("click", () => show("mine"));
   tabs.draw.addEventListener("click", () => show("draw"));
+  window.showTab = show;
   tabs.design.addEventListener("click", () => show("design"));
 
   /* ------------------------------------------------------------------ galerie et fiche */
@@ -97,8 +98,22 @@
     outFree: $("out-free"), outModel: $("out-model"), top: $("free-top"), hint: $("free-hint"), list: $("free-list"), open: $("free-open"),
     total: $("score-total"), verdict: $("score-verdict"), cov: $("score-cov"), prec: $("score-prec"), best: $("best"),
   };
-  els.model.innerHTML = '<option value="">Aucun : chercher la rune la plus proche</option>' +
-    D.runes.map((r) => '<option value="' + r.name + '">' + r.glyph + "  " + r.name + "</option>").join("");
+  /** Liste des modèles : les 24 runes, puis les bindrunes enregistrées (valeur « bind: » + nom). */
+  function buildModelOptions() {
+    const keep = els.model.value;
+    els.model.innerHTML = '<option value="">Aucun : chercher la rune la plus proche</option>' +
+      D.runes.map((r) => '<option value="' + r.name + '">' + r.glyph + "  " + r.name + "</option>").join("");
+    const mine = Bindrunes.list();
+    if (mine.length) {
+      const og = document.createElement("optgroup");
+      og.label = "Mes bindrunes";
+      mine.forEach((b) => { const o = document.createElement("option"); o.value = "bind:" + b.name; o.textContent = b.name; og.appendChild(o); });
+      els.model.appendChild(og);
+    }
+    els.model.value = keep;
+    if (els.model.value !== keep) els.model.value = "";            // le modèle choisi a disparu (supprimé ou renommé)
+    return els.model.value !== keep;
+  }
 
   let strokes = [], cur = null, locked = false, overlay = null, burn = null;
   let centered = false, sent = false, ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
@@ -110,7 +125,7 @@
   }
   function drawModel(ctx, rune, color, alpha, tf) {
     let paths = rune.strokes.map((s) => s.pts.map(map));
-    let width = D.strokeWidth * SCALE;
+    let width = D.strokeWidth * SCALE * (rune.widthScale || 1);
     if (tf) {                                                 // modèle recalé sur le dessin
       paths = paths.map((p) => p.map(([x, y]) => [(x - tf.rcx) / tf.k + tf.ucx, (y - tf.rcy) / tf.k + tf.ucy]));
       width /= tf.k;
@@ -145,7 +160,7 @@
     return path;
   }
   const strokeLen = (s) => s.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - s[i - 1][0], p[1] - s[i - 1][1]) : 0), 0);
-  const modelRune = () => (els.model.value ? byName(els.model.value) : null);
+  const modelRune = () => (els.model.value.indexOf("bind:") === 0 ? Bindrunes.model(els.model.value.slice(5)) : els.model.value ? byName(els.model.value) : null);
 
   function render() {
     g.clearRect(0, 0, W, W);
@@ -261,6 +276,9 @@
   Supports.bindSelect($("support"), $("support-note"));
   Supports.onChange(render);
   els.model.addEventListener("change", onModelChange);
+  buildModelOptions();
+  Bindrunes.onChange(() => { if (buildModelOptions()) onModelChange(); });
+  window.addEventListener("bindrune:train", (e) => { setModel("bind:" + e.detail.name); show("draw"); });
   els.help.addEventListener("change", render);
 
   /* ---- saisie */
@@ -317,6 +335,7 @@
     burn = { total: acc, offsets, progress: 0 };
     const t0 = performance.now(), dur = Math.min(2600, 700 + acc * 2.2);
     (function frame(now) {
+      if (!burn) return;                                      // annulé (modèle changé pendant la gravure)
       burn.progress = Math.min(1, (now - t0) / dur);
       render();
       if (burn.progress < 1) requestAnimationFrame(frame);
@@ -376,6 +395,6 @@
   /* ------------------------------------------------------------------ démarrage */
   try { if (localStorage.getItem("runes-send") === "0") els.send.checked = false; } catch (e) { /* ignoré */ }
   syncControls(); updateRanking();
-  if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur") === 0) show("design");
+  if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur=") === 0 || location.hash.indexOf("#bindrunes") === 0) show("mine"); else if (location.hash === "#concepteur") show("design");
   window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
 })();
