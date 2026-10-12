@@ -192,18 +192,26 @@
     <section id="design" role="tabpanel" aria-labelledby="tab-design" hidden>
       <div class="grid2 design">
         <div class="plate-wrap">
+          <div class="dz-top"><button id="dz-expand" class="btn ghost small" aria-pressed="false">⤢ Mode étendu</button></div>
           <div class="dz-wrap">
             <canvas id="dz-canvas" width="1600" height="1280" aria-hidden="true"></canvas>
             <svg id="dz" viewBox="0 0 800 640" aria-label="Zone de conception de la bindrune"></svg>
           </div>
-          <div class="row center wrap">
-            <button id="dz-undo" class="btn ghost" disabled>Annuler</button>
-            <button id="dz-redo" class="btn ghost" disabled>Rétablir</button>
-            <button id="dz-center" class="btn ghost">Centrer la sélection</button>
-            <button id="dz-center-all" class="btn ghost">Tout centrer</button>
-            <button id="dz-export" class="btn ghost">Exporter en PNG</button>
-            <button id="dz-expand" class="btn ghost" aria-pressed="false">Mode étendu</button>
-            <button id="dz-clear" class="btn ghost">Tout retirer</button>
+          <div class="dz-bar">
+            <div class="dz-group" role="group" aria-label="Historique">
+              <button id="dz-undo" class="btn ghost" disabled>↶ Annuler</button>
+              <button id="dz-redo" class="btn ghost" disabled>↷ Rétablir</button>
+            </div>
+            <div class="dz-group" role="group" aria-label="Centrage">
+              <button id="dz-center" class="btn ghost">Centrer la sélection</button>
+              <button id="dz-center-all" class="btn ghost">Tout centrer</button>
+            </div>
+            <div class="dz-group" role="group" aria-label="Sortie">
+              <button id="dz-export" class="btn ghost">Exporter en PNG</button>
+            </div>
+            <div class="dz-group dz-danger" role="group" aria-label="Effacer">
+              <button id="dz-clear" class="btn ghost">Tout retirer</button>
+            </div>
           </div>
           <p id="dz-msg" class="hint center-text" role="status"></p>
           <h3>Complexité</h3>

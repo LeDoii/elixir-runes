@@ -256,3 +256,15 @@ button.tag.tg.on { background: rgba(18,162,106,.16); border-color: #12A26A; colo
 button.tag.tg.on::before { background: #12A26A; border-color: #12A26A; }
 button.tag.tg:not(.on) { opacity: .6; text-decoration: line-through; }
 .sens li { margin-bottom: .45rem; }
+
+/* ---- barre d'outils du concepteur */
+.dz-top { display: flex; justify-content: flex-end; margin-bottom: .4rem; }
+.btn.small { padding: .3rem .7rem; font-size: .8rem; }
+.dz-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem .9rem; margin-top: .9rem; }
+.dz-group { display: inline-flex; }
+.dz-group .btn { border-radius: 0; margin-left: -1px; padding-left: .8rem; padding-right: .8rem; }
+.dz-group .btn:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.dz-group .btn:last-child { border-radius: 0 3px 3px 0; }
+.dz-group .btn:only-child { border-radius: 3px; }
+.dz-danger .btn { color: #a33; border-color: #a33; }
+.dz-danger .btn:hover { background: rgba(170,51,51,.1); }

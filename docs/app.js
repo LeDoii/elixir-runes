@@ -62,7 +62,7 @@
       const b = document.createElement("button");
       const d = DIFF[r.name];
       b.className = "card";
-      b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + '</span><span class="gl">' + r.glyph + "</span>" +
+      b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + "</span>" +
         (d ? pips(d.level) + '<span class="lv">' + LEVELS[d.level - 1] + (sort !== "lib" ? " · n° " + d.rank : "") + "</span>" : "");
       b.addEventListener("click", () => openRune(r.name));
       const play = () => playTrace(b);

@@ -28,6 +28,9 @@
       note: "Support instable. Tracé à l'encre, avec un léger bavage.", guide: ["#3D5C8C", 0.4], faint: ["#3D5C8C", 0.14] },
     { id: "tissu", label: "Tissu (habit)", group: "Supports instables", style: "stitch",
       note: "Support instable. Tracé en fil, comme un point de broderie. On peut graver sur un habit.", guide: ["#3D5C8C", 0.45], faint: ["#3D5C8C", 0.16] },
+    { id: "cuir", label: "Cuir", group: "Autres supports", style: "carve",
+      tone: { groove: "#24130a", rim: "rgba(18,8,0,.6)", hi: "rgba(255,226,180,.38)", inner: "rgba(12,4,0,.5)" },
+      note: "Gravure pressée et brunie dans le cuir : le tracé s'enfonce et fonce. Sa stabilité n'est pas précisée dans les notes.", guide: ["#F3E6CF", 0.5], faint: ["#F3E6CF", 0.17] },
     { id: "cristal", label: "Cristal", group: "Amplification", style: "crystal",
       note: "Un cristal amplifie la puissance d'une bindrune. Gravure creusée, lumière prise dans le trait.", guide: ["#FFFFFF", 0.55], faint: ["#FFFFFF", 0.2] },
   ];
@@ -159,6 +162,24 @@
       }
       blobs(g, w, h, 20, 80 * k, 220 * k, ["rgba(60,45,25,.07)", "rgba(255,250,235,.08)"], 31);
       grain(g, w, h, 16, 14); vignette(g, w, h, "rgba(60,40,15,.2)");
+    },
+    cuir(g, w, h, k) {
+      const gr = g.createLinearGradient(0, 0, w, h);
+      gr.addColorStop(0, "#94603a"); gr.addColorStop(0.5, "#7d4e2c"); gr.addColorStop(1, "#6a4123");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      blobs(g, w, h, 55, 50 * k, 190 * k, ["rgba(40,18,6,.16)", "rgba(210,150,95,.12)"], 41);       // marbrure de la peau
+      const r = rng(43);
+      for (let i = 0; i < 5200 * k * k; i++) {                              // grain : petites alvéoles
+        const x = r() * w, y = r() * h, s = (1.2 + r() * 2.4) * k;
+        g.beginPath(); g.ellipse(x, y, s, s * (0.6 + r() * 0.5), r() * 3.1, 0, 6.3);
+        g.strokeStyle = "rgba(30,12,2," + (0.12 + r() * 0.2) + ")"; g.lineWidth = 0.7 * k; g.stroke();
+      }
+      for (let i = 0; i < 14; i++) {                                         // plis fins
+        g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y);
+        for (let s = 0; s < 9; s++) { x += (r() - 0.5) * 70 * k; y += (r() - 0.5) * 40 * k; g.lineTo(x, y); }
+        g.strokeStyle = "rgba(25,10,0," + (0.1 + r() * 0.12) + ")"; g.lineWidth = (0.7 + r()) * k; g.stroke();
+      }
+      grain(g, w, h, 12, 18); vignette(g, w, h, "rgba(30,12,2,.4)");
     },
     cristal(g, w, h, k) {
       const gr = g.createLinearGradient(0, 0, w, h);

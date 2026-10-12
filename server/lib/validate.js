@@ -8,7 +8,7 @@ export const MAX_RUNES = 6;
 export const MAX_DESC = 300;
 export const COLORS = ["#3D5C8C", "#7A4E7A", "#A4551F", "#2B2B2E", "#4E7A53", "#8C3D3D"];
 // À garder alignés avec docs/supports.js
-export const SUPPORT_IDS = ["bois", "pierre", "cuivre", "acier", "os", "defense", "papier", "tissu", "cristal"];
+export const SUPPORT_IDS = ["bois", "pierre", "cuivre", "acier", "os", "defense", "papier", "tissu", "cuir", "cristal"];
 
 export const cleanName = (s) =>
   String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);

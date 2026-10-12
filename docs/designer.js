@@ -444,7 +444,7 @@
     expanded = on;
     $("design").classList.toggle("expanded", on);
     document.body.style.overflow = on ? "hidden" : "";
-    $("dz-expand").textContent = on ? "Quitter le mode étendu" : "Mode étendu";
+    $("dz-expand").textContent = on ? "✕ Quitter le mode étendu" : "⤢ Mode étendu";
     $("dz-expand").setAttribute("aria-pressed", String(on));
     if (on) $("design").scrollTop = 0;
   }
