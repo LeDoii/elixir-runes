@@ -197,6 +197,12 @@
   /** « complexité élevée (58/100) » : voir complexity.js */
   const cxLine = (d) => { const c = Complexity.rate(d); return "complexité " + c.level.toLowerCase() + " (" + c.score + "/100)"; };
 
+  /** Fiche A4 (PNG ou PDF) d'une bindrune : voir sheet.js. */
+  async function sheet(rec, kind) {
+    say("Création de la fiche…");
+    try { await Sheet.download(rec, kind); say("Fiche de « " + rec.name + " » prête (" + kind.toUpperCase() + ")."); }
+    catch (e) { say("Fiche impossible : " + e.message); }
+  }
   function act(parent, label, fn) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "act"; b.textContent = label; b.addEventListener("click", fn);
@@ -301,6 +307,8 @@
         act(acts, "Sur mon compte", () => window.Account.upload(rec));
         if (!rec.from) act(acts, "Publier dans la galerie", () => window.Account.publish(rec));
       }
+      act(acts, "Fiche PNG", () => sheet(rec, "png"));
+      act(acts, "Fiche PDF", () => sheet(rec, "pdf"));
       act(acts, "Exporter", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json"));
       act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
       info.appendChild(h); info.appendChild(meta);
@@ -367,7 +375,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

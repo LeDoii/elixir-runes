@@ -46,6 +46,8 @@
         if (it.published) { const b = document.createElement("span"); b.className = "badge pub"; b.textContent = "publiée"; h.appendChild(b); }
         meta.textContent = B.runesLine(it.d) + " · " + Supports.get(it.d.s).label + " · " + B.cxLine(it.d) + " · " + new Date(it.updated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
         action(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: it.name, description: it.description, tags: it.tags, d: it.d } })));
+        action(acts, "Fiche PNG", () => B.sheet({ name: it.name, description: it.description, tags: Tags.extras(it.d, it.tags), d: it.d }, "png"));
+        action(acts, "Fiche PDF", () => B.sheet({ name: it.name, description: it.description, tags: Tags.extras(it.d, it.tags), d: it.d }, "pdf"));
         action(acts, "Récupérer ici", () => {
           const added = B.importItems([{ name: it.name, description: it.description, tags: it.tags, d: it.d }]);
           say(added.length ? "« " + added[0].name + " » récupérée dans tes bindrunes de ce navigateur." : "Récupération impossible : stockage du navigateur indisponible.");

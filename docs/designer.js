@@ -508,6 +508,18 @@
       '<p class="hint">Évaluation du site (nombre de runes, difficulté de tracé, traits, répétitions, sens opposés) : un repère pour comparer, pas une règle du livre.</p>';
   }
 
+  /* ---- fiche A4 de la composition en cours (PNG ou PDF) */
+  ["png", "pdf"].forEach((kind) => $("dz-sheet-" + kind).addEventListener("click", async () => {
+    if (!items.length) { say("Ajoute au moins une rune avant de créer la fiche."); return; }
+    const d = Bindrunes.validate(snapshot());
+    if (!d) { say("Composition invalide."); return; }
+    say("Création de la fiche…");
+    try {
+      await Sheet.download({ name: Bindrunes.cleanName($("sv-name").value) || "Sans nom", description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d }, kind);
+      say("Fiche prête (" + kind.toUpperCase() + ").");
+    } catch (e) { say("Fiche impossible : " + e.message); }
+  }));
+
   /* ---- enregistrement : liste, renommage, partage et import se gèrent dans l'onglet « Mes bindrunes » */
   const platesD = () => ({ r: items.map((i) => ({ n: i.name, t: i.keep })) });   // runes et sens gardés, pour les étiquettes
   let svTags = [];                                           // étiquettes choisies (les verrouillées se déduisent des runes posées)

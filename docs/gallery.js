@@ -43,6 +43,12 @@
   tagSel.addEventListener("change", () => { state.tag = tagSel.value; load(1); });
   setTag("");
 
+  async function sheet(item, kind) {
+    say("Création de la fiche…");
+    try { await Sheet.download({ name: item.name, description: item.description, tags: Tags.extras(item.d, item.tags), d: item.d, author: item.author }, kind); say("Fiche de « " + item.name + " » prête (" + kind.toUpperCase() + ")."); }
+    catch (e) { say("Fiche impossible : " + e.message); }
+  }
+
   function card(item, shared) {
     const li = el("li", "mcard"), info = el("div"), acts = el("div", "macts");
     const pv = el("div", "mprev"); pv.innerHTML = B.previewSVG(item.d);
@@ -61,6 +67,8 @@
       const rec = keep(item);
       say(rec ? "« " + rec.name + " » enregistrée dans « Mes bindrunes » (d'après " + item.author + ")." : "Enregistrement impossible : stockage du navigateur indisponible.");
     });
+    action(acts, "Fiche PNG", () => sheet(item, "png"));
+    action(acts, "Fiche PDF", () => sheet(item, "pdf"));
     action(acts, "Lien", () => {
       const url = location.origin + "/#galerie=" + item.id;
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say("Lien copié."), () => prompt("Copie ce lien :", url));
