@@ -15,7 +15,7 @@
   function runeSVG(rune, opts) {
     opts = opts || {};
     const paths = rune.strokes.map((s, i) =>
-      '<polyline class="' + (opts.animate ? "draw" : "") + '" pathLength="1" points="' + s.pts.map((p) => p.join(",")).join(" ") +
+      '<polyline class="' + (opts.animate ? "draw" + (opts.force ? " force" : "") : "") + '" pathLength="1" points="' + s.pts.map((p) => p.join(",")).join(" ") +
       '" fill="none" stroke="' + (opts.color || "#20201E") + '" stroke-width="' + D.strokeWidth +
       '" stroke-linecap="butt" stroke-linejoin="miter" style="animation-delay:' + (i * 0.45) + 's"/>').join("");
     return '<svg viewBox="120 24 272 464" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rune ' + rune.name + '">' + paths + "</svg>";
@@ -70,8 +70,8 @@
     replay();
     if (!dlg.open) dlg.showModal();
   }
-  function replay() { $("dlg-svg").innerHTML = runeSVG(current, { animate: true, color: "#2a140a" }); }
-  $("dlg-replay").addEventListener("click", replay);
+  function replay(force) { $("dlg-svg").innerHTML = runeSVG(current, { animate: true, force: force === true, color: "#2a140a" }); }
+  $("dlg-replay").addEventListener("click", () => replay(true));   // demande explicite : on anime même si le système réduit les animations
   $("dlg-close").addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   $("dlg-train").addEventListener("click", () => { dlg.close(); setModel(current.name); show("draw"); });
