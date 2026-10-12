@@ -48,7 +48,7 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 - Chaque bindrune a une description (300 caractères, une seule ligne), enregistrée avec le nom : localement, sur le compte (`bindrunes.description`), dans les liens, codes, fichiers JSON et codes courts (`shared_bindrunes.description`).
 - Publication volontaire : `POST /api/my/bindrunes/<id>/publish` `{ published: true|false }` (bindrune du compte, protection CSRF).
 - Galerie publique, lecture seule, sans cookie : `GET /api/gallery?q=&sort=recent|name&page=` (24 par page) et `GET /api/gallery/<id>`. Chaque élément porte son auteur (`global_name`, à défaut le pseudo) ; **jamais d'identifiant Discord** dans ces réponses. Les bindrunes non publiées et celles des comptes bloqués n'apparaissent pas ; la suppression d'un compte les retire.
-- Une copie prise dans la galerie garde « d'après <auteur> » et ne peut pas être republiée telle quelle depuis « Mes bindrunes » (refaite dans le concepteur, c'est une nouvelle bindrune).
+- Une copie prise dans la galerie garde « d'après <auteur> » et ne peut pas être republiée telle quelle depuis « Mes bindrunes » (refaite dans Bindrune, c'est une nouvelle bindrune).
 - Administration : état « publiée » et description visibles ; `POST /api/admin/bindrunes/account/<id>/unpublish` retire une bindrune de la galerie (journalisé `unpublish`) sans la supprimer du compte.
 - Migration `0004_gallery.sql`. Tests : `node --no-warnings tools/test_gallery.mjs`.
 
@@ -57,7 +57,7 @@ Page `/admin.html` (lien « Administration » dans l'onglet « Mes bindrunes » 
 À l'enregistrement d'une bindrune, le site prévient (information seule, sans aucun effet) si **la même combinaison** existe déjà : mêmes runes, même agencement les unes par rapport aux autres, au point d'ancrage près (réseau de 24 px en colonne et 16,5 px en ligne ; un déplacement d'ensemble ou quelques pixels d'écart ne comptent pas ; le nom, la description, les couleurs, l'aimant, les liaisons et le support non plus).
 - Empreinte : `docs/combo.js` (navigateur) et `server/lib/combo.js` (serveur), gardés identiques par `tools/test_combo.mjs`. Colonne `bindrunes.combo` (migration `0005_combo.sql`), calculée par le serveur à chaque enregistrement ; les anciennes lignes sont remplies à la demande.
 - `POST /api/combo` `{ d }` : retourne les bindrunes **publiées** dans la galerie (nom et auteur) et, si l'appelant est connecté, les siennes. Une bindrune privée n'est jamais révélée à un autre.
-- Le navigateur compare aussi avec les bindrunes de ce navigateur, au moment de « Enregistrer » dans le concepteur et de « Publier dans la galerie ».
+- Le navigateur compare aussi avec les bindrunes de ce navigateur, au moment de « Enregistrer » dans Bindrune et de « Publier dans la galerie ».
 
 ## Mise en place
 

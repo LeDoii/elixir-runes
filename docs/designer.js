@@ -1,4 +1,4 @@
-/* Concepteur de bindrune : plusieurs runes sur une plaque, déplaçables, avec points d'ancrage magnétiques,
+/* Onglet Bindrune (concepteur) : plusieurs runes sur une plaque, déplaçables, avec points d'ancrage magnétiques,
  * liaisons entre runes (ensembles), cadrage et centrage. */
 (function () {
   "use strict";
@@ -430,7 +430,7 @@
   $("dz-clear").addEventListener("click", () => { if (!items.length) return; record(); items = []; links = []; sel = new Set(); say(""); render(); });
   $("dz-undo").addEventListener("click", undo);
   $("dz-redo").addEventListener("click", redo);
-  window.addEventListener("keydown", (e) => {                // Ctrl+Z / Ctrl+Y (Ctrl+Maj+Z) dans le concepteur
+  window.addEventListener("keydown", (e) => {                // Ctrl+Z / Ctrl+Y (Ctrl+Maj+Z) dans l'onglet Bindrune
     if ($("design").hidden || (e.target.matches && e.target.matches("input, select, textarea"))) return;
     const k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === "a") { e.preventDefault(); sel = new Set(items.map((i) => i.id)); say(items.length > 1 ? "Toutes les runes sont sélectionnées." : ""); render(); return; }

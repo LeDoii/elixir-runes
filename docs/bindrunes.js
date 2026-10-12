@@ -281,7 +281,7 @@
       meta.className = "meta";
       meta.textContent = runesLine(rec.d) + " · " + Supports.get(rec.d.s).label + " · " + cxLine(rec.d) + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "");
       acts.className = "macts";
-      act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, tags: rec.tags, d: rec.d } })));
+      act(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, tags: rec.tags, d: rec.d } })));
       act(acts, "S'entraîner", () => window.dispatchEvent(new CustomEvent("bindrune:train", { detail: { name: rec.name } })));
       act(acts, "Description", () => {
         const t = prompt("Description (" + MAX_DESC + " caractères au plus) :", rec.description || "");
@@ -335,7 +335,7 @@
     p.className = "meta"; p.textContent = runesLine(item.d) + " · " + Supports.get(item.d.s).label + " · " + cxLine(item.d) + (item.description ? " · " + item.description : "");
     acts.className = "macts";
     act(acts, "Enregistrer dans mes bindrunes", () => { doImport([item], "ce lien"); box.hidden = true; });
-    act(acts, "Ouvrir dans le concepteur", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
+    act(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
     act(acts, "Ignorer", () => { box.hidden = true; });
     body.appendChild(h); body.appendChild(p);
     if ((item.tags || []).length) body.appendChild(Tags.chips(Tags.derive(item.d), item.tags || []));

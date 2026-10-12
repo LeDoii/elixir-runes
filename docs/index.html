@@ -7,6 +7,11 @@
   <script>if (/\.github\.io$/.test(location.hostname)) location.replace("https://elixir-runes.ledoii.workers.dev" + location.pathname.replace(/^\/elixir-runes/, "") + location.search + location.hash);</script>
   <noscript><meta http-equiv="refresh" content="0; url=https://elixir-runes.ledoii.workers.dev/"></noscript>
   <title>Les runes · atelier de tracé</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#20201E">
   <meta name="description" content="Les 24 runes et un atelier de dessin libre, avec ou sans modèle. Outil fan-made, non affilié à l'équipe d'Elixir RP.">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -20,7 +25,7 @@
       <button role="tab" id="tab-galerie" aria-controls="galerie" aria-selected="false">Galerie</button>
       <button role="tab" id="tab-mine" aria-controls="mine" aria-selected="false">Mes bindrunes</button>
       <button role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">Dessin libre</button>
-      <button role="tab" id="tab-design" aria-controls="design" aria-selected="false">Concepteur</button>
+      <button role="tab" id="tab-design" aria-controls="design" aria-selected="false">Bindrune</button>
     </nav>
   </header>
 
@@ -28,19 +33,21 @@
     <!-- ============================ GALERIE ============================ -->
     <section id="runes" role="tabpanel" aria-labelledby="tab-runes">
       <p class="hint center-text">Survole une rune pour voir son tracé, clique pour ouvrir sa fiche : sens et traits.</p>
-      <div class="field sortbar">
-        <label for="gallery-q">Chercher par sens</label>
-        <input id="gallery-q" type="search" placeholder="protection, voyage, justice…" autocomplete="off">
-        <p id="gallery-found" class="hint" role="status"></p>
-        <div id="gallery-links" class="tags"></div>
-      </div>
-      <div class="field sortbar">
-        <label for="gallery-sort">Ordre</label>
-        <select id="gallery-sort">
-          <option value="lib">Ordre de la bibliothèque</option>
-          <option value="easy">Du plus facile au plus difficile</option>
-          <option value="hard">Du plus difficile au plus facile</option>
-        </select>
+      <div class="libbar">
+        <div class="field">
+          <label for="gallery-sort">Ordre</label>
+          <select id="gallery-sort">
+            <option value="lib">Ordre de la bibliothèque</option>
+            <option value="easy">Du plus facile au plus difficile</option>
+            <option value="hard">Du plus difficile au plus facile</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="gallery-q">Chercher par sens / étiquette</label>
+          <input id="gallery-q" class="search" type="search" placeholder="protection, voyage, justice…" autocomplete="off">
+          <p id="gallery-found" class="hint" role="status"></p>
+          <div id="gallery-links" class="tags"></div>
+        </div>
       </div>
       <ul id="gallery" class="gallery"></ul>
       <p class="hint center-text">La difficulté combine deux mesures : la précision moyenne obtenue par des tracés simulés à main levée (80 par rune)
@@ -53,7 +60,7 @@
       <div class="grid2 mine-top">
         <div class="text">
           <h2>Galerie</h2>
-          <p>Les bindrunes publiées par les joueurs. Chacune est créditée à son auteur : ouvre-la dans le concepteur,
+          <p>Les bindrunes publiées par les joueurs. Chacune est créditée à son auteur : ouvre-la dans l'onglet Bindrune,
             entraîne-toi à la tracer ou enregistre-en une copie.</p>
           <p class="hint">Pour publier une des tiennes : connecte-toi avec Discord dans « Mes bindrunes », puis « Publier dans la galerie ».</p>
         </div>
@@ -104,10 +111,10 @@
       <div class="grid2 mine-top">
         <div class="text">
           <h2>Mes bindrunes</h2>
-          <p>Tes créations du concepteur sont gardées ici, dans ce navigateur. Tu peux les rouvrir, t'entraîner à les tracer,
+          <p>Tes créations de l'onglet Bindrune sont gardées ici, dans ce navigateur. Tu peux les rouvrir, t'entraîner à les tracer,
             les renommer, les partager par lien ou par fichier, et en importer.</p>
-          <p class="hint">Elles apparaissent aussi dans le choix du modèle du Dessin libre et dans le Concepteur.
-            Pour en créer une, passe par le Concepteur et clique sur « Enregistrer ».</p>
+          <p class="hint">Elles apparaissent aussi dans le choix du modèle du Dessin libre et dans l'onglet Bindrune.
+            Pour en créer une, passe par l'onglet Bindrune et clique sur « Enregistrer ».</p>
         </div>
         <div class="text">
           <h3>Importer</h3>
@@ -131,11 +138,22 @@
     <section id="draw" role="tabpanel" aria-labelledby="tab-draw" hidden>
       <div class="grid2">
         <div class="plate-wrap">
+          <div class="dz-top"><button id="dr-expand" class="btn ghost small" aria-pressed="false">⤢ Mode étendu</button></div>
           <canvas id="canvas" class="square" width="720" height="720" aria-label="Zone de dessin"></canvas>
-          <div class="row center wrap">
-            <button id="btn-undo" class="btn ghost">Annuler le trait</button>
-            <button id="btn-clear" class="btn ghost">Tout effacer</button>
-            <button id="btn-engrave" class="btn" hidden>Graver</button>
+          <div class="dz-bar">
+            <div class="dz-group" role="group" aria-label="Historique">
+              <button id="btn-undo" class="btn ghost">↶ Annuler le trait</button>
+              <button id="btn-redo" class="btn ghost" disabled>↷ Rétablir</button>
+            </div>
+            <div class="dz-group" role="group" aria-label="Sortie">
+              <button id="btn-export" class="btn ghost">Exporter en PNG</button>
+            </div>
+            <div class="dz-group dz-danger" role="group" aria-label="Effacer">
+              <button id="btn-clear" class="btn ghost">Tout effacer</button>
+            </div>
+            <div class="dz-group" role="group" aria-label="Gravure">
+              <button id="btn-engrave" class="btn" hidden>Graver</button>
+            </div>
           </div>
           <p id="msg" class="hint center-text" role="status"></p>
         </div>
@@ -194,7 +212,7 @@
       </div>
     </section>
 
-    <!-- ============================ CONCEPTEUR DE BINDRUNE ============================ -->
+    <!-- ============================ BINDRUNE ============================ -->
     <section id="design" role="tabpanel" aria-labelledby="tab-design" hidden>
       <div class="grid2 design">
         <div class="plate-wrap">
@@ -226,7 +244,7 @@
           <div id="dz-brings" class="brings"></div>
         </div>
         <div class="text">
-          <h2>Concepteur de bindrune</h2>
+          <h2>Bindrune</h2>
           <p>Choisis des runes dans la palette, glisse-les sur la plaque et assemble-les. Les extrémités et les angles
             de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie.</p>
           <div class="field">
@@ -268,7 +286,6 @@
     <div class="dlg">
       <div id="dlg-svg"></div>
       <div>
-        <p class="gl" id="dlg-glyph"></p>
         <h2 id="dlg-name"></h2>
         <p class="diff" id="dlg-diff"></p>
         <h3>Sens</h3>

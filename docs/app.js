@@ -115,7 +115,6 @@
   renderGallery();
   function openRune(name) {
     current = byName(name);
-    $("dlg-glyph").textContent = current.glyph;
     $("dlg-name").textContent = current.name;
     const d = DIFF[name];
     $("dlg-diff").innerHTML = d ? pips(d.level) + " " + LEVELS[d.level - 1] + " · n° " + d.rank + " sur 24 en difficulté" : "";
@@ -134,7 +133,7 @@
   const cv = $("canvas"), g = cv.getContext("2d");
   const els = {
     model: $("model"), help: $("help"), fieldHelp: $("field-help"), align: $("align"), msg: $("msg"),
-    send: $("send"), fieldSend: $("field-send"), freeRetry: $("free-retry"), undo: $("btn-undo"), clear: $("btn-clear"), engrave: $("btn-engrave"), retry: $("btn-retry"),
+    send: $("send"), fieldSend: $("field-send"), freeRetry: $("free-retry"), undo: $("btn-undo"), redo: $("btn-redo"), clear: $("btn-clear"), engrave: $("btn-engrave"), retry: $("btn-retry"),
     outFree: $("out-free"), outModel: $("out-model"), top: $("free-top"), hint: $("free-hint"), list: $("free-list"), open: $("free-open"),
     total: $("score-total"), verdict: $("score-verdict"), cov: $("score-cov"), prec: $("score-prec"), best: $("best"),
   };
@@ -142,7 +141,7 @@
   function buildModelOptions() {
     const keep = els.model.value;
     els.model.innerHTML = '<option value="">Aucun : chercher la rune la plus proche</option>' +
-      D.runes.map((r) => '<option value="' + r.name + '">' + r.glyph + "  " + r.name + "</option>").join("");
+      D.runes.map((r) => '<option value="' + r.name + '">' + r.name + "</option>").join("");
     const mine = Bindrunes.list();
     if (mine.length) {
       const og = document.createElement("optgroup");
@@ -156,6 +155,7 @@
   }
 
   let strokes = [], cur = null, locked = false, overlay = null, burn = null;
+  let past = [], future = [];                                // historique des traits : annuler / rétablir
   let centered = false, sent = false, ranking = [], preview = null;                          // preview : nom de la rune superposée (sans modèle)
 
   function strokePath(ctx, pts) {
@@ -203,6 +203,7 @@
   const modelRune = () => (els.model.value.indexOf("bind:") === 0 ? Bindrunes.model(els.model.value.slice(5)) : els.model.value ? byName(els.model.value) : null);
 
   function render() {
+    els.redo.disabled = locked || !future.length;
     g.clearRect(0, 0, W, W);
     g.drawImage(Supports.plate(Supports.current(), W, W), 0, 0);
     const m = modelRune();
@@ -290,7 +291,7 @@
     overlay = null; burn = null; locked = false; sent = false;
     [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
     els.msg.textContent = "";
-    strokes = []; cur = null; preview = null; ranking = []; centered = false;
+    strokes = []; cur = null; preview = null; ranking = []; centered = false; past = []; future = [];
     syncControls();
     if (!m) updateRanking(); else render();
   }
@@ -308,7 +309,7 @@
     syncControls(); updateRanking();
   });
   els.freeRetry.addEventListener("click", () => {
-    sent = false; locked = false; centered = false; preview = null; ranking = []; strokes = [];
+    sent = false; locked = false; centered = false; preview = null; ranking = []; strokes = []; past = []; future = [];
     [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
     els.msg.textContent = "";
     updateRanking();
@@ -344,7 +345,7 @@
   });
   const end = () => {
     if (!cur) return;
-    if (cur.length > 1) strokes.push(cur);
+    if (cur.length > 1) { past.push(strokes); future = []; strokes = strokes.concat([cur]); }
     cur = null;
     preview = null;                                          // le masque suit à nouveau la meilleure correspondance
     if (!modelRune()) updateRanking(); else render();
@@ -353,11 +354,44 @@
   cv.addEventListener("pointercancel", end);
 
   function changed() { preview = null; if (!strokes.length) centered = false; els.msg.textContent = ""; if (!modelRune()) updateRanking(); else render(); }
-  els.undo.addEventListener("click", () => { if (!locked) { strokes.pop(); changed(); } });
-  els.clear.addEventListener("click", () => { if (!locked) { strokes = []; changed(); } });
-  window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !$("draw").hidden && !locked) { strokes.pop(); changed(); }
+  function undo() { if (!locked && past.length) { future.push(strokes); strokes = past.pop(); changed(); } }
+  function redo() { if (!locked && future.length) { past.push(strokes); strokes = future.pop(); changed(); } }
+  els.undo.addEventListener("click", undo);
+  els.redo.addEventListener("click", redo);
+  els.clear.addEventListener("click", () => { if (!locked && strokes.length) { past.push(strokes); future = []; strokes = []; changed(); } });
+  window.addEventListener("keydown", (e) => {                // Ctrl+Z / Ctrl+Y (Ctrl+Maj+Z), comme dans l'onglet Bindrune
+    if ($("draw").hidden || (e.target.matches && e.target.matches("input, select, textarea"))) return;
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
+    else if (k === "escape" && drawExpanded) setDrawExpanded(false);
   });
+
+  /* ---- export PNG : le tracé sur le support, sans modèle ni masque */
+  $("btn-export").addEventListener("click", () => {
+    if (!strokes.length) { els.msg.textContent = "Dessine d'abord quelque chose à exporter."; return; }
+    const out = document.createElement("canvas"); out.width = W; out.height = W;
+    const og = out.getContext("2d");
+    og.drawImage(Supports.plate(Supports.current(), W, W), 0, 0);
+    Supports.engrave(og, strokes.filter((s) => s.length > 1), 7, Supports.current(), { cap: "round" });
+    out.toBlob((b) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b); a.download = "dessin-" + Supports.current() + ".png"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+  });
+
+  /* ---- mode étendu : le dessin occupe toute la fenêtre (Échap pour en sortir) */
+  let drawExpanded = false;
+  function setDrawExpanded(on) {
+    drawExpanded = on;
+    $("draw").classList.toggle("expanded", on);
+    document.body.style.overflow = on ? "hidden" : "";
+    $("dr-expand").textContent = on ? "✕ Quitter le mode étendu" : "⤢ Mode étendu";
+    $("dr-expand").setAttribute("aria-pressed", String(on));
+    if (on) $("draw").scrollTop = 0;
+  }
+  $("dr-expand").addEventListener("click", () => setDrawExpanded(!drawExpanded));
 
   /* ---- gravure et score (avec modèle) */
   function verdict(p) {
@@ -426,7 +460,7 @@
     els.outModel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
   els.retry.addEventListener("click", () => {
-    strokes = []; overlay = null; burn = null; locked = false;
+    strokes = []; past = []; future = []; overlay = null; burn = null; locked = false;
     els.outModel.hidden = true; els.msg.textContent = "";
     [els.undo, els.clear, els.engrave].forEach((b) => (b.disabled = false));
     render();
@@ -436,5 +470,5 @@
   try { if (localStorage.getItem("runes-send") === "0") els.send.checked = false; } catch (e) { /* ignoré */ }
   syncControls(); updateRanking();
   if (location.hash === "#dessin") show("draw"); else if (location.hash.indexOf("#concepteur=") === 0 || location.hash.indexOf("#bindrunes") === 0) show("mine"); else if (location.hash === "#concepteur") show("design"); else if (location.hash.indexOf("#galerie") === 0) show("galerie");
-  window.__runes = { map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
+  window.__runes = { undo, redo, setDrawExpanded, historySize: () => [past.length, future.length], map, setStrokes: (s) => { strokes = s; changed(); }, setModel, getRanking: () => ranking, getPreview: () => preview, getStrokes: () => strokes, isSent: () => sent, engrave: () => els.engrave.click() };
 })();

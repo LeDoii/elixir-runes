@@ -28,9 +28,9 @@
       note: "Support instable. Tracé à l'encre, avec un léger bavage.", guide: ["#3D5C8C", 0.4], faint: ["#3D5C8C", 0.14] },
     { id: "tissu", label: "Tissu (habit)", group: "Supports instables", style: "stitch",
       note: "Support instable. Tracé en fil, comme un point de broderie. On peut graver sur un habit.", guide: ["#3D5C8C", 0.45], faint: ["#3D5C8C", 0.16] },
-    { id: "cuir", label: "Cuir", group: "Autres supports", style: "carve",
+    { id: "cuir", label: "Cuir", group: "Supports instables", style: "carve",
       tone: { groove: "#24130a", rim: "rgba(18,8,0,.6)", hi: "rgba(255,226,180,.38)", inner: "rgba(12,4,0,.5)" },
-      note: "Gravure pressée et brunie dans le cuir : le tracé s'enfonce et fonce. Sa stabilité n'est pas précisée dans les notes.", guide: ["#F3E6CF", 0.5], faint: ["#F3E6CF", 0.17] },
+      note: "Support instable. Gravure pressée et brunie dans le cuir : le tracé s'enfonce et fonce.", guide: ["#F3E6CF", 0.5], faint: ["#F3E6CF", 0.17] },
     { id: "cristal", label: "Cristal", group: "Amplification", style: "crystal",
       note: "Un cristal amplifie la puissance d'une bindrune. Gravure creusée, lumière prise dans le trait.", guide: ["#FFFFFF", 0.55], faint: ["#FFFFFF", 0.2] },
   ];
