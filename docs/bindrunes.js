@@ -115,7 +115,8 @@
     enc: (o) => { const u = new TextEncoder().encode(JSON.stringify(o)); let b = ""; u.forEach((c) => (b += String.fromCharCode(c))); return btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
     dec: (t) => { const b = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, (c) => c.charCodeAt(0)))); },
   };
-  const shareUrl = (rec) => location.origin + location.pathname + "#bindrunes=" + b64.enc({ name: rec.name, d: rec.d });
+  const shareCode = (rec) => b64.enc({ name: rec.name, d: rec.d });
+  const shareUrl = (rec) => location.origin + location.pathname + "#bindrunes=" + shareCode(rec);
 
   /** Lit un lien, un code ou un fichier JSON. Retourne un tableau de { name, d } valides (éventuellement vide). */
   function parseImport(text) {
@@ -178,10 +179,10 @@
     b.type = "button"; b.className = "act"; b.textContent = label; b.addEventListener("click", fn);
     parent.appendChild(b);
   }
-  function copyLink(rec) {
-    const url = shareUrl(rec);
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say("Lien de « " + rec.name + " » copié."), () => prompt("Copie ce lien :", url));
-    else prompt("Copie ce lien :", url);
+  function copyText(text, what, rec) {
+    const ok = () => say(what + " de « " + rec.name + " » copié.");
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, () => prompt("Copie ce texte :", text));
+    else prompt("Copie ce texte :", text);
   }
 
   function renderTab() {
@@ -209,7 +210,8 @@
         const err = rename(rec.name, nn);
         say(err || "Renommée.");
       });
-      act(acts, "Lien", () => copyLink(rec));
+      act(acts, "Lien", () => copyText(shareUrl(rec), "Lien", rec));
+      act(acts, "Code", () => copyText(shareCode(rec), "Code", rec));
       act(acts, "Exporter", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json"));
       act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
       info.appendChild(h); info.appendChild(meta); info.appendChild(acts);
