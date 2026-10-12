@@ -147,3 +147,7 @@ dialog::backdrop { background: rgba(32,32,30,.55); }
 .dz-list .rm { background: none; border: 0; cursor: pointer; color: var(--grey2); font-size: 1.1rem; line-height: 1; }
 .dz-list .rm:hover { color: var(--warm); }
 .field .check { margin-bottom: .3rem; }
+dialog { max-height: 92vh; overflow-y: auto; }
+.dlg { align-items: start; }
+.dlg ul.sens { padding-left: 1.1rem; margin: .4rem 0 1rem; font-size: 1.02rem; line-height: 1.4; }
+.dlg ul.sens li { margin-bottom: .35rem; }

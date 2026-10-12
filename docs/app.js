@@ -41,6 +41,14 @@
   const LEVELS = ["Très facile", "Facile", "Moyen", "Difficile", "Très difficile"];
   const pips = (lvl) => '<span class="pips" aria-hidden="true">' + [1, 2, 3, 4, 5].map((i) => '<i' + (i <= lvl ? ' class="on"' : "") + "></i>").join("") + "</span>";
   let current = null;
+  /** Rejoue le tracé de la rune d'une carte, trait par trait (volontairement même si le système réduit les animations). */
+  function playTrace(card) {
+    card.querySelectorAll("svg polyline").forEach((pl, i) => {
+      pl.getAnimations().forEach((a) => a.cancel());
+      pl.animate([{ strokeDasharray: "1", strokeDashoffset: "1" }, { strokeDasharray: "1", strokeDashoffset: "0" }],
+        { duration: 600, delay: i * 250, easing: "ease", fill: "backwards" });
+    });
+  }
   function renderGallery() {
     const sort = $("gallery-sort").value;
     const list = D.runes.slice();
@@ -54,6 +62,9 @@
       b.innerHTML = runeSVG(r) + '<span class="nm">' + r.name + '</span><span class="gl">' + r.glyph + "</span>" +
         (d ? pips(d.level) + '<span class="lv">' + LEVELS[d.level - 1] + (sort !== "lib" ? " · n° " + d.rank : "") + "</span>" : "");
       b.addEventListener("click", () => openRune(r.name));
+      const play = () => playTrace(b);
+      b.addEventListener("pointerenter", (e) => { if (e.pointerType !== "touch") play(); });
+      b.addEventListener("focus", play);
       li.appendChild(b);
       gallery.appendChild(li);
     });
@@ -66,6 +77,7 @@
     $("dlg-name").textContent = current.name;
     const d = DIFF[name];
     $("dlg-diff").innerHTML = d ? pips(d.level) + " " + LEVELS[d.level - 1] + " · n° " + d.rank + " sur 24 en difficulté" : "";
+    $("dlg-sens").innerHTML = current.sens.map((t) => "<li>" + t + "</li>").join("");
     $("dlg-parts").innerHTML = current.strokes.map((s) => "<li>" + s.name + "</li>").join("");
     replay();
     if (!dlg.open) dlg.showModal();

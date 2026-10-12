@@ -22,7 +22,7 @@
   <main>
     <!-- ============================ GALERIE ============================ -->
     <section id="runes" role="tabpanel" aria-labelledby="tab-runes">
-      <p class="hint center-text">Clique sur une rune pour voir son tracé, trait par trait.</p>
+      <p class="hint center-text">Survole une rune pour voir son tracé, clique pour ouvrir sa fiche : sens et traits.</p>
       <div class="field sortbar">
         <label for="gallery-sort">Ordre</label>
         <select id="gallery-sort">
@@ -149,6 +149,8 @@
         <p class="gl" id="dlg-glyph"></p>
         <h2 id="dlg-name"></h2>
         <p class="diff" id="dlg-diff"></p>
+        <h3>Sens</h3>
+        <ul class="parts sens" id="dlg-sens"></ul>
         <h3>Traits</h3>
         <ul class="parts" id="dlg-parts"></ul>
         <div class="row wrap">
@@ -162,7 +164,7 @@
 
   <footer>
     <p><strong>Outil fan-made d'exposition et d'entraînement.</strong> Non affilié à l'équipe d'Elixir RP.
-      Les runes sont présentées par leur nom et leur forme seulement.</p>
+      Les descriptions des runes viennent du Chapitre 7 du livre de runes.</p>
     <p class="small">Polices Italiana et Crimson Pro (licence SIL OFL). Tout le calcul se fait dans ton navigateur ; rien n'est envoyé.</p>
   </footer>
 

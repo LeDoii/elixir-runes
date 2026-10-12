@@ -4,7 +4,7 @@ Galerie des 24 runes et atelier de **dessin libre**, pour le serveur de jeu de r
 
 ## Ce que fait le site
 
-- **Les runes** : les 24 runes, chacune avec son tracé animé trait par trait.
+- **Les runes** : les 24 runes ; le tracé se joue au survol de la carte, et la fiche donne les sens du livre et les traits.
 - **Dessin libre** :
   - **sans modèle**, l'option « Envoyer la gravure » (activée par défaut) lance la recherche au clic : le tracé est gravé, recentré, puis le site compare ; désactivée, la recherche se met à jour à chaque trait ;
   - le site compare ton dessin aux 24 runes et affiche les plus proches, avec un pourcentage de correspondance ;
@@ -30,7 +30,7 @@ La reconnaissance tient aussi compte de la **topologie** : nombre de formes (deu
 - `tools/test_recognition.js` : test de reconnaissance.
 - `tools/build_difficulty.js` : calcule le classement de difficulté (`docs/difficulty.js`) : moyenne de 50 % de précision simulée à main levée (80 tracés par rune) et 50 % de complexité de forme.
 
-Les runes ne sont présentées que par leur nom et leur forme, sans les textes du Chapitre 7.
+Les sens affichés sur la fiche de chaque rune sont les descriptions du Chapitre 7 du livre de runes (`tools/descriptions.json`, source du `build_data.py`). Seules les descriptions des pages d'aett sont reprises ; les phrases composées sont découpées par idée, avec les mots du livre (connecteurs retirés, rares sujets ou verbes répétés pour que chaque idée se lise seule).
 
 ## Licence
 
