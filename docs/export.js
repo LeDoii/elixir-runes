@@ -29,7 +29,7 @@
   /** Joints des points d'ancrage liés, rangés par rune (celle du premier point de chaque liaison). */
   function joinsByRune(d) {
     const out = {};
-    root.Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => { const i = d.r.indexOf(j.e); (out[i] = out[i] || []).push(j.pts); });
+    root.Geom.joins(root.Geom.linkPairs(d.r, d.l)).forEach((j) => { const i = d.r.indexOf(j.e); (out[i] = out[i] || []).push(j.pts); });
     return out;
   }
   const svgOpen = (b) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + b.join(" ") + '" width="' + num(b[2] - b[0]) + '" height="' + num(b[3] - b[1]) + '">';

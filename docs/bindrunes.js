@@ -200,7 +200,7 @@
   function previewSVG(d) {
     const parts = [];
     d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
-    Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts }));
+    Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts }));
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;

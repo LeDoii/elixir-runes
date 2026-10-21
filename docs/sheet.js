@@ -43,7 +43,7 @@
     const D = root.RUNES, byName = (n) => D.runes.find((r) => r.name === n), c = cnv(w, h), g = c.getContext("2d"), RES = w / 800, HW = D.strokeWidth / 2;
     g.drawImage(root.Supports.plate(d.s, w, h), 0, 0);
     const placed = d.r.map((e) => ({ e, paths: root.Geom.drawn(e).map((s) => s.pts) }));
-    root.Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => { const p = placed.find((x) => x.e === j.e); if (p) p.paths.push(j.pts); });
+    root.Geom.joins(root.Geom.linkPairs(d.r, d.l)).forEach((j) => { const p = placed.find((x) => x.e === j.e); if (p) p.paths.push(j.pts); });
     const all = placed.flatMap((p) => p.paths.flat());
     const x0 = Math.min(...all.map((p) => p[0])) - HW, x1 = Math.max(...all.map((p) => p[0])) + HW;
     const y0 = Math.min(...all.map((p) => p[1])) - HW, y1 = Math.max(...all.map((p) => p[1])) + HW;

@@ -109,10 +109,60 @@
     parts.push(pts.slice(from));
     return parts;
   }
-  /** Traits à dessiner (nom, points) d'une rune posée : comme placed, mais sans les piques de jonction. Les mesures (emprise, contacts) restent sur placed. */
+  /**
+   * Comble les encoches autour d'un point où des traits se rejoignent. rays : [{ a (angle), len (longueur disponible), id }] : traits qui partent de P ;
+   * deux traits qui ont le même id sont déjà reliés par un joint (sommet d'un même trait, trait qui traverse P). L'encoche est un grand écart
+   * (plus de 180°) entre deux traits voisins d'id différents : on y pose un V à joint mitré dont les bras sont assez longs pour que le coin soit
+   * exact (au-delà de la limite de mitre du peintre, le joint devient un biseau, qui ferme aussi l'encoche).
+   */
+  function notchFills(P, rays, width) {
+    const out = [];
+    if (rays.length < 2) return out;
+    rays = rays.slice().sort((p, q) => p.a - q.a);
+    rays.forEach((r1, i) => {
+      const r2 = rays[(i + 1) % rays.length], gap = i === rays.length - 1 ? r2.a + 2 * Math.PI - r1.a : r2.a - r1.a;
+      if (gap <= Math.PI + 0.02 || r1.id === r2.id) return;
+      const half = (2 * Math.PI - gap) / 2;
+      if (half < 0.06) return;                                 // traits presque superposés : pas de joint
+      const need = width / 2 / Math.tan(half) + 1, l1 = Math.min(need, r1.len), l2 = Math.min(need, r2.len);
+      out.push([[P[0] + Math.cos(r1.a) * l1, P[1] + Math.sin(r1.a) * l1], P, [P[0] + Math.cos(r2.a) * l2, P[1] + Math.sin(r2.a) * l2]]);
+    });
+    return out;
+  }
+  /** Rayons des traits (listes de points) qui partent de P : extrémités, sommets (deux rayons de même id) et traits qui traversent P. */
+  function polyRays(parts, P) {
+    const rays = [], near = (q) => Math.hypot(q[0] - P[0], q[1] - P[1]) < 0.75, ray = (from, to, id) => ({ a: Math.atan2(to[1] - from[1], to[0] - from[0]), len: Math.hypot(to[0] - from[0], to[1] - from[1]), id });
+    parts.forEach((p, si) => {
+      p.forEach((q, i) => { if (near(q)) { if (i > 0) rays.push(ray(q, p[i - 1], si + ":" + i)); if (i < p.length - 1) rays.push(ray(q, p[i + 1], si + ":" + i)); } });
+      for (let i = 0; i < p.length - 1; i++) {
+        const a = p[i], b = p[i + 1];
+        if (near(a) || near(b)) continue;
+        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy), t = ((P[0] - a[0]) * dx + (P[1] - a[1]) * dy) / len;
+        if (t > 0.75 && t < len - 0.75 && Math.abs((P[0] - a[0]) * dy - (P[1] - a[1]) * dx) / len < 0.75) {
+          rays.push({ a: Math.atan2(-dy, -dx), len: t, id: si + ":m" + i }, { a: Math.atan2(dy, dx), len: len - t, id: si + ":m" + i });
+        }
+      }
+    });
+    return rays;
+  }
+  const cornerCache = {};
+  /** Joints de fermeture propres à la rune : là où des traits distincts se rejoignent en laissant une encoche (Uruz, Ansuz, Dagaz…), et la couture d'un trait fermé (Ingwaz). Repère de la rune. */
+  function corners(name, f, k) {
+    const key = name + "|" + (f || 0) + "|" + (k || 1);
+    if (cornerCache[key]) return cornerCache[key];
+    const parts = [], at = new Map();
+    strokes(name, f, k).forEach((s, si) => splitStroke(name, si, s.pts).forEach((pts) => parts.push(pts)));
+    parts.forEach((p) => p.forEach((q) => at.set(q[0].toFixed(2) + "," + q[1].toFixed(2), q)));
+    const out = [];
+    at.forEach((P) => notchFills(P, polyRays(parts, P), root.RUNES.strokeWidth * (k || 1)).forEach((pts) => out.push(pts)));
+    if (Object.keys(cornerCache).length > 400) for (const x in cornerCache) delete cornerCache[x];
+    return (cornerCache[key] = out);
+  }
+  /** Traits à dessiner (nom, points) d'une rune posée : comme placed, mais sans les piques de jonction et avec les joints de fermeture (nom « joint »). Les mesures (emprise, contacts) restent sur placed. */
   const drawn = (e) => {
     const name = e.n || e.name, base = byName(name).strokes, out = [];
     strokes(name, e.f, e.k).forEach((s, si) => splitStroke(name, si, s.pts).forEach((pts) => out.push({ name: base[si].name, pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
+    corners(name, e.f, e.k).forEach((pts) => out.push({ name: "joint", pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) }));
     return out;
   };
 
@@ -123,52 +173,37 @@
     placed(e).forEach((s) => s.pts.slice(1).forEach((p, i) => out.push({ a: s.pts[i], b: p, idx: out.length })));
     return out;
   }
-  /** Directions (angle, longueur disponible) des traits de la rune qui partent du point P : une extrémité en donne une, un sommet deux, un trait qui traverse P deux (opposées). */
-  function raysAt(e, P) {
-    const out = [];
-    segments(e).forEach((g) => {
-      const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
-      if (Math.hypot(g.a[0] - P[0], g.a[1] - P[1]) < 0.75) out.push({ a: Math.atan2(uy, ux), len });
-      else if (Math.hypot(g.b[0] - P[0], g.b[1] - P[1]) < 0.75) out.push({ a: Math.atan2(-uy, -ux), len });
-      else {
-        const t = (P[0] - g.a[0]) * ux + (P[1] - g.a[1]) * uy, off = Math.abs((P[0] - g.a[0]) * uy - (P[1] - g.a[1]) * ux);
-        if (off < 0.75 && t > 0.75 && t < len - 0.75) { out.push({ a: Math.atan2(-uy, -ux), len: t }); out.push({ a: Math.atan2(uy, ux), len: len - t }); }
-      }
+  /** Rayons des traits de la rune posée e qui partent du point P (plaque), tous du même id (la rune). */
+  const raysAt = (e, P, id) => polyRays(placed(e).map((s) => s.pts), P).map((r) => ({ a: r.a, len: r.len, id }));
+  /**
+   * Joints aux points d'ancrage liés : autour de chaque point lié, les traits de toutes les runes qui s'y rejoignent sont classés par direction et
+   * l'encoche entre deux runes voisines est comblée (voir notchFills) ; entre des traits qui se prolongent ou se recouvrent, rien à ajouter.
+   * pairs : [[runeA, runeB, pointA, pointB]] ; pointB null : le point de A est posé sur un trait de B (il est cherché sur la ligne).
+   * Retourne [{ e: runeA, pts }] (e donne la couleur et l'échelle).
+   */
+  function joins(pairs) {
+    const out = [], groups = [];
+    pairs.forEach(([A, B, pa, pb]) => {
+      const ta = anchors(A.n || A.name, A.f, A.k)[pa];
+      if (!ta) return;
+      const PA = [ta[0] + A.x, ta[1] + A.y];
+      let PB;
+      if (pb === null || pb === undefined) { const h = onLine(PA, B, 8); if (!h) return; PB = h.q; }
+      else { const tb = anchors(B.n || B.name, B.f, B.k)[pb]; if (!tb) return; PB = [tb[0] + B.x, tb[1] + B.y]; }
+      let g = groups.find((x) => Math.hypot(x.P[0] - PA[0], x.P[1] - PA[1]) <= 8);
+      if (!g) groups.push(g = { P: PA, e: A, ends: [] });
+      [[A, PA], [B, PB]].forEach(([r, Q]) => { if (!g.ends.some((x) => x.r === r && Math.hypot(x.Q[0] - Q[0], x.Q[1] - Q[1]) < 1)) g.ends.push({ r, Q }); });
+    });
+    groups.forEach(({ P, e, ends }) => {
+      const runes = [], rays = [];
+      ends.forEach(({ r, Q }) => { if (!runes.includes(r)) runes.push(r); raysAt(r, Q, runes.indexOf(r)).forEach((x) => rays.push(x)); });
+      notchFills(P, rays, root.RUNES.strokeWidth * (e.k || 1)).forEach((pts) => out.push({ e, pts }));
     });
     return out;
   }
-  /**
-   * Joints aux points d'ancrage liés. Autour d'un point lié, les traits de toutes les runes qui s'y rejoignent sont classés par direction :
-   * l'encoche à combler est un grand écart (plus de 180°) entre deux traits voisins de runes différentes. Le joint est alors un V mitré
-   * (deux bras assez longs pour que la pointe soit exacte) qui prolonge le coin comme à l'intérieur d'une rune. Entre des traits qui
-   * se recouvrent ou se prolongent (angle d'au plus 180°), rien à ajouter : aucune bosse.
-   * pairs : [[runeA, runeB, pointA, pointB]] ; retourne [{ e: runeA, pts }] (e donne la couleur et l'échelle).
-   */
-  function joins(pairs) {
-    const W = root.RUNES.strokeWidth, out = [], at = new Map();
-    pairs.forEach(([A, B, pa]) => {
-      const pt = anchors(A.n || A.name, A.f, A.k)[pa];
-      if (!pt) return;
-      const P = [pt[0] + A.x, pt[1] + A.y], key = Math.round(P[0] * 2) + "," + Math.round(P[1] * 2);
-      const g = at.get(key) || { P, e: A, runes: [] };
-      [A, B].forEach((r) => { if (!g.runes.includes(r)) g.runes.push(r); });
-      at.set(key, g);
-    });
-    at.forEach(({ P, e, runes }) => {
-      const rays = [];
-      runes.forEach((r) => raysAt(r, P).forEach((x) => rays.push({ a: x.a, len: x.len, r })));
-      if (rays.length < 2) return;
-      rays.sort((p, q) => p.a - q.a);
-      rays.forEach((r1, i) => {
-        const r2 = rays[(i + 1) % rays.length], gap = i === rays.length - 1 ? r2.a + 2 * Math.PI - r1.a : r2.a - r1.a;
-        if (gap <= Math.PI + 0.02 || r1.r === r2.r) return;
-        const half = (2 * Math.PI - gap) / 2;
-        if (half < 0.06) return;                               // traits presque superposés : pas de joint
-        const need = (W * (e.k || 1)) / 2 / Math.tan(half) + 1, l1 = Math.min(need, r1.len), l2 = Math.min(need, r2.len);
-        out.push({ e, pts: [[P[0] + Math.cos(r1.a) * l1, P[1] + Math.sin(r1.a) * l1], P, [P[0] + Math.cos(r2.a) * l2, P[1] + Math.sin(r2.a) * l2]] });
-      });
-    });
-    return out;
+  /** Les liaisons d'une bindrune (`l`) sous forme de paires pour joins : [[runeA, runeB, pointA, pointB ou null]]. */
+  function linkPairs(runes, l) {
+    return (l || []).map((k) => (runes[k[0]] && runes[k[1]] ? [runes[k[0]], runes[k[1]], k[2], k.length === 5 ? null : k[3]] : null)).filter(Boolean);
   }
   /** Point d'un trait de la rune e le plus proche de P, à moins de tol : { idx (segment), q (point), d } ou null. */
   function onLine(P, e, tol) {
@@ -223,5 +258,5 @@
     });
     return f;
   }
-  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
+  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, linkPairs, corners, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
 });

@@ -177,7 +177,7 @@
     if (avecPlaque) g.drawImage(Supports.plate(Supports.current(), pw, ph), 0, 0);
     g.setTransform(tf[0], 0, 0, tf[1], tf[2], tf[3]);
     const placed = items.filter((it) => !(ecran && it.hidden)).map((it) => ({ it, paths: Geom.drawn(it).map((s) => s.pts) }));
-    Geom.joins(links.filter((l) => !l.line && itemById(l.a) && itemById(l.b)).map((l) => [itemById(l.a), itemById(l.b), l.pa, l.pb])).forEach((j) => { const p = placed.find((x) => x.it === j.e); if (p) p.paths.push(j.pts); });   // les bords se rejoignent aux points liés
+    Geom.joins(links.filter((l) => itemById(l.a) && itemById(l.b)).map((l) => [itemById(l.a), itemById(l.b), l.pa, l.line ? null : l.pb])).forEach((j) => { const p = placed.find((x) => x.it === j.e); if (p) p.paths.push(j.pts); });   // les bords se rejoignent aux points liés
     if ($("dz-strata").checked) {
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ it, paths }) => {

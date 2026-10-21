@@ -20,7 +20,7 @@
   }
   function preview(d) {
     const parts = [];
-    if (d) { d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts }))); Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts })); }
+    if (d) { d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts }))); Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts })); }
     const box = el("div", "mprev");
     if (!parts.length) { box.textContent = "?"; return box; }
     const all = parts.flatMap((p) => p.pts);
