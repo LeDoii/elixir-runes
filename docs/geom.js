@@ -115,7 +115,8 @@
    * (plus de 180°) entre deux traits voisins d'id différents : on y pose un V à joint mitré dont les bras sont assez longs pour que le coin soit
    * exact (au-delà de la limite de mitre du peintre, le joint devient un biseau, qui ferme aussi l'encoche).
    */
-  function notchFills(P, rays, width) {
+  /** Encoches autour de P : [{ r1, r2, gap, half }] (écart de plus de 180° entre deux traits voisins d'id différents, demi-angle du coin). */
+  function notches(rays) {
     const out = [];
     if (rays.length < 2) return out;
     rays = rays.slice().sort((p, q) => p.a - q.a);
@@ -123,11 +124,43 @@
       const r2 = rays[(i + 1) % rays.length], gap = i === rays.length - 1 ? r2.a + 2 * Math.PI - r1.a : r2.a - r1.a;
       if (gap <= Math.PI + 0.02 || r1.id === r2.id) return;
       const half = (2 * Math.PI - gap) / 2;
-      if (half < 0.06) return;                                 // traits presque superposés : pas de joint
-      const need = width / 2 / Math.tan(half) + 1, l1 = Math.min(need, r1.len), l2 = Math.min(need, r2.len);
-      out.push([[P[0] + Math.cos(r1.a) * l1, P[1] + Math.sin(r1.a) * l1], P, [P[0] + Math.cos(r2.a) * l2, P[1] + Math.sin(r2.a) * l2]]);
+      if (half >= 0.06) out.push({ r1, r2, gap, half });      // traits presque superposés : pas de joint
     });
     return out;
+  }
+  function notchFills(P, rays, width) {
+    return notches(rays).map(({ r1, r2, half }) => {
+      const need = width / 2 / Math.tan(half) + 1, l1 = Math.min(need, r1.len), l2 = Math.min(need, r2.len);
+      return [[P[0] + Math.cos(r1.a) * l1, P[1] + Math.sin(r1.a) * l1], P, [P[0] + Math.cos(r2.a) * l2, P[1] + Math.sin(r2.a) * l2]];
+    });
+  }
+  const clipHalf = (poly, inside, cross) => {
+    const out = [];
+    poly.forEach((p, i) => { const q = poly[(i + 1) % poly.length], ip = inside(p), iq = inside(q); if (ip) out.push(p); if (ip !== iq) out.push(cross(p, q)); });
+    return out;
+  };
+  /** Polygone coupé par le carré [x0, x1] × [y0, y1] (Sutherland-Hodgman). */
+  function clipBox(poly, x0, y0, x1, y1) {
+    const vx = (x) => (p, q) => [x, p[1] + ((x - p[0]) / (q[0] - p[0])) * (q[1] - p[1])], vy = (y) => (p, q) => [p[0] + ((y - p[1]) / (q[1] - p[1])) * (q[0] - p[0]), y];
+    poly = clipHalf(poly, (p) => p[0] >= x0 - 1e-9, vx(x0));
+    poly = poly.length ? clipHalf(poly, (p) => p[0] <= x1 + 1e-9, vx(x1)) : poly;
+    poly = poly.length ? clipHalf(poly, (p) => p[1] >= y0 - 1e-9, vy(y0)) : poly;
+    return poly.length ? clipHalf(poly, (p) => p[1] <= y1 + 1e-9, vy(y1)) : poly;
+  }
+  /**
+   * Remplissage harmonisé des encoches d'un point lié : le coin complet (le losange formé par les bords extérieurs des deux traits, qui se
+   * rejoignent à la pointe de la mitre) est coupé par le carré de la demi-épaisseur du trait autour du point. Tous les sommets liés
+   * s'arrêtent donc à la même hauteur et à la même largeur (l'emprise de la rune), quel que soit l'angle. Polygones marqués `filled`.
+   */
+  function notchPolys(P, rays, width) {
+    const h = width / 2;
+    return notches(rays).map(({ r1, r2, gap, half }) => {
+      const dir = (a, d) => [P[0] + Math.cos(a) * d, P[1] + Math.sin(a) * d], bis = r1.a + gap / 2;
+      const poly = clipBox([P, dir(r1.a + Math.PI / 2, h), dir(bis, h / Math.sin(half)), dir(r2.a - Math.PI / 2, h)], P[0] - h, P[1] - h, P[0] + h, P[1] + h);
+      if (poly.length < 3) return null;
+      poly.filled = true;
+      return poly;
+    }).filter(Boolean);
   }
   /** Rayons des traits (listes de points) qui partent de P : extrémités, sommets (deux rayons de même id) et traits qui traversent P. */
   function polyRays(parts, P) {
@@ -197,7 +230,7 @@
     groups.forEach(({ P, e, ends }) => {
       const runes = [], rays = [];
       ends.forEach(({ r, Q }) => { if (!runes.includes(r)) runes.push(r); raysAt(r, Q, runes.indexOf(r)).forEach((x) => rays.push(x)); });   // id par sommet de trait : les encoches ouvertes d'une rune sont comblées avec celles de la liaison
-      notchFills(P, rays, root.RUNES.strokeWidth * (e.k || 1)).forEach((pts) => out.push({ e, pts }));
+      notchPolys(P, rays, root.RUNES.strokeWidth * (e.k || 1)).forEach((pts) => out.push({ e, pts }));
     });
     return out;
   }

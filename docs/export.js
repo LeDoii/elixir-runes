@@ -24,7 +24,7 @@
     const sw = root.RUNES.strokeWidth * (e.k || 1), pts = (a) => a.map((p) => num(p[0]) + "," + num(p[1])).join(" ");
     return '<g id="' + esc(id) + '" fill="none" stroke="' + esc(e.c) + '" stroke-opacity=".88" stroke-width="' + num(sw) + '" stroke-linejoin="miter" stroke-linecap="butt">' +
       root.Geom.drawn(e).map((s) => '<polyline data-trait="' + esc(s.name) + '" points="' + pts(s.pts) + '"/>').join("") +
-      (joins || []).map((j) => '<polyline data-trait="joint" points="' + pts(j) + '"/>').join("") + "</g>";
+      (joins || []).map((j) => (j.filled ? '<polygon data-trait="joint" points="' + pts(j) + '" fill="' + esc(e.c) + '" fill-opacity=".88" stroke-width=".8"/>' : '<polyline data-trait="joint" points="' + pts(j) + '"/>')).join("") + "</g>";
   }
   /** Joints des points d'ancrage liés, rangés par rune (celle du premier point de chaque liaison). */
   function joinsByRune(d) {
@@ -44,7 +44,20 @@
   /** Une strate par rune : { name, svg, box, e } avec le même cadre pour toutes. */
   function layers(d, title) {
     const b = bounds(d), jr = joinsByRune(d);
-    return d.r.map((e, i) => ({ name: idOf(e, i), box: b, e, svg: svgOpen(b) + "<title>" + esc((title || "Bindrune") + " · " + e.n) + "</title>" + runeGroup(e, idOf(e, i), jr[i]) + "</svg>\n" }));
+    return d.r.map((e, i) => ({ name: idOf(e, i), box: b, e, paths: root.Geom.drawn(e).map((s) => s.pts).concat(jr[i] || []), svg: svgOpen(b) + "<title>" + esc((title || "Bindrune") + " · " + e.n) + "</title>" + runeGroup(e, idOf(e, i), jr[i]) + "</svg>\n" }));
   }
-  return { bounds, svgOf, layers, idOf };
+  /** Peint des tracés sur un contexte canevas (le trait et la couleur sont réglés par l'appelant) : polylignes tracées, polygones de jonction remplis. */
+  function strokePaths(g, paths) {
+    const line = (p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1])));
+    g.beginPath();
+    paths.forEach((p) => { if (!p.filled) line(p); });
+    g.stroke();
+    const polys = paths.filter((p) => p.filled);
+    if (!polys.length) return;
+    g.beginPath();
+    polys.forEach((p) => { line(p); g.closePath(); });
+    g.fillStyle = g.strokeStyle; g.fill();
+    g.save(); g.lineWidth = 0.8; g.stroke(); g.restore();      // recouvre la couture avec les traits voisins
+  }
+  return { bounds, svgOf, layers, idOf, strokePaths };
 });

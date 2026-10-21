@@ -118,8 +118,9 @@ check("joint : deux tiges bout à bout se prolongent : rien à ajouter", Geom.jo
 const kz = { n: "Kenaz", x: 0, y: 0 };                         // chevron : son sommet gauche (160,256) porte deux traits
 const kA = Geom.anchors("Kenaz", 0).findIndex((p) => p[0] === 160 && p[1] === 256);
 const jk = Geom.joins([[kz, isa(-96, 198), kA, 0]]);
-check("joint : tige posée sous le sommet d'un chevron : un seul joint, au point lié, avec des bras assez longs", kA >= 0 && jk.length === 1 && jk[0].pts[1].join() === "160,256" && jk[0].pts.slice(0, 3).every((p) => Number.isFinite(p[0])), JSON.stringify(jk));
-check("joint : le V a un bras sur la tige (vers le bas) et un sur le chevron (vers le haut), longueur de bras juste suffisante", jk.length === 1 && jk[0].pts[0][0] === 160 && jk[0].pts[0][1] > 256 && jk[0].pts[2][0] > 160 && jk[0].pts[2][1] < 256 && Math.hypot(jk[0].pts[0][0] - 160, jk[0].pts[0][1] - 256) < 12);
+const inBox = (poly, P, h = 10) => poly.every((p) => Math.abs(p[0] - P[0]) <= h + 1e-6 && Math.abs(p[1] - P[1]) <= h + 1e-6);
+check("joint : tige posée sous le sommet d'un chevron : un seul joint, un polygone rempli coupé par le carré de la demi-épaisseur autour du point", kA >= 0 && jk.length === 1 && jk[0].pts.filled === true && jk[0].pts.length >= 3 && inBox(jk[0].pts, [160, 256]), JSON.stringify(jk));
+check("joint : le polygone comble l'encoche du côté vide (au-dessus-gauche de la tige), dans la limite du carré, et jusqu'au bord haut du carré", jk.length === 1 && Math.min(...jk[0].pts.map((p) => p[1])) < 250 + 1e-6 && Math.min(...jk[0].pts.map((p) => p[0])) === 150);
 const bA = Geom.anchors("Berkano", 0).findIndex((p) => p[0] === 160 && p[1] === 256);
 check("joint : une tige qui prolonge la tige de Berkano au point central : aucune bosse", bA >= 0 && Geom.joins([[{ n: "Berkano", x: 0, y: 0 }, isa(-96, 198), bA, 0]]).length === 0);
 check("joint : lien vers un point inexistant ignoré", Geom.joins([[isaTop, isaBottom, 99, 0]]).length === 0);
@@ -153,7 +154,11 @@ check("joint : liens d'une bindrune (linkPairs) : 4 valeurs = deux points, 5 val
 check("coins : par défaut (réglage de la rune absent) le tracé d'origine est gardé, sans joint de fermeture", RUNES.every((n) => Geom.drawn({ n, x: 0, y: 0 }).every((s) => s.name !== "joint")));
 const fehu = { n: "Fehu", x: -192, y: 0 }, wunjo = { n: "Wunjo", x: 0, y: 0 };      // la branche haute de Fehu rejoint le sommet de Wunjo
 const fw = Geom.joins([[fehu, wunjo, 3, 0]]);
-check("liaison harmonisée : Fehu sur le sommet de Wunjo : un seul joint, au point lié, entre la branche et le fanion", fw.length === 1 && fw[0].pts[1].join() === "160,58", JSON.stringify(fw));
+check("liaison harmonisée : Fehu sur le sommet de Wunjo : un seul joint, au point lié, contenu dans le carré autour du point", fw.length === 1 && inBox(fw[0].pts, [160, 58]), JSON.stringify(fw));
 check("liaison harmonisée : le joint ne dépend pas du réglage des sommets de Wunjo (le joint comble déjà l'encoche)", JSON.stringify(Geom.joins([[fehu, { n: "Wunjo", x: 0, y: 0, o: 1 }, 3, 0]]).map((j) => j.pts)) === JSON.stringify(fw.map((j) => j.pts)));
 check("validation : le réglage des sommets (o) est gardé, absent sinon", validateBindrune({ r: [{ n: "Uruz", x: 0, y: 0, m: 1, c: "#112233", o: 1 }, { n: "Fehu", x: 100, y: 0, m: 1, c: "#112233" }], s: "bois", t: 0, l: [] }).r.map((e) => e.o).join() === "1,");
+/* ---- sommets liés alignés : même hauteur et même largeur quel que soit l'angle */
+const sharp = Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 0, 0]]);       // angle très aigu (26°) au sommet haut gauche de Dagaz
+const ext = (js) => [Math.min(...js.flatMap((j) => j.pts.map((p) => p[0]))), Math.min(...js.flatMap((j) => j.pts.map((p) => p[1])))];
+check("sommets liés : un angle aigu est coupé au bord du carré du trait (même hauteur et même largeur que l'emprise de la rune)", sharp.length === 1 && ext(sharp).join() === "150,48", JSON.stringify(sharp));
 finish();

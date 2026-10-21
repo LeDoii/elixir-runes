@@ -54,9 +54,8 @@
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ e, paths }) => {
         g.lineWidth = D.strokeWidth * (e.k || 1);
-        g.strokeStyle = e.c; g.globalAlpha = 0.88; g.beginPath();
-        paths.forEach((p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1]))));
-        g.stroke();
+        g.strokeStyle = e.c; g.globalAlpha = 0.88;
+        root.Export.strokePaths(g, paths);
       });
       g.restore();
     } else {                                                     // une gravure par échelle : l'épaisseur du trait suit celle de la rune

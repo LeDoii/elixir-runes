@@ -183,9 +183,7 @@
       placed.forEach(({ it, paths }) => {
         g.lineWidth = D.strokeWidth * (it.k || 1);
         g.strokeStyle = it.color; g.globalAlpha = 0.88;
-        g.beginPath();
-        paths.forEach((p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1]))));
-        g.stroke();
+        Export.strokePaths(g, paths);
       });
       g.restore();
     } else if (placed.length) {
@@ -1035,9 +1033,7 @@
       const g = c.getContext("2d");
       g.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
       g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * (l.e.k || 1); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
-      g.beginPath();
-      Geom.placed(l.e).forEach((st) => st.pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))));
-      g.stroke();
+      Export.strokePaths(g, l.paths);
       files.push({ name: l.name + ".png", data: new Uint8Array(await (await toBlob(c)).arrayBuffer()) });
     }
     files.push({ name: "LISEZMOI.txt", data: enc.encode("Strates de la bindrune « " + name + " »\r\n\r\n" +

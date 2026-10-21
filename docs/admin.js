@@ -20,14 +20,14 @@
   }
   function preview(d) {
     const parts = [];
-    if (d) { d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts }))); Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts })); }
+    if (d) { d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts }))); Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts, fill: !!j.pts.filled })); }
     const box = el("div", "mprev");
     if (!parts.length) { box.textContent = "?"; return box; }
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;
     box.innerHTML = '<svg viewBox="' + x0 + " " + y0 + " " + (x1 - x0) + " " + (y1 - y0) + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      parts.map((p) => '<polyline points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="none" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + D.strokeWidth * p.k + '"/>').join("") + "</svg>";
+      parts.map((p) => '<' + (p.fill ? "polygon" : "polyline") + ' points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="' + (p.fill ? p.c : "none") + '" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + (p.fill ? 0.8 : D.strokeWidth * p.k) + '"/>').join("") + "</svg>";
     return box;
   }
   function pager(prefix, page, pages, total, onGo) {

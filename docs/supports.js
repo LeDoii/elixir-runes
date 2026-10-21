@@ -210,10 +210,18 @@
   }
 
   /* ------------------------------------------------------------------ effets du tracé */
+  let nominal = 0;                                            // épaisseur du trait de la gravure en cours (pour dilater les polygones de jonction comme les traits)
   function trace(g, paths) {
+    const line = (p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1])));
     g.beginPath();
-    paths.forEach((p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1]))));
+    paths.forEach((p) => { if (!p.filled) line(p); });
     g.stroke();
+    const polys = paths.filter((p) => p.filled);
+    if (!polys.length || g.lineWidth < nominal * 0.9) return;   // les passes plus fines que le trait (reflets) ne remplissent pas les polygones
+    g.beginPath();
+    polys.forEach((p) => { line(p); g.closePath(); });
+    g.fillStyle = g.strokeStyle; g.fill();
+    if (g.lineWidth - nominal > 0.5) { g.lineWidth = g.lineWidth - nominal; g.stroke(); }
   }
   function pass(g, paths, width, color, dx, dy, extra) {
     g.save();
@@ -268,6 +276,7 @@
     const s = byId(id), cap = (opts && opts.cap) || "round";
     g.save();
     g.lineCap = cap; g.lineJoin = cap === "butt" ? "miter" : "round"; g.miterLimit = 3;
+    nominal = width;
     EFFECTS[s.style](g, paths, width, s);
     g.restore();
   }
