@@ -282,65 +282,98 @@
     return parts.length ? "À noter : une combinaison identique existe déjà : " + parts.join(", ") + ". C'est seulement une information." : "";
   }
 
+  /* ---- onglet « Mes bindrunes » : cartes lisibles, recherche, tri ; les actions rares sont rangées dans des menus */
+  const mineView = { q: "", sort: "recent" };
+  const cxOf = (d) => Complexity.rate(d);
+  const searchText = (rec) => Tags.fold([rec.name, rec.description || "", runesLine(rec.d), Tags.all(rec.d, rec.tags).map(Tags.label).join(" ")].join(" "));
+  function sortedList() {
+    const q = Tags.fold(mineView.q), all = list().filter((r) => !q || q.split(" ").every((w) => searchText(r).includes(w)));
+    if (mineView.sort === "name") all.sort((x, y) => x.name.localeCompare(y.name, "fr"));
+    else if (mineView.sort === "cx") all.sort((x, y) => cxOf(y.d).score - cxOf(x.d).score || x.name.localeCompare(y.name, "fr"));
+    else all.sort((x, y) => (y.at || 0) - (x.at || 0));
+    return all;
+  }
+  /** Menu déroulant : un bouton qui ouvre une liste d'actions (un seul ouvert à la fois, fermé au clic ailleurs ou sur Échap). */
+  function dropdown(label, items, cls) {
+    const dd = document.createElement("details"), sm = document.createElement("summary"), box = document.createElement("div");
+    dd.className = "dd" + (cls ? " " + cls : ""); sm.textContent = label; box.className = "ddm";
+    items.filter(Boolean).forEach(([text, fn, danger]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = text; if (danger) b.className = "danger";
+      b.addEventListener("click", () => { dd.open = false; fn(); });
+      box.appendChild(b);
+    });
+    dd.append(sm, box);
+    return dd;
+  }
+  document.addEventListener("click", (e) => { document.querySelectorAll("#mine details.dd[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll("#mine details.dd[open]").forEach((d) => { d.open = false; }); });
+  document.addEventListener("toggle", (e) => { if (e.target.matches && e.target.matches("#mine details.dd") && e.target.open) document.querySelectorAll("#mine details.dd[open]").forEach((d) => { if (d !== e.target) d.open = false; }); }, true);
+
+  function card(rec) {
+    const li = document.createElement("li"), pv = document.createElement("div"), body = document.createElement("div");
+    li.className = "bcard"; pv.className = "bpv"; pv.innerHTML = previewSVG(rec.d); body.className = "bbody";
+    const published = !!(window.Account && window.Account.isPublished(rec.name));
+    if (published) { const bd = document.createElement("span"); bd.className = "bpub"; bd.textContent = "Publiée"; pv.appendChild(bd); }
+    const h = document.createElement("h3"), runes = document.createElement("p"), meta = document.createElement("p"), c = cxOf(rec.d);
+    h.className = "bname"; h.textContent = rec.name;
+    runes.className = "brunes"; runes.textContent = runesLine(rec.d);
+    meta.className = "bmeta";
+    const lvl = document.createElement("span"); lvl.className = "lvl"; lvl.textContent = "Complexité " + c.level.toLowerCase() + " · " + c.score + " / 100"; meta.appendChild(lvl);
+    meta.appendChild(document.createTextNode(" · " + Supports.get(rec.d.s).label + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "")));
+    body.append(h, runes, meta);
+    if (rec.description) { const dp = document.createElement("p"); dp.className = "bdesc"; dp.textContent = rec.description; body.appendChild(dp); }
+    const tg = Tags.all(rec.d, rec.tags), shown = document.createElement("p"), more = tg.length - 4;       // quatre étiquettes en aperçu, le reste dans l'éditeur
+    shown.className = "btags";
+    tg.slice(0, 4).forEach((t) => { const c = document.createElement("span"); c.textContent = Tags.label(t); shown.appendChild(c); });
+    if (more > 0) { const c = document.createElement("span"); c.className = "more"; c.textContent = "+ " + more; shown.appendChild(c); }
+    body.appendChild(shown);
+    const ed = document.createElement("details"), edh = document.createElement("summary");
+    ed.className = "bed"; edh.textContent = "Modifier les étiquettes";
+    ed.append(edh, Tags.editor({
+      locked: () => Tags.derive(rec.d),
+      get: () => rec.tags || [],
+      set: (t) => { rec.tags = Tags.extras(rec.d, t); setTags(rec.name, rec.tags); },
+    }).el);
+    body.appendChild(ed);
+    const acts = document.createElement("div");
+    acts.className = "bacts";
+    const open = document.createElement("button"), train = document.createElement("button");
+    open.type = train.type = "button"; open.className = "btn"; train.className = "btn ghost"; open.textContent = "Ouvrir"; train.textContent = "S'entraîner";
+    open.title = "Ouvrir dans l'onglet Bindrune"; train.title = "T'entraîner à tracer cette bindrune (Dessin libre)";
+    open.addEventListener("click", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, tags: rec.tags, d: rec.d } })));
+    train.addEventListener("click", () => window.dispatchEvent(new CustomEvent("bindrune:train", { detail: { name: rec.name } })));
+    const user = window.Account && window.Account.user();
+    acts.append(open, train,
+      dropdown("Partager", [["Copier le lien", () => copyText(shareUrl(rec), "Lien", rec)], ["Copier le code", () => copyText(shareCode(rec), "Code", rec)], apiOk && ["Créer un code court", () => shortCode(rec)], ["Exporter en fichier", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json")], user && published && ["Retirer de la galerie", () => window.Account.unpublish(rec)], user && !published && !rec.from && ["Publier dans la galerie", () => window.Account.publish(rec)]]),
+      dropdown("Fiche", [["Fiche PNG", () => sheet(rec, "png")], ["Fiche PDF", () => sheet(rec, "pdf")]]),
+      dropdown("⋯", [
+        ["Modifier la description", () => { const t = prompt("Description (" + MAX_DESC + " caractères au plus) :", rec.description || ""); if (t !== null) say(setDescription(rec.name, t) ? "Description enregistrée." : "Enregistrement impossible."); }],
+        ["Renommer", () => { const nn = prompt("Nouveau nom :", rec.name); if (nn !== null) say(rename(rec.name, nn) || "Renommée."); }],
+        ["Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } }, true],
+      ], "more"));
+    body.appendChild(acts);
+    li.append(pv, body);
+    return li;
+  }
   function renderTab() {
     const ul = $("mine-list");
     if (!ul) return;
-    const all = list();
+    const total = list().length, all = sortedList();
     ul.innerHTML = "";
-    $("mine-empty").hidden = all.length > 0;
-    $("mine-export-all").disabled = !all.length;
-    all.forEach((rec) => {
-      const li = document.createElement("li");
-      li.className = "mcard";
-      const pv = document.createElement("div");
-      pv.className = "mprev"; pv.innerHTML = previewSVG(rec.d);
-      const info = document.createElement("div"), h = document.createElement("h4"), meta = document.createElement("p"), acts = document.createElement("div");
-      h.textContent = rec.name;
-      if (window.Account && window.Account.isPublished(rec.name)) { const bd = document.createElement("span"); bd.className = "badge pub"; bd.textContent = "publiée"; h.appendChild(bd); }
-      meta.className = "meta";
-      meta.textContent = runesLine(rec.d) + " · " + Supports.get(rec.d.s).label + " · " + cxLine(rec.d) + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "");
-      acts.className = "macts";
-      act(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: rec.name, description: rec.description, tags: rec.tags, d: rec.d } })));
-      act(acts, "S'entraîner", () => window.dispatchEvent(new CustomEvent("bindrune:train", { detail: { name: rec.name } })));
-      act(acts, "Description", () => {
-        const t = prompt("Description (" + MAX_DESC + " caractères au plus) :", rec.description || "");
-        if (t === null) return;
-        say(setDescription(rec.name, t) ? "Description enregistrée." : "Enregistrement impossible.");
-      });
-      act(acts, "Renommer", () => {
-        const nn = prompt("Nouveau nom :", rec.name);
-        if (nn === null) return;
-        const err = rename(rec.name, nn);
-        say(err || "Renommée.");
-      });
-      act(acts, "Lien", () => copyText(shareUrl(rec), "Lien", rec));
-      act(acts, "Code", () => copyText(shareCode(rec), "Code", rec));
-      if (apiOk) act(acts, "Code court", () => shortCode(rec));
-      if (window.Account && window.Account.user()) {
-        if (window.Account.isPublished(rec.name)) act(acts, "Retirer de la galerie", () => window.Account.unpublish(rec));
-        else if (!rec.from) act(acts, "Publier dans la galerie", () => window.Account.publish(rec));
-      }
-      act(acts, "Fiche PNG", () => sheet(rec, "png"));
-      act(acts, "Fiche PDF", () => sheet(rec, "pdf"));
-      act(acts, "Exporter", () => download(exportDoc([rec]), fileSafe(rec.name) + ".json"));
-      act(acts, "Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } });
-      info.appendChild(h); info.appendChild(meta);
-      if (rec.description) { const dp = document.createElement("p"); dp.className = "desc"; dp.textContent = rec.description; info.appendChild(dp); }
-      info.appendChild(Tags.editor({
-        collapsible: true,
-        locked: () => Tags.derive(rec.d),
-        get: () => rec.tags || [],
-        set: (t) => { rec.tags = Tags.extras(rec.d, t); setTags(rec.name, rec.tags); },
-      }).el);
-      info.appendChild(acts);
-      li.appendChild(pv); li.appendChild(info);
-      ul.appendChild(li);
-    });
+    $("mine-empty").hidden = total > 0;
+    $("mine-export-all").disabled = !total;
+    $("mine-count").textContent = total ? (all.length === total ? "· " + total : "· " + all.length + " sur " + total) : "";
+    if (total && !all.length) { const li = document.createElement("li"); li.className = "mine-none"; li.textContent = "Aucune bindrune ne correspond à « " + mineView.q + " »."; ul.appendChild(li); return; }
+    all.forEach((rec) => ul.appendChild(card(rec)));
   }
+  $("mine-q").addEventListener("input", (e) => { mineView.q = e.target.value; renderTab(); });
+  $("mine-sort").addEventListener("change", (e) => { mineView.sort = e.target.value; renderTab(); });
 
   function doImport(items, from) {
     if (!items.length) { say("Rien d'importable : " + from + " ne contient pas de bindrune valide."); return; }
     const added = importAll(items);
+    if (added.length) $("mine-imp").open = false;
     if (!added.length) { say("Import impossible : le stockage du navigateur est indisponible."); return; }
     say(added.length === 1 ? "« " + added[0].name + " » importée." : added.length + " bindrunes importées.");
   }

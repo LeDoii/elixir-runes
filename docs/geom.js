@@ -152,10 +152,13 @@
    * rejoignent à la pointe de la mitre) est coupé par le carré de la demi-épaisseur du trait autour du point. Tous les sommets liés
    * s'arrêtent donc à la même hauteur et à la même largeur (l'emprise de la rune), quel que soit l'angle. Polygones marqués `filled`.
    */
+  let joinStyle = "square";                                   // « square » : coin coupé au carré du trait ; « bevel » : biseau (le plus court des deux traits)
+  const setJoinStyle = (s) => { joinStyle = s === "bevel" ? "bevel" : "square"; };
   function notchPolys(P, rays, width) {
     const h = width / 2;
     return notches(rays).map(({ r1, r2, gap, half }) => {
       const dir = (a, d) => [P[0] + Math.cos(a) * d, P[1] + Math.sin(a) * d], bis = r1.a + gap / 2;
+      if (joinStyle === "bevel") { const tri = [P, dir(r1.a + Math.PI / 2, h), dir(r2.a - Math.PI / 2, h)]; tri.filled = true; return tri; }
       const poly = clipBox([P, dir(r1.a + Math.PI / 2, h), dir(bis, h / Math.sin(half)), dir(r2.a - Math.PI / 2, h)], P[0] - h, P[1] - h, P[0] + h, P[1] + h);
       if (poly.length < 3) return null;
       poly.filled = true;
@@ -291,5 +294,5 @@
     });
     return f;
   }
-  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, linkPairs, corners, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
+  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, setJoinStyle, linkPairs, corners, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
 });

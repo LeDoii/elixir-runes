@@ -161,4 +161,9 @@ check("validation : le réglage des sommets (o) est gardé, absent sinon", valid
 const sharp = Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 0, 0]]);       // angle très aigu (26°) au sommet haut gauche de Dagaz
 const ext = (js) => [Math.min(...js.flatMap((j) => j.pts.map((p) => p[0]))), Math.min(...js.flatMap((j) => j.pts.map((p) => p[1])))];
 check("sommets liés : un angle aigu est coupé au bord du carré du trait (même hauteur et même largeur que l'emprise de la rune)", sharp.length === 1 && ext(sharp).join() === "150,48", JSON.stringify(sharp));
+Geom.setJoinStyle("bevel");
+const bv = Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 0, 0]]);
+check("biseau : l'encoche est comblée par un triangle (point lié + les deux coins des traits), sans pointe", bv.length === 1 && bv[0].pts.length === 3 && bv[0].pts.filled === true && bv[0].pts[0].join() === "160,58" && inBox(bv[0].pts, [160, 58]), JSON.stringify(bv));
+Geom.setJoinStyle("square");
+check("coupe carrée rétablie : le polygone revient à la coupe au carré", Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 0, 0]])[0].pts.length > 3);
 finish();

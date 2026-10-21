@@ -1425,12 +1425,14 @@
     $("pf-snap").value = prefs.snap; $("pf-snap-v").textContent = prefs.snap;
     $("pf-align").value = prefs.align; $("pf-align-v").textContent = prefs.align;
     $("pf-history").value = prefs.history; $("pf-history-v").textContent = prefs.history;
-    $("pf-units").value = prefs.units; $("pf-ungroup").checked = prefs.unlinkGroup; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
+    $("pf-units").value = prefs.units; $("pf-ungroup").checked = prefs.unlinkGroup; $("pf-corner").value = prefs.corner; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
   }
   const setPrefs = (patch) => { Object.assign(prefs, Prefs.sanitize(Object.assign({}, prefs, patch))); Prefs.save(localStorage, prefs); fillPrefs(); scheduleRulers(); };
   function openPrefs() { fillPrefs(); prefsBox.hidden = false; $("pf-close-btn").focus(); }
   [["pf-snap", "snap"], ["pf-align", "align"], ["pf-history", "history"]].forEach(([id, key]) => $(id).addEventListener("input", (e) => setPrefs({ [key]: Number(e.target.value) })));
   $("pf-units").addEventListener("change", (e) => setPrefs({ units: e.target.value }));
+  $("pf-corner").addEventListener("change", (e) => { setPrefs({ corner: e.target.value }); Geom.setJoinStyle(prefs.corner); render(); Bindrunes.rerender(); });
+  Geom.setJoinStyle(prefs.corner); if (prefs.corner === "bevel") Bindrunes.rerender();
   $("pf-ungroup").addEventListener("change", (e) => setPrefs({ unlinkGroup: e.target.checked }));
   $("pf-new").addEventListener("change", (e) => setPrefs({ askNew: e.target.checked }));
   $("pf-close").addEventListener("change", (e) => setPrefs({ confirmClose: e.target.checked }));
