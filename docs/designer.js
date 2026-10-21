@@ -1127,7 +1127,6 @@
   }
   /* ---- ouvrir : une fenêtre avec aperçus, recherche et tri ; les bindrunes du navigateur, puis celles du compte */
   const openBox = $("dz-open-dlg");
-  let accItems = null;
   const when = (t) => (t ? new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "");
   function openCard(rec, at) {
     const li = document.createElement("li"), b = document.createElement("button"), pv = document.createElement("span"), tx = document.createElement("span"), nm = document.createElement("b"), sm = document.createElement("small");
@@ -1143,18 +1142,13 @@
     const match = (r) => !q || Tags.fold([r.name, r.description || "", r.d.r.map((e) => e.n).join(" "), (r.tags || []).join(" ")].join(" ")).includes(q);
     const at = (r) => r.at || r.updated_at || 0;
     const order = (a, b) => (sort === "name" ? a.name.localeCompare(b.name, "fr") : sort === "cx" ? Complexity.rate(b.d).score - Complexity.rate(a.d).score : at(b) - at(a));
-    const local = Bindrunes.list().filter(match).sort(order), acc = (accItems || []).filter(match).sort(order);
-    const fill = (id, list) => { const ul = $(id); ul.innerHTML = ""; list.forEach((r) => ul.appendChild(openCard(r, at(r)))); };
-    fill("dz-open-local", local); fill("dz-open-acc", acc);
-    $("dz-open-empty").hidden = !!(local.length || acc.length);
+    const list = Bindrunes.list().filter(match).sort(order), ul = $("dz-open-local");
+    ul.innerHTML = ""; list.forEach((r) => ul.appendChild(openCard(r, at(r))));
+    $("dz-open-empty").hidden = list.length > 0;
   }
-  async function openOpen() {
-    openBox.hidden = false; $("dz-open-q").value = "";
-    const logged = !!(window.Account && window.Account.user());
-    $("dz-open-acc-box").hidden = !logged; accItems = null;
-    renderOpen(); $("dz-open-q").focus();
-    if (logged) { accItems = await window.Account.list(); if (!openBox.hidden) renderOpen(); }
-  }
+  function openOpen() { openBox.hidden = false; $("dz-open-q").value = ""; renderOpen(); $("dz-open-q").focus(); }
+  window.addEventListener("sync:message", (e) => toast(e.detail.text));                // messages de la synchronisation avec le compte
+  Bindrunes.onChange(() => { if (!openBox.hidden) renderOpen(); });                    // la liste se met à jour quand le compte y apporte du neuf
   $("dz-open-btn").addEventListener("click", openOpen);
   $("dz-open-close").addEventListener("click", () => { openBox.hidden = true; });
   openBox.addEventListener("pointerdown", (e) => { if (e.target === openBox) openBox.hidden = true; });
@@ -1180,7 +1174,7 @@
     $("sv-msg").textContent = "";
     if (asCopy === true && Bindrunes.cleanName($("sv-name").value)) $("sv-name").value = Bindrunes.uniqueName($("sv-name").value);
     const logged = !!(window.Account && window.Account.user());
-    $("sv-dest").hidden = !logged; $("sv-acc").checked = false; $("sv-pub").checked = false;
+    $("sv-dest").hidden = !logged; $("sv-pub").checked = false;
     refreshSave(); renderBrings();
     saveBox.hidden = false; $("sv-name").focus(); $("sv-name").select();
   }
@@ -1190,7 +1184,6 @@
   $("sv-cancel").addEventListener("click", closeSave);
   saveBox.addEventListener("pointerdown", (e) => { if (e.target === saveBox) closeSave(); });
   $("sv-name").addEventListener("input", refreshSave);
-  $("sv-pub").addEventListener("change", (e) => { if (e.target.checked) $("sv-acc").checked = true; });
   $("sv-copy").addEventListener("click", () => { $("sv-name").value = Bindrunes.uniqueName($("sv-name").value); refreshSave(); $("sv-save").click(); });
   $("sv-save").addEventListener("click", async () => {
     const name = Bindrunes.cleanName($("sv-name").value);
@@ -1199,13 +1192,12 @@
     if (!Tags.all(platesD(), svTags).length) { svmsg("Garde au moins une étiquette : active un sens d'une rune ou ajoute une étiquette."); return; }
     const rec = Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags);
     if (!rec) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
-    const wantAcc = !$("sv-dest").hidden && $("sv-acc").checked, wantPub = !$("sv-dest").hidden && $("sv-pub").checked;
+    const wantPub = !$("sv-dest").hidden && $("sv-pub").checked;
     closeSave(); refreshSave();
     const done = "« " + name + " » enregistrée (onglet « Mes bindrunes »).";
     say(done);
     toast(done, "Voir dans Mes bindrunes", () => window.showTab("mine"));
     if (wantPub) { await window.Account.publish(rec); say($("acc-msg").textContent || done); }
-    else if (wantAcc) { await window.Account.upload(rec); say($("acc-msg").textContent || done); }
     Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("dz-msg").textContent.indexOf(done) === 0) say($("dz-msg").textContent + " " + t); });
   });
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });

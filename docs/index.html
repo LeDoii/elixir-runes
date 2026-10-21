@@ -87,24 +87,21 @@
       <div id="account" class="account" hidden>
         <div id="acc-out">
           <button id="acc-login" class="btn">Se connecter avec Discord</button>
-          <p class="hint">Facultatif : relie tes bindrunes à ton compte pour les retrouver partout. Le site ne reçoit que ton identifiant et ton pseudo Discord.</p>
+          <p class="hint">Facultatif : connecté, tes bindrunes sont enregistrées sur ton compte et se retrouvent partout (celles de ce navigateur y partent à la connexion). Le site ne reçoit que ton identifiant et ton pseudo Discord.</p>
         </div>
         <div id="acc-in" hidden>
           <p class="acc-bar">Connecté en tant que <strong id="acc-name"></strong> ·
             <button type="button" class="link" id="acc-logout">Se déconnecter</button> ·
             <button type="button" class="link" id="acc-delete">Supprimer mon compte</button>
             <span id="acc-admin" hidden>· <a class="link" href="/admin.html">Administration</a></span></p>
-          <h3>Sur mon compte</h3>
-          <p id="acc-empty" class="hint">Aucune bindrune sur ton compte. Utilise « Sur mon compte » sous une bindrune enregistrée.</p>
-          <ul id="acc-list" class="mine-grid"></ul>
+          <p class="hint">Tes bindrunes sont enregistrées sur ton compte : elles se retrouvent sur tous tes appareils, et tout changement y est envoyé tout de suite.</p>
         </div>
         <p id="acc-msg" class="hint" role="status"></p>
         <details class="privacy">
           <summary>Confidentialité</summary>
           <p>Avec la connexion Discord, le site reçoit seulement ton <strong>identifiant</strong> et ton <strong>pseudo</strong> (permission « identify ») :
             ni e-mail, ni liste de serveurs, ni messages. Ils servent à rattacher tes bindrunes à ton compte.</p>
-          <p>Les bindrunes enregistrées sur ton compte sont visibles par toi et par l'administrateur du site. Un code court créé en étant connecté
-            est lui aussi rattaché à ton compte. Les bindrunes de ce navigateur, elles, ne quittent jamais ton appareil tant que tu ne les envoies pas.</p>
+          <p>Une fois connecté, tes bindrunes (y compris celles déjà enregistrées dans ce navigateur) sont envoyées automatiquement sur ton compte, où elles sont visibles par toi et par l'administrateur du site. Un code court créé en étant connecté est lui aussi rattaché à ton compte. Sans connexion, tes bindrunes ne quittent jamais ton appareil.</p>
           <p>Tu peux te déconnecter ou supprimer ton compte quand tu veux : tes bindrunes en ligne sont alors effacées. Les codes courts déjà partagés
             restent valables mais ne sont plus liés à toi. Ce site est un projet de fan, non affilié à l'équipe d'Elixir RP.</p>
         </details>
@@ -370,12 +367,7 @@
             <input id="dz-open-q" type="text" placeholder="Chercher par nom, rune ou étiquette" autocomplete="off" aria-label="Recherche">
             <select id="dz-open-sort" aria-label="Tri"><option value="recent">Les plus récentes</option><option value="name">Par nom</option><option value="cx">Par complexité</option></select>
           </div>
-          <h4 class="pnl-sub">Dans ce navigateur</h4>
           <ul id="dz-open-local" class="opengrid"></ul>
-          <div id="dz-open-acc-box" hidden>
-            <h4 class="pnl-sub">Sur mon compte</h4>
-            <ul id="dz-open-acc" class="opengrid"></ul>
-          </div>
           <p id="dz-open-empty" class="hint" hidden>Aucune bindrune ne correspond.</p>
           <div class="row-btns"><span class="grow"></span><button id="dz-open-close" class="pbtn primary" type="button">Fermer</button></div>
         </div>
@@ -421,8 +413,7 @@
           <div id="sv-tags"></div>
           <p class="hint">Étiquettes grises : celles qui sont actives ci-dessus. Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
           <div id="sv-dest" hidden>
-            <h4 class="pnl-sub">Compte</h4>
-            <label class="check"><input type="checkbox" id="sv-acc"> Envoyer aussi sur mon compte</label>
+            <h4 class="pnl-sub">Galerie</h4>
             <label class="check"><input type="checkbox" id="sv-pub"> Publier dans la galerie (visible de tous, créditée à ton nom d'affichage Discord)</label>
           </div>
           <p id="sv-msg" class="hint" role="status"></p>
@@ -564,6 +555,7 @@
   <script src="scoring.js"></script>
   <script src="geom.js"></script>
   <script src="combo.js"></script>
+  <script src="sync.js"></script>
   <script src="prefs.js"></script>
   <script src="zip.js"></script>
   <script src="export.js"></script>

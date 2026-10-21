@@ -100,6 +100,20 @@
     listeners.forEach((fn) => fn());
     return true;
   }
+  /** Écrit des enregistrements venus du compte (ajout ou remplacement par nom). Voir account.js. */
+  function applyRemote(upserts) {
+    const all = readAll();
+    upserts.forEach((u) => {
+      const i = all.findIndex((x) => x.name.toLowerCase() === u.name.toLowerCase());
+      const rec = { name: cleanName(u.name), at: Number.isFinite(u.at) ? u.at : Date.now(), d: validate(u.d), description: cleanDesc(u.description), tags: [], from: i >= 0 ? all[i].from : "" };
+      if (!rec.name || !rec.d) return;
+      rec.tags = Tags.extras(rec.d, u.tags);
+      if (i >= 0) all[i] = rec; else all.push(rec);
+    });
+    return writeAll(all);
+  }
+  /** Retire de la liste les bindrunes de ces noms. */
+  const dropLocal = (names) => { const set = new Set(names.map((n) => cleanName(n).toLowerCase())); return writeAll(readAll().filter((x) => !set.has(x.name.toLowerCase()))); };
   const remove = (name) => writeAll(readAll().filter((x) => x.name.toLowerCase() !== cleanName(name).toLowerCase()));
   function rename(oldName, newName) {
     const nm = cleanName(newName);
@@ -249,20 +263,16 @@
 
   /**
    * Cette combinaison de runes existe-t-elle déjà ? (mêmes runes, mêmes points d'ancrage : voir combo.js)
-   * Cherche dans les bindrunes de ce navigateur, dans celles du compte et dans la galerie publique.
+   * Cherche dans tes bindrunes (navigateur, ou compte une fois connecté : c'est la même liste) et dans la galerie publique.
    * Retourne une phrase d'information, ou "" : jamais bloquant, sans aucune incidence sur l'enregistrement.
    */
   async function duplicateNotice(name, d) {
-    const nm = cleanName(name).toLowerCase(), key = Combo.key(d), parts = [], seen = new Set();
-    list().forEach((r) => { if (r.name.toLowerCase() !== nm && Combo.key(r.d) === key) parts.push("« " + r.name + " » (dans tes bindrunes de ce navigateur)"); });
+    const nm = cleanName(name).toLowerCase(), key = Combo.key(d), parts = [];
+    list().forEach((r) => { if (r.name.toLowerCase() !== nm && Combo.key(r.d) === key) parts.push("« " + r.name + " » (dans tes bindrunes)"); });
     if (apiOk) {
       try {
         const j = await apiCall("/api/combo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ d }) });
-        (j.mine || []).forEach((m) => { seen.add(m.id); if (m.name.toLowerCase() !== nm) parts.push("« " + m.name + " » (sur ton compte" + (m.published ? ", publiée" : "") + ")"); });
-        (j.gallery || []).forEach((g) => {
-          if (seen.has(g.id) || (g.own && g.name.toLowerCase() === nm)) return;
-          parts.push("« " + g.name + " » par " + (g.own ? "toi" : g.author) + " (galerie)");
-        });
+        (j.gallery || []).forEach((g) => { if (!g.own) parts.push("« " + g.name + " » par " + g.author + " (galerie)"); });   // les siennes sont déjà dans la liste
       } catch (e) { /* le serveur ne répond pas : on ne signale rien */ }
     }
     return parts.length ? "À noter : une combinaison identique existe déjà : " + parts.join(", ") + ". C'est seulement une information." : "";
@@ -282,6 +292,7 @@
       pv.className = "mprev"; pv.innerHTML = previewSVG(rec.d);
       const info = document.createElement("div"), h = document.createElement("h4"), meta = document.createElement("p"), acts = document.createElement("div");
       h.textContent = rec.name;
+      if (window.Account && window.Account.isPublished(rec.name)) { const bd = document.createElement("span"); bd.className = "badge pub"; bd.textContent = "publiée"; h.appendChild(bd); }
       meta.className = "meta";
       meta.textContent = runesLine(rec.d) + " · " + Supports.get(rec.d.s).label + " · " + cxLine(rec.d) + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "");
       acts.className = "macts";
@@ -302,8 +313,8 @@
       act(acts, "Code", () => copyText(shareCode(rec), "Code", rec));
       if (apiOk) act(acts, "Code court", () => shortCode(rec));
       if (window.Account && window.Account.user()) {
-        act(acts, "Sur mon compte", () => window.Account.upload(rec));
-        if (!rec.from) act(acts, "Publier dans la galerie", () => window.Account.publish(rec));
+        if (window.Account.isPublished(rec.name)) act(acts, "Retirer de la galerie", () => window.Account.unpublish(rec));
+        else if (!rec.from) act(acts, "Publier dans la galerie", () => window.Account.publish(rec));
       }
       act(acts, "Fiche PNG", () => sheet(rec, "png"));
       act(acts, "Fiche PDF", () => sheet(rec, "pdf"));
@@ -373,7 +384,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { applyRemote, dropLocal, sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 
