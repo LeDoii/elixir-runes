@@ -452,6 +452,8 @@
   window.addEventListener("keydown", (e) => {
     if ($("design").hidden) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
+    if (e.key === "Escape" && !saveBox.hidden) { closeSave(); return; }
+    if (e.key === "Escape" && !expBox.hidden) { closeExport(); return; }
     if (e.key === "Escape" && !keysBox.hidden) { closeKeys(); return; }
     if (e.key === "Escape" && !$("dz-diff").hidden) { $("dz-diff").hidden = true; return; }
     if (e.key === "Escape" && !$("dz-tour").hidden) { endTour(); return; }
@@ -564,7 +566,7 @@
     entries.push({ label: lockedNow ? "Déverrouiller" : "Verrouiller", fn: () => { record((lockedNow ? "Déverrouillage" : "Verrouillage") + " de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.locked = !lockedNow; }); render(); } });
     entries.push({ label: snapNow ? "Désactiver l'aimant" : "Activer l'aimant", fn: () => { record("Aimant de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.snap = !snapNow; }); render(); } });
     entries.push({ label: "Centrer", fn: () => $("dz-center").click() });
-    entries.push({ label: "Sens et étiquettes…", fn: () => { const p = $("pnl-sens"); p.open = true; const card = document.querySelector('.bring[data-id="' + it.id + '"]'); if (card) { card.scrollIntoView({ block: "nearest" }); card.classList.add("flash"); setTimeout(() => card.classList.remove("flash"), 1200); } } });
+    entries.push({ label: "Sens et étiquettes…", fn: () => { openSave(); const card = document.querySelector('.bring[data-id="' + it.id + '"]'); if (card) { card.scrollIntoView({ block: "nearest" }); card.classList.add("flash"); setTimeout(() => card.classList.remove("flash"), 1200); } } });
     entries.push({ sep: true });
     entries.push({ label: "Retirer", danger: true, fn: () => removeMany(everyone.map((i) => i.id)) });
 
@@ -826,50 +828,120 @@
     paint(c.getContext("2d"), [scale, scale, -x0 * scale, -y0 * scale], false);
     return c;
   }
-  $("dz-export").addEventListener("click", async () => {
-    if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
-    if ($("dz-transparent").checked) {
-      try { saveBlob(await toBlob(transparentCanvas(cdata(), 3)), "bindrune-" + fileSafe(exportName()) + "-transparent.png"); say("PNG sans fond exporté."); }
-      catch (e) { say("Export impossible : " + e.message); }
-      return;
+  /* ---- exporter : une fenêtre propose le format et ses options, avec un aperçu, puis confirme */
+  const expBox = $("dz-export-dlg"), EXP = "runes-export";
+  let expPrefs = { fmt: "png", centre: true, res: 3, whole: true, svgs: true, pngs: true };
+  try { Object.assign(expPrefs, JSON.parse(localStorage.getItem(EXP) || "{}")); } catch (e) { /* préférences illisibles : valeurs d'origine */ }
+  const saveExp = () => { try { localStorage.setItem(EXP, JSON.stringify(expPrefs)); } catch (e) { /* ignoré */ } };
+  const expFmt = () => (document.querySelector('input[name="dz-fmt"]:checked') || {}).value || "png";
+  const expBase = () => fileSafe($("dz-exp-name").value || exportName());
+  const chk = (id, label, on) => '<label class="check"><input type="checkbox" id="' + id + '"' + (on ? " checked" : "") + "> " + label + "</label>";
+  const resSel = () => '<label>Résolution <select id="dz-x-res">' + [2, 3, 4].map((r) => '<option value="' + r + '"' + (expPrefs.res === r ? " selected" : "") + ">× " + r + " (" + r + " pixels par unité)</option>").join("") + "</select></label>";
+  function renderExportOpts() {
+    const f = expFmt(), box = $("dz-exp-extra");
+    box.innerHTML = f === "png" ? chk("dz-x-centre", "Centrer la composition avant l'export", expPrefs.centre)
+      : f === "transparent" ? resSel()
+      : f === "zip" ? resSel() + chk("dz-x-whole", "L'ensemble (bindrune.svg et bindrune.png)", expPrefs.whole) + chk("dz-x-svgs", "Une image SVG par rune", expPrefs.svgs) + chk("dz-x-pngs", "Une image PNG par rune", expPrefs.pngs)
+      : "";
+    box.querySelectorAll("input, select").forEach((x) => x.addEventListener("change", () => {
+      if ($("dz-x-centre")) expPrefs.centre = $("dz-x-centre").checked;
+      if ($("dz-x-res")) expPrefs.res = Number($("dz-x-res").value);
+      if ($("dz-x-whole")) expPrefs.whole = $("dz-x-whole").checked;
+      if ($("dz-x-svgs")) expPrefs.svgs = $("dz-x-svgs").checked;
+      if ($("dz-x-pngs")) expPrefs.pngs = $("dz-x-pngs").checked;
+      saveExp(); renderExportPreview();
+    }));
+  }
+  const zipNames = (d) => {
+    const names = [];
+    if (expPrefs.whole) names.push("bindrune.svg", "bindrune.png");
+    Export.layers(d, "").forEach((l) => { if (expPrefs.svgs) names.push(l.name + ".svg"); if (expPrefs.pngs) names.push(l.name + ".png"); });
+    return names.concat("LISEZMOI.txt");
+  };
+  let prevSeq = 0;
+  async function renderExportPreview() {
+    const box = $("dz-exp-prev"), info = $("dz-exp-info"), f = expFmt(), seq = ++prevSeq, d = cdata();
+    box.innerHTML = ""; box.classList.toggle("checker", f === "transparent" || f === "svg" || f === "zip");
+    if (!d) { info.textContent = "Rien à exporter."; return; }
+    if (f === "png") {
+      const c = document.createElement("canvas"); c.width = 320; c.height = 256; c.getContext("2d").drawImage(cv, 0, 0, 320, 256); box.appendChild(c);
+      info.textContent = "1600 × 1280 pixels · PNG" + (expPrefs.centre ? " · composition centrée à l'export" : "");
+    } else if (f === "transparent") {
+      const c = transparentCanvas(d, 1), z = expPrefs.res; box.appendChild(c);
+      info.textContent = c.width * z + " × " + c.height * z + " pixels · PNG, fond transparent";
+    } else if (f === "svg") {
+      box.innerHTML = Export.svgOf(d, exportName()); info.textContent = "Vectoriel · " + d.r.length + " groupe" + (d.r.length > 1 ? "s" : "") + ", un par rune";
+    } else if (f === "zip") {
+      const ul = document.createElement("ul"); ul.className = "files";
+      zipNames(d).forEach((n) => { const li = document.createElement("li"); li.textContent = n; ul.appendChild(li); });
+      box.appendChild(ul); const c = transparentCanvas(d, 1);
+      info.textContent = ul.children.length + " fichiers · cadre commun de " + c.width * expPrefs.res + " × " + c.height * expPrefs.res + " pixels";
+    } else {
+      info.textContent = "Page A4 (2480 × 3508 pixels) · " + (f === "sheet-pdf" ? "PDF" : "PNG");
+      box.textContent = "Aperçu en cours…";
+      try {
+        const c = await Sheet.render({ name: exportName(), description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d });
+        if (seq !== prevSeq) return;
+        const t = document.createElement("canvas"); t.width = 230; t.height = 325; t.getContext("2d").drawImage(c, 0, 0, 230, 325);
+        box.innerHTML = ""; box.appendChild(t);
+      } catch (e) { box.textContent = "Aperçu indisponible."; }
     }
-    record("Centrage avant l'export");
-    centerOn(items); fitAll();
-    render();
-    say("Composition centrée avant l'export.");
-    cv.toBlob((b) => saveBlob(b, "bindrune-" + Supports.current() + ".png"));
-  });
-  $("dz-export-svg").addEventListener("click", () => {
+  }
+  function openExport() {
     if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
-    saveBlob(new Blob([Export.svgOf(cdata(), exportName())], { type: "image/svg+xml" }), "bindrune-" + fileSafe(exportName()) + ".svg");
-    say("SVG exporté : un groupe par rune.");
-  });
-  /** Strates : l'ensemble en SVG et en PNG, puis une image par rune (SVG et PNG, même cadre), dans une archive ZIP. */
-  $("dz-export-zip").addEventListener("click", async () => {
-    if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
-    say("Préparation des strates…");
-    try {
-      const d = cdata(), name = exportName(), enc = new TextEncoder(), scale = 3, files = [];
+    const r = document.querySelector('input[name="dz-fmt"][value="' + expPrefs.fmt + '"]') || document.querySelector('input[name="dz-fmt"]');
+    r.checked = true;
+    $("dz-exp-name").value = fileSafe(exportName());
+    renderExportOpts(); renderExportPreview();
+    expBox.hidden = false; $("dz-export-go").focus();
+  }
+  const closeExport = () => { expBox.hidden = true; };
+  document.querySelectorAll('input[name="dz-fmt"]').forEach((r) => r.addEventListener("change", () => { expPrefs.fmt = expFmt(); saveExp(); renderExportOpts(); renderExportPreview(); }));
+  $("dz-export-open").addEventListener("click", openExport);
+  $("dz-export-cancel").addEventListener("click", closeExport);
+  expBox.addEventListener("pointerdown", (e) => { if (e.target === expBox) closeExport(); });
+  /** Strates : l'ensemble en SVG et en PNG (selon les cases), puis une image par rune, toutes de même cadre, dans une archive ZIP. */
+  async function exportZip(d, name, base) {
+    const enc = new TextEncoder(), scale = expPrefs.res, files = [];
+    if (expPrefs.whole) {
       files.push({ name: "bindrune.svg", data: enc.encode(Export.svgOf(d, name)) });
       files.push({ name: "bindrune.png", data: new Uint8Array(await (await toBlob(transparentCanvas(d, scale))).arrayBuffer()) });
-      for (const l of Export.layers(d, name)) {
-        files.push({ name: l.name + ".svg", data: enc.encode(l.svg) });
-        const [x0, y0, x1, y1] = l.box, c = document.createElement("canvas");
-        c.width = Math.ceil((x1 - x0) * scale); c.height = Math.ceil((y1 - y0) * scale);
-        const g = c.getContext("2d");
-        g.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
-        g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * (l.e.k || 1); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
-        g.beginPath();
-        Geom.placed(l.e).forEach((st) => st.pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))));
-        g.stroke();
-        files.push({ name: l.name + ".png", data: new Uint8Array(await (await toBlob(c)).arrayBuffer()) });
-      }
-      files.push({ name: "LISEZMOI.txt", data: enc.encode("Strates de la bindrune « " + name + " »\r\n\r\n" +
-        "bindrune.svg et bindrune.png : toute la bindrune (fond transparent).\r\n" +
-        "01-…, 02-… : une image par rune, dans l'ordre d'empilement (01 en dessous). Elles ont toutes le même cadre : placées l'une sur l'autre à la position 0, 0, elles reconstituent la bindrune.\r\n" +
-        "Les couleurs sont celles des strates du site. Fait avec « Les runes » (outil de fan, non affilié à l'équipe d'Elixir RP).\r\n") });
-      saveBlob(new Blob([Zip.build(files)], { type: "application/zip" }), "strates-" + fileSafe(name) + ".zip");
-      say("Strates exportées : " + files.length + " fichiers.");
+    }
+    for (const l of Export.layers(d, name)) {
+      if (expPrefs.svgs) files.push({ name: l.name + ".svg", data: enc.encode(l.svg) });
+      if (!expPrefs.pngs) continue;
+      const [x0, y0, x1, y1] = l.box, c = document.createElement("canvas");
+      c.width = Math.ceil((x1 - x0) * scale); c.height = Math.ceil((y1 - y0) * scale);
+      const g = c.getContext("2d");
+      g.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
+      g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * (l.e.k || 1); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
+      g.beginPath();
+      Geom.placed(l.e).forEach((st) => st.pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))));
+      g.stroke();
+      files.push({ name: l.name + ".png", data: new Uint8Array(await (await toBlob(c)).arrayBuffer()) });
+    }
+    files.push({ name: "LISEZMOI.txt", data: enc.encode("Strates de la bindrune « " + name + " »\r\n\r\n" +
+      "bindrune.svg et bindrune.png : toute la bindrune (fond transparent).\r\n" +
+      "01-…, 02-… : une image par rune, dans l'ordre d'empilement (01 en dessous). Elles ont toutes le même cadre : placées l'une sur l'autre à la position 0, 0, elles reconstituent la bindrune.\r\n" +
+      "Les couleurs sont celles des strates du site. Fait avec « Les runes » (outil de fan, non affilié à l'équipe d'Elixir RP).\r\n") });
+    saveBlob(new Blob([Zip.build(files)], { type: "application/zip" }), base + ".zip");
+    return files.length;
+  }
+  $("dz-export-go").addEventListener("click", async () => {
+    if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
+    const f = expFmt(), base = expBase(), d = cdata(), name = exportName();
+    if (f === "zip" && !expPrefs.whole && !expPrefs.svgs && !expPrefs.pngs) { $("dz-exp-info").textContent = "Coche au moins un type de fichier."; return; }
+    closeExport();
+    say("Export en cours…");
+    try {
+      if (f === "png") {
+        if (expPrefs.centre) { record("Centrage avant l'export"); centerOn(items); fitAll(); render(); }
+        await new Promise((ok) => cv.toBlob((b) => { saveBlob(b, base + ".png"); ok(); }));
+        say("Image PNG exportée.");
+      } else if (f === "transparent") { saveBlob(await toBlob(transparentCanvas(d, expPrefs.res)), base + ".png"); say("PNG sans fond exporté."); }
+      else if (f === "svg") { saveBlob(new Blob([Export.svgOf(d, name)], { type: "image/svg+xml" }), base + ".svg"); say("SVG exporté : un groupe par rune."); }
+      else if (f === "zip") say("Strates exportées : " + (await exportZip(d, name, base)) + " fichiers.");
+      else { await Sheet.download({ name, description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d }, f === "sheet-pdf" ? "pdf" : "png", base); say("Fiche A4 exportée."); }
     } catch (e) { say("Export impossible : " + e.message); }
   });
 
@@ -885,7 +957,7 @@
     $("dz-adv").checked = false; $("dz-strata").checked = false; Supports.set("bois");
     try { localStorage.removeItem(DRAFT); } catch (e) { /* ignoré */ }
     viewScale = null; tool = "select"; tempHand = false; closeMenu(); syncTool();
-    say("Nouvelle bindrune."); render(); tagEd.refresh(); applyView();
+    say("Nouvelle bindrune."); refreshSave(); render(); tagEd.refresh(); applyView();
   }
   $("dz-new").addEventListener("click", () => {
     if (items.length && !savedAsIs() && !confirm("Commencer une nouvelle bindrune ?\n\nLa composition en cours n'est pas enregistrée à l'identique : elle sera perdue, sans retour possible.")) return;
@@ -936,18 +1008,6 @@
       '<p class="hint">Évaluation du site (nombre de runes, difficulté de tracé, traits, répétitions, sens opposés) : un repère pour comparer, pas une règle du livre.</p>';
   }
 
-  /* ---- fiche A4 de la composition en cours (PNG ou PDF) */
-  ["png", "pdf"].forEach((kind) => $("dz-sheet-" + kind).addEventListener("click", async () => {
-    if (!items.length) { say("Ajoute au moins une rune avant de créer la fiche."); return; }
-    const d = Bindrunes.validate(snapshot());
-    if (!d) { say("Composition invalide."); return; }
-    say("Création de la fiche…");
-    try {
-      await Sheet.download({ name: Bindrunes.cleanName($("sv-name").value) || "Sans nom", description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d }, kind);
-      say("Fiche prête (" + kind.toUpperCase() + ").");
-    } catch (e) { say("Fiche impossible : " + e.message); }
-  }));
-
   /* ---- enregistrement : liste, renommage, partage et import se gèrent dans l'onglet « Mes bindrunes » */
   const platesD = () => ({ r: items.map((i) => ({ n: i.name, t: i.keep })) });   // runes et sens gardés, pour les étiquettes
   let svTags = [];                                           // étiquettes choisies (les verrouillées se déduisent des runes posées)
@@ -977,7 +1037,7 @@
     return true;
   }
   function openSaved(name, d, description, tags) {
-    if (restore(d, "Ouverture de « " + name + " »")) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
+    if (restore(d, "Ouverture de « " + name + " »")) { $("sv-name").value = name; refreshSave(); $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
   function refreshOpen() {
     const sel = $("dz-open");
@@ -992,19 +1052,51 @@
   });
   window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d, e.detail.description, e.detail.tags));
   $("sv-manage").addEventListener("click", () => window.showTab("mine"));
-  $("sv-save").addEventListener("click", () => {
+  /* ---- enregistrer : une fenêtre rassemble nom, description, sens à garder et étiquettes ; le bouton confirme */
+  const saveBox = $("dz-save-dlg");
+  function refreshSave() {
+    const name = Bindrunes.cleanName($("sv-name").value), exists = !!(name && Bindrunes.get(name));
+    $("sv-exists").hidden = !exists;
+    $("sv-save").textContent = exists ? "Remplacer" : "Enregistrer";
+    const doc = $("dz-doc");
+    doc.textContent = name || "Sans nom"; doc.classList.toggle("empty", !name);
+  }
+  function openSave() {
+    $("sv-msg").textContent = "";
+    const logged = !!(window.Account && window.Account.user());
+    $("sv-dest").hidden = !logged; $("sv-acc").checked = false; $("sv-pub").checked = false;
+    refreshSave(); renderBrings();
+    saveBox.hidden = false; $("sv-name").focus(); $("sv-name").select();
+  }
+  const closeSave = () => { saveBox.hidden = true; };
+  $("dz-save-open").addEventListener("click", openSave);
+  $("dz-doc").addEventListener("click", openSave);
+  $("sv-cancel").addEventListener("click", closeSave);
+  saveBox.addEventListener("pointerdown", (e) => { if (e.target === saveBox) closeSave(); });
+  $("sv-name").addEventListener("input", refreshSave);
+  $("sv-pub").addEventListener("change", (e) => { if (e.target.checked) $("sv-acc").checked = true; });
+  $("sv-save").addEventListener("click", async () => {
     const name = Bindrunes.cleanName($("sv-name").value);
-    if (!name) { svmsg("Donne un nom à ta bindrune."); return; }
+    if (!name) { svmsg("Donne un nom à ta bindrune."); $("sv-name").focus(); return; }
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
-    if (!Tags.all(platesD(), svTags).length) { svmsg("Garde au moins une étiquette : coche un sens d'une rune ou ajoute une étiquette."); return; }
-    const old = Bindrunes.get(name);
-    if (old && !confirm("« " + old.name + " » existe déjà. La remplacer ?")) return;
-    if (!Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags)) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
+    if (!Tags.all(platesD(), svTags).length) { svmsg("Garde au moins une étiquette : active un sens d'une rune ou ajoute une étiquette."); return; }
+    const rec = Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags);
+    if (!rec) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
+    const wantAcc = !$("sv-dest").hidden && $("sv-acc").checked, wantPub = !$("sv-dest").hidden && $("sv-pub").checked;
+    closeSave(); refreshSave();
     const done = "« " + name + " » enregistrée (onglet « Mes bindrunes »).";
-    svmsg(done);
-    Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("sv-msg").textContent === done) svmsg(done + " " + t); });
+    say(done);
+    if (wantPub) { await window.Account.publish(rec); say($("acc-msg").textContent || done); }
+    else if (wantAcc) { await window.Account.upload(rec); say($("acc-msg").textContent || done); }
+    Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("dz-msg").textContent.indexOf(done) === 0) say($("dz-msg").textContent + " " + t); });
   });
   $("sv-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sv-save").click(); });
+  window.addEventListener("keydown", (e) => {                // Ctrl+S : enregistrer ; Ctrl+E : exporter (même depuis un champ de texte)
+    if ($("design").hidden || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "s") { e.preventDefault(); openSave(); }
+    else if (k === "e") { e.preventDefault(); openExport(); }
+  });
 
   /* ---- brouillon : la composition en cours est gardée dans ce navigateur et rétablie à la réouverture */
   const DRAFT = "runes-draft";
@@ -1028,7 +1120,7 @@
       const x = JSON.parse(localStorage.getItem(DRAFT) || "null");
       if (!x || !x.d || !restore(x.d)) return;
       past.length = 0; future.length = 0; refreshHistory();
-      $("sv-name").value = Bindrunes.cleanName(x.name); $("sv-desc").value = Bindrunes.cleanDesc(x.desc);
+      $("sv-name").value = Bindrunes.cleanName(x.name); $("sv-desc").value = Bindrunes.cleanDesc(x.desc); refreshSave();
       svTags = Tags.extras(platesD(), x.tags); tagEd.refresh();
       say("Brouillon rétabli (" + new Date(x.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + ") : « Tout retirer » repart de zéro.");
     } catch (e) { /* brouillon illisible : on repart de zéro */ }
@@ -1149,7 +1241,7 @@
     { sel: '[data-pnl="runes"]', h: "Choisis des runes", t: "Clique une rune du panneau « Runes », ou glisse-la sur la plaque. Quatre au plus (six avec le mode avancé, interrupteur « + » de la barre d'outils)." },
     { sel: "#dz-stage", h: "Compose sur le plan de travail", t: "Glisse les runes, approche deux points d'ancrage pour les aimanter, clique sur une rune pour son menu (miroirs, taille, verrou…). Les poignées des coins redimensionnent. Ctrl + molette zoome la vue, Espace la déplace." },
     { sel: ".ps-tools", h: "Les outils", t: "Annuler, miroirs, centrage, et les interrupteurs : magnétisme, repères, strates, mode avancé, règles. V, H et Z choisissent Sélection, Main et Zoom." },
-    { sel: ".ps-bar", h: "Enregistre et exporte", t: "Donne un nom, enregistre, puis exporte : PNG, SVG, strates (une image par rune) ou fiche A4. À droite : Calques, Historique avec instantanés, Complexité, Sens et étiquettes. Touche ? pour les raccourcis." },
+    { sel: ".ps-bar", h: "Enregistre et exporte", t: "« Enregistrer » ouvre une fenêtre : nom, description, sens à garder, étiquettes. « Exporter » propose le format (image, SVG, strates, fiche A4) et ses options. À droite : Calques, Historique avec instantanés, Complexité. Touche ? pour les raccourcis." },
   ];
   let tourI = -1;
   const seen = () => { try { return localStorage.getItem(TOUR) === "1"; } catch (e) { return true; } };

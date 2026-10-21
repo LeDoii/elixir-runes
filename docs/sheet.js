@@ -215,8 +215,8 @@
   const toBlob = (c, type, q) => new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("Image impossible à produire."))), type, q));
 
   /** Télécharge la fiche ; kind : "png" ou "pdf". */
-  async function download(rec, kind) {
-    const c = await render(rec), base = "fiche-" + fileSafe(rec.name);
+  async function download(rec, kind, filename) {
+    const c = await render(rec), base = filename || "fiche-" + fileSafe(rec.name);
     if (kind === "pdf") {
       const jpeg = new Uint8Array(await (await toBlob(c, "image/jpeg", 0.92)).arrayBuffer());
       save(new Blob([buildPdf(jpeg, c.width, c.height)], { type: "application/pdf" }), base + ".pdf");

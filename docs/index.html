@@ -218,15 +218,11 @@
       <!-- barre d'options : nom, enregistrement, sorties -->
       <div class="ps-bar">
         <button id="dz-new" class="pbtn" type="button" title="Nouvelle bindrune : repart de zéro (runes, nom, description, étiquettes, support, historique)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M12 11v6M9 14h6"/></svg><span>Nouvelle</span></button>
-        <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
-        <button id="sv-save" class="pbtn primary" type="button" title="Enregistrer dans Mes bindrunes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Enregistrer</span></button>
+        <button id="dz-save-open" class="pbtn primary" type="button" title="Enregistrer : nom, description, sens et étiquettes (Ctrl+S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Enregistrer</span></button>
         <select id="dz-open" aria-label="Ouvrir une bindrune enregistrée"></select>
         <span class="sep"></span>
-        <button id="dz-export" class="pbtn" type="button" title="Exporter la plaque en PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 19h16"/></svg><span>PNG</span></button>
-        <button id="dz-export-svg" class="pbtn" type="button" title="Exporter en SVG vectoriel (un groupe par rune)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17 9 7l4 6 3-4 4 8z"/></svg><span>SVG</span></button>
-        <button id="dz-export-zip" class="pbtn" type="button" title="Exporter les strates : une image par rune (SVG et PNG transparents, même cadre) dans une archive ZIP"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Strates</span></button>
-        <button id="dz-sheet-png" class="pbtn" type="button" title="Fiche A4 en PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Fiche PNG</span></button>
-        <button id="dz-sheet-pdf" class="pbtn" type="button" title="Fiche A4 en PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Fiche PDF</span></button>
+        <button id="dz-export-open" class="pbtn" type="button" title="Exporter : image, SVG, strates ou fiche A4, avec leurs options (Ctrl+E)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 19h16"/></svg><span>Exporter</span></button>
+        <button id="dz-doc" class="docname" type="button" title="Nom de la bindrune : cliquer pour le modifier">Sans nom</button>
         <span class="grow"></span>
         <span id="dz-cx-badge" class="cxbadge" title="Complexité de la bindrune"></span>
         <button id="dz-expand" class="pbtn" type="button" aria-pressed="false" title="Plein écran (Échap pour quitter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Plein écran</span></button>
@@ -321,33 +317,82 @@
             <summary>Complexité</summary>
             <div class="pnl-in"><div id="dz-complexity" class="cplx"></div></div>
           </details>
-          <details class="pnl" data-pnl="sens" id="pnl-sens">
-            <summary>Sens et étiquettes</summary>
-            <div class="pnl-in">
-              <div id="dz-brings" class="brings"></div>
-              <h4 class="pnl-sub">Étiquettes de la bindrune</h4>
-              <div id="sv-tags"></div>
-              <p class="hint">Étiquettes grises : celles qui sont actives ci-dessus. Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
-            </div>
-          </details>
-          <details class="pnl" data-pnl="desc">
-            <summary>Description</summary>
-            <div class="pnl-in">
-              <textarea id="sv-desc" rows="3" maxlength="300" placeholder="Description (facultative, 300 caractères) : à quoi sert cette bindrune ?" aria-label="Description"></textarea>
-              <p id="sv-msg" class="hint" role="status"></p>
-              <p class="hint">Liste, renommage, partage, import et export : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>. La composition en cours est gardée comme brouillon dans ce navigateur.</p>
-            </div>
-          </details>
           <details class="pnl" data-pnl="aide">
             <summary>Aide</summary>
             <div class="pnl-in">
-              <p class="hint">Choisis des runes dans le panneau « Runes », glisse-les sur la plaque et assemble-les. Les extrémités et les angles de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie. Quatre runes au plus (six en mode avancé).</p>
+              <p class="hint">Choisis des runes dans le panneau « Runes », glisse-les sur la plaque et assemble-les. Les extrémités et les angles de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie. Quatre runes au plus (six en mode avancé). Le nom, la description, les sens à garder et les étiquettes se règlent dans « Enregistrer ».</p>
             </div>
           </details>
         </aside>
       </div>
 
       <div id="dz-menu" class="ctxm" role="menu" hidden></div>
+
+      <div id="dz-save-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Enregistrer la bindrune" hidden>
+        <div class="card wide">
+          <h3>Enregistrer la bindrune</h3>
+          <div class="field">
+            <label for="sv-name">Nom</label>
+            <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" autocomplete="off">
+            <p id="sv-exists" class="hint" hidden>Une bindrune enregistrée porte déjà ce nom : elle sera remplacée.</p>
+          </div>
+          <div class="field">
+            <label for="sv-desc">Description <small>(facultative, 300 caractères)</small></label>
+            <textarea id="sv-desc" rows="3" maxlength="300" placeholder="À quoi sert cette bindrune ?"></textarea>
+          </div>
+          <h4 class="pnl-sub">Sens à garder</h4>
+          <p class="hint">Chaque interrupteur est une étiquette tirée d'un sens du livre : celles qui restent actives décrivent la bindrune (et comptent pour la complexité).</p>
+          <div id="dz-brings" class="brings"></div>
+          <h4 class="pnl-sub">Étiquettes</h4>
+          <div id="sv-tags"></div>
+          <p class="hint">Étiquettes grises : celles qui sont actives ci-dessus. Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
+          <div id="sv-dest" hidden>
+            <h4 class="pnl-sub">Compte</h4>
+            <label class="check"><input type="checkbox" id="sv-acc"> Envoyer aussi sur mon compte</label>
+            <label class="check"><input type="checkbox" id="sv-pub"> Publier dans la galerie (visible de tous, créditée à ton nom d'affichage Discord)</label>
+          </div>
+          <p id="sv-msg" class="hint" role="status"></p>
+          <div class="row-btns">
+            <span class="hint">Liste, renommage, partage et import : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>.</span>
+            <span class="grow"></span>
+            <button id="sv-cancel" class="pbtn" type="button">Annuler</button>
+            <button id="sv-save" class="pbtn primary" type="button">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dz-export-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Exporter la bindrune" hidden>
+        <div class="card wide">
+          <h3>Exporter la bindrune</h3>
+          <div class="exp">
+            <div class="exp-opts">
+              <fieldset>
+                <legend>Format</legend>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="png"> <span><b>Image PNG</b><small>La plaque avec son support</small></span></label>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="transparent"> <span><b>PNG sans fond</b><small>La gravure seule, cadrée sur la bindrune</small></span></label>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="svg"> <span><b>SVG vectoriel</b><small>Un groupe par rune, fond transparent</small></span></label>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="zip"> <span><b>Strates (ZIP)</b><small>Une image par rune, à superposer</small></span></label>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="sheet-png"> <span><b>Fiche A4 (PNG)</b><small>Plaque, runes, sens, étiquettes, complexité</small></span></label>
+                <label class="fmt"><input type="radio" name="dz-fmt" value="sheet-pdf"> <span><b>Fiche A4 (PDF)</b><small>La même fiche, en PDF</small></span></label>
+              </fieldset>
+              <div id="dz-exp-extra" class="exp-extra"></div>
+              <div class="field">
+                <label for="dz-exp-name">Nom du fichier</label>
+                <input id="dz-exp-name" type="text" maxlength="60" autocomplete="off">
+              </div>
+            </div>
+            <div class="exp-prev">
+              <div id="dz-exp-prev" class="prev"></div>
+              <p id="dz-exp-info" class="hint"></p>
+            </div>
+          </div>
+          <div class="row-btns">
+            <span class="grow"></span>
+            <button id="dz-export-cancel" class="pbtn" type="button">Annuler</button>
+            <button id="dz-export-go" class="pbtn primary" type="button">Exporter</button>
+          </div>
+        </div>
+      </div>
 
       <div id="dz-keys" class="psmodal" role="dialog" aria-modal="true" aria-label="Raccourcis clavier" hidden>
         <div class="card">
@@ -363,6 +408,7 @@
             <dt>Flèches</dt><dd>Ajuster la sélection (Maj : par 10)</dd>
             <dt>Suppr</dt><dd>Retirer la sélection</dd>
             <dt>Ctrl + Z · Ctrl + Y</dt><dd>Annuler · rétablir</dd>
+            <dt>Ctrl + S · Ctrl + E</dt><dd>Enregistrer · exporter (ouvrent leur fenêtre)</dd>
             <dt>Échap</dt><dd>Ferme le menu, désélectionne, quitte le plein écran</dd>
             <dt>?</dt><dd>Ouvre cette fenêtre</dd>
           </dl>
