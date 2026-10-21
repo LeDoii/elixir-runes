@@ -126,6 +126,12 @@
     say(MESSAGES[q]);
   }
 
-  window.Account = { user: () => state.user, upload, publish, refresh };
+  /** Bindrunes du compte (pour la fenêtre « Ouvrir » de l'atelier) ; liste vide si l'on n'est pas connecté. */
+  async function list() {
+    if (!state.user) return [];
+    try { return (await api("/api/my/bindrunes")).items; } catch (e) { return []; }
+  }
+
+  window.Account = { user: () => state.user, upload, publish, refresh, list };
   refresh();
 })();

@@ -6,14 +6,13 @@
   const $ = (id) => document.getElementById(id);
   const NS = "http://www.w3.org/2000/svg";
   const VW = 800, VH = 640;                                  // viewBox de la plaque (échelle 1 : la grille de la rune)
-  const SNAP_R = 14;                                         // portée du magnétisme (unités de la plaque)
+  const prefs = Prefs.load(localStorage);                    // portées, unités des règles, confirmations (fenêtre « Préférences »)
   const LINK_R = 6;                                          // écart maximal entre deux points pour les lier
   const MARGIN = 10;                                         // marge du cadre : une rune ne dépasse jamais
   const HW = D.strokeWidth / 2;
   const LINK_COLOR = "#12A26A";                              // points d'ancrage de liaison
   const COLORS = Bindrunes.COLORS;
   const byName = (n) => D.runes.find((r) => r.name === n);
-  const ALIGN_R = 5;                                         // portée des repères d'alignement (pixels de l'écran)
 
   const svg = $("dz");
   let items = [], links = [], nextId = 1, snapMark = null, drag = null, marquee = null, guides = [];
@@ -28,7 +27,7 @@
   const stateJson = () => JSON.stringify({ items, links, nextId });
   function refreshHistory() { $("dz-undo").disabled = !past.length; $("dz-redo").disabled = !future.length; renderHistory(); }
   /** À appeler juste avant de modifier la composition ; label dit ce qui va changer (panneau Historique). */
-  function record(label) { past.push({ s: stateJson(), label: label || "Modification" }); if (past.length > 100) past.shift(); future.length = 0; refreshHistory(); }
+  function record(label) { past.push({ s: stateJson(), label: label || "Modification" }); while (past.length > prefs.history) past.shift(); future.length = 0; refreshHistory(); }
   function loadState(json) {
     const s = JSON.parse(json);
     items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId);
@@ -129,7 +128,7 @@
     let best = null;
     active.forEach((m) => abs(m).forEach((a) => others.forEach((o) => abs(o).forEach((b) => {
       const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (d <= SNAP_R && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
+      if (d <= prefs.snap && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
     }))));
     if (best) { members.forEach((m) => { m.x += best.dx; m.y += best.dy; }); snapMark = best.at; }
   }
@@ -141,7 +140,7 @@
     guides = [];
     if (!$("dz-align").checked || snapMark || !items.length) return;
     const others = items.filter((o) => !members.includes(o));
-    const [x0, y0, x1, y1] = boundsOf(members), tol = ALIGN_R;
+    const [x0, y0, x1, y1] = boundsOf(members), tol = prefs.align;
     const mine = { x: [x0, (x0 + x1) / 2, x1], y: [y0, (y0 + y1) / 2, y1] };
     const targets = { x: [VW / 2], y: [VH / 2] };
     others.forEach((o) => { const [a, b, c, d] = boundsOf([o]); targets.x.push(a, (a + c) / 2, c); targets.y.push(b, (b + d) / 2, d); });
@@ -169,11 +168,11 @@
    * Peint la composition sur g. tf = [échelle x, échelle y, décalage x, décalage y] (plaque -> pixels) ; avecPlaque : fond du support (taille pw x ph).
    * Une gravure par échelle de rune : l'épaisseur du trait suit celle de la rune.
    */
-  function paint(g, tf, avecPlaque, pw, ph) {
+  function paint(g, tf, avecPlaque, pw, ph, ecran) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (avecPlaque) g.drawImage(Supports.plate(Supports.current(), pw, ph), 0, 0);
     g.setTransform(tf[0], 0, 0, tf[1], tf[2], tf[3]);
-    const placed = items.map((it) => ({ it, paths: Geom.placed(it).map((s) => s.pts) }));
+    const placed = items.filter((it) => !(ecran && it.hidden)).map((it) => ({ it, paths: Geom.placed(it).map((s) => s.pts) }));
     if ($("dz-strata").checked) {
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ it, paths }) => {
@@ -190,7 +189,7 @@
       Object.keys(byK).forEach((k) => Supports.engrave(g, byK[k], D.strokeWidth * Number(k), Supports.current(), { cap: "butt" }));
     }
   }
-  const drawCanvas = () => paint(ctx, [RES, RES, 0, 0], true, cv.width, cv.height);
+  const drawCanvas = () => paint(ctx, [RES, RES, 0, 0], true, cv.width, cv.height, true);   // à l'écran, les calques masqués ne sont pas dessinés (les exports les gardent)
 
   /* ---- rendu : le SVG ne porte que l'interaction (zones de prise, ancrages, sélection) */
   function selectionRect(gr, stroke, extra, k) {
@@ -241,6 +240,7 @@
     const grp = selMembers();
     const world = el("g", { id: "dz-world" }, svg);
     items.forEach((it) => {
+      if (it.hidden) return;
       const gr = el("g", { transform: "translate(" + it.x + " " + it.y + ")", "data-id": it.id, style: "cursor:" + (it.locked ? "not-allowed" : drag && drag.it === it ? "grabbing" : "grab") }, world);
       Geom.strokes(it.name, it.f, it.k).forEach((s) => {
         el("polyline", { points: s.pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "transparent", "stroke-width": 34, "pointer-events": "stroke", class: "ui" }, gr);
@@ -287,31 +287,70 @@
     refreshHistory();
   }
 
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.7C3.7 8.5 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 4-.9"/></svg>';
+  let dragLayer = null;
   function renderList() {
     const ul = $("dz-list");
     ul.innerHTML = "";
     if (!items.length) { ul.innerHTML = '<li style="cursor:default;color:var(--grey2);font-style:italic">Aucune rune pour l\'instant.</li>'; return; }
-    items.forEach((it) => {
+    items.slice().reverse().forEach((it) => {                  // le premier plan est en haut de la liste
       const li = document.createElement("li"), n = groupOf(it).length;
       li.setAttribute("aria-current", String(sel.has(it.id)));
-      li.innerHTML = '<i style="background:' + it.color + '"></i><span class="nm">' + it.name + (n > 1 ? "<small>Ensemble de " + n + " runes</small>" : "") + "</span>" +
-        '<span class="ctl"><label><input type="checkbox" class="snap"' + (it.snap ? " checked" : "") + "> Aimant</label>" +
+      li.className = it.hidden ? "hid" : "";
+      li.innerHTML = '<span class="grip" draggable="true" title="Glisser pour changer l\'ordre" aria-hidden="true">⠿</span>' +
+        '<input type="color" class="clr" value="' + it.color + '" title="Couleur de la rune (strates et exports)" aria-label="Couleur de ' + it.name + '">' +
+        '<span class="nm">' + it.name + (n > 1 ? "<small>Ensemble de " + n + " runes</small>" : "") + "</span>" +
+        '<span class="ctl"><button type="button" class="eye" aria-pressed="' + !!it.hidden + '" title="' + (it.hidden ? "Afficher la rune sur le plan de travail" : "Masquer la rune à l\'écran (elle reste dans la bindrune et dans les exports)") + '" aria-label="' + (it.hidden ? "Afficher " : "Masquer ") + it.name + '">' + (it.hidden ? EYE_OFF : EYE) + "</button>" +
+        '<label><input type="checkbox" class="snap"' + (it.snap ? " checked" : "") + "> Aimant</label>" +
         '<label><input type="checkbox" class="lock"' + (it.locked ? " checked" : "") + "> Verrou</label>" +
         '<button type="button" class="ord up" title="Mettre au premier plan" aria-label="Premier plan : ' + it.name + '">▲</button>' +
         '<button type="button" class="ord down" title="Mettre à l\'arrière-plan" aria-label="Arrière-plan : ' + it.name + '">▼</button></span>' +
         '<button class="rm" title="Retirer" aria-label="Retirer ' + it.name + '">✕</button>';
       li.addEventListener("click", (e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(it.id)) sel.delete(it.id); else sel.add(it.id); } else sel = new Set([it.id]); render(); });
       li.querySelector(".ctl").addEventListener("click", (e) => e.stopPropagation());
+      const clr = li.querySelector("input.clr");
+      let colored = false;
+      clr.addEventListener("click", (e) => e.stopPropagation());
+      clr.addEventListener("input", () => { if (!colored) { record("Couleur de " + it.name); colored = true; } it.color = clr.value.toUpperCase(); drawCanvas(); });   // en direct, sans refaire la liste (le sélecteur resterait fermé)
+      clr.addEventListener("change", () => { colored = false; render(); });
+      li.querySelector(".eye").addEventListener("click", () => { record((it.hidden ? "Affichage de " : "Masquage de ") + it.name); it.hidden = !it.hidden; say(it.hidden ? "« " + it.name + " » masquée à l'écran : elle reste dans la bindrune et dans les exports." : "« " + it.name + " » affichée."); render(); });
       li.querySelector("input.snap").addEventListener("change", (e) => { record("Aimant de " + it.name); it.snap = e.target.checked; render(); });
       li.querySelector("input.lock").addEventListener("change", (e) => { record((e.target.checked ? "Verrouillage de " : "Déverrouillage de ") + it.name); it.locked = e.target.checked; say(it.locked ? "« " + it.name + " » verrouillée : elle ne bouge plus." : "« " + it.name + " » déverrouillée."); render(); });
       li.querySelector(".up").addEventListener("click", () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); say("« " + it.name + " » passe au premier plan."); render(); });
       li.querySelector(".down").addEventListener("click", () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); say("« " + it.name + " » passe à l'arrière-plan."); render(); });
       li.querySelector(".rm").addEventListener("click", (e) => { e.stopPropagation(); remove(it.id); });
+      const grip = li.querySelector(".grip");
+      grip.addEventListener("click", (e) => e.stopPropagation());
+      grip.addEventListener("dragstart", (e) => { dragLayer = it.id; li.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(it.id)); e.dataTransfer.setDragImage(li, 12, 12); });
+      grip.addEventListener("dragend", () => { dragLayer = null; li.classList.remove("dragging"); ul.querySelectorAll(".dragover").forEach((x) => x.classList.remove("dragover")); });
+      li.addEventListener("dragover", (e) => { if (dragLayer === null || dragLayer === it.id) return; e.preventDefault(); li.classList.add("dragover"); });
+      li.addEventListener("dragleave", () => li.classList.remove("dragover"));
+      li.addEventListener("drop", (e) => {                     // déposé sur une ligne : la rune passe juste au-dessus d'elle
+        e.preventDefault();
+        const moved = itemById(dragLayer);
+        dragLayer = null;
+        if (!moved || moved === it) { render(); return; }
+        record("Ordre des calques : " + moved.name);
+        items = items.filter((i) => i !== moved);
+        items.splice(items.indexOf(it) + 1, 0, moved);
+        render();
+      });
       ul.appendChild(li);
     });
   }
 
   function say(t) { $("dz-msg").textContent = t; }
+  /** Petite bulle en bas du plan de travail, avec une action facultative (« Annuler »…). */
+  function toast(text, label, fn) {
+    const box = $("dz-toasts"), t = document.createElement("div"), sp = document.createElement("span");
+    t.className = "toast"; sp.textContent = text; t.appendChild(sp);
+    if (label) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.addEventListener("click", () => { t.remove(); fn(); }); t.appendChild(b); }
+    const x = document.createElement("button"); x.type = "button"; x.className = "tx"; x.textContent = "✕"; x.setAttribute("aria-label", "Fermer"); x.addEventListener("click", () => t.remove()); t.appendChild(x);
+    box.appendChild(t);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => t.remove(), label ? 9000 : 5000);
+  }
 
   /* ---- ajout et retrait */
   function add(name, cx, cy) {
@@ -343,6 +382,7 @@
     links = links.filter((l) => !ids.includes(l.a) && !ids.includes(l.b));
     ids.forEach((id) => sel.delete(id));
     say(""); render();
+    toast(ids.length > 1 ? ids.length + " runes retirées." : "Rune retirée.", "Annuler", undo);
   }
 
   /* ---- liaison : un clic sur un point d'ancrage lie les runes dont les points se touchent (un second clic délie) */
@@ -375,6 +415,7 @@
   const marqueeRect = () => [Math.min(marquee.x0, marquee.x1), Math.min(marquee.y0, marquee.y1), Math.max(marquee.x0, marquee.x1), Math.max(marquee.y0, marquee.y1)];
   /** Une rune est prise si le cadre touche un de ses traits (épaisseur comprise). */
   function touches(it, [x0, y0, x1, y1]) {
+    if (it.hidden) return false;
     const inside = (x, y) => x >= x0 - HW && x <= x1 + HW && y >= y0 - HW && y <= y1 + HW;
     return Geom.strokes(it.name, it.f, it.k).some((s) => s.pts.some((p, i) => {
       const a = [p[0] + it.x, p[1] + it.y];
@@ -444,7 +485,7 @@
     drag = null; snapMark = null; guides = [];
     if (!d.moved && d.pt === null && sel.size > 1) sel = new Set([d.it.id]);   // simple clic sur une rune : elle seule reste sélectionnée
     if (!d.moved && d.pt !== null && e.type === "pointerup") clickAnchor(d.it, d.pt);
-    else { render(); if (!d.moved && d.pt === null && e.type === "pointerup") openMenu(e.clientX, e.clientY, d.it); }
+    else { render(); if (prefs.clickMenu && !d.moved && d.pt === null && e.type === "pointerup") openMenu(e.clientX, e.clientY, d.it); }
   };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
@@ -452,6 +493,10 @@
   window.addEventListener("keydown", (e) => {
     if ($("design").hidden) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
+    if (e.key === "Escape" && mOpen) { closeMenus(); return; }
+    if (e.key === "Escape" && !prefsBox.hidden) { prefsBox.hidden = true; return; }
+    if (e.key === "Escape" && !newBox.hidden) { newBox.hidden = true; return; }
+    if (e.key === "Escape" && !openBox.hidden) { openBox.hidden = true; return; }
     if (e.key === "Escape" && !saveBox.hidden) { closeSave(); return; }
     if (e.key === "Escape" && !expBox.hidden) { closeExport(); return; }
     if (e.key === "Escape" && !keysBox.hidden) { closeKeys(); return; }
@@ -661,7 +706,7 @@
     }
     say(""); render();
   });
-  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record("Tout retiré"); items = []; links = []; sel = new Set(); say(""); render(); });
+  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record("Tout retiré"); items = []; links = []; sel = new Set(); say(""); render(); toast("Toutes les runes sont retirées.", "Annuler", undo); });
   $("dz-align").addEventListener("change", () => { guides = []; render(); });
   $("dz-undo").addEventListener("click", undo);
   $("dz-redo").addEventListener("click", redo);
@@ -748,9 +793,9 @@
   let rulersOn = true, cursor = null, rulerFrame = 0;
   try { rulersOn = localStorage.getItem("runes-rulers") !== "0"; } catch (e) { /* stockage indisponible */ }
   $("dz-rulers").checked = rulersOn;
-  const STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+  const multiple = (a, b) => Math.abs(a / b - Math.round(a / b)) < 1e-6;
   function ticks(cv, horizontal, origin, scale, length) {
-    const dpr = window.devicePixelRatio || 1, thick = 20;
+    const dpr = window.devicePixelRatio || 1, thick = 20, unit = Prefs.rulerUnit(prefs.units, horizontal ? "x" : "y"), pxu = scale / unit.k;   // pixels par unité de la règle
     cv.width = Math.round((horizontal ? length : thick) * dpr); cv.height = Math.round((horizontal ? thick : length) * dpr);
     const g = cv.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -758,17 +803,18 @@
     const plateEnd = origin + (horizontal ? VW : VH) * scale;                      // la plaque est un peu plus claire que le reste
     g.fillStyle = "#3d3d3d";
     if (horizontal) g.fillRect(Math.max(0, origin), 0, Math.min(length, plateEnd) - Math.max(0, origin), thick); else g.fillRect(0, Math.max(0, origin), thick, Math.min(length, plateEnd) - Math.max(0, origin));
-    const minor = STEPS.find((s) => s * scale >= 7) || 500, major = STEPS.find((s) => s * scale >= 56 && s % minor === 0) || 1000;
+    const last = unit.steps[unit.steps.length - 1], minor = unit.steps.find((x) => x * pxu >= 7) || last, major = unit.steps.find((x) => x * pxu >= 56 && multiple(x, minor)) || last * 2;
     g.strokeStyle = "#8a8a8a"; g.fillStyle = "#b5b5b5"; g.lineWidth = 1; g.font = "9px system-ui, sans-serif"; g.textBaseline = "top"; g.textAlign = "left";
-    const u0 = Math.ceil(-origin / scale / minor) * minor, u1 = Math.floor((length - origin) / scale);
-    for (let u = u0; u <= u1; u += minor) {
-      const p = Math.round(origin + u * scale) + 0.5, big = u % major === 0, len = big ? 14 : u % (minor * 5) === 0 ? 9 : 5;
+    const n0 = Math.ceil(-origin / pxu / minor), n1 = Math.floor((length - origin) / pxu / minor);
+    for (let n = n0; n <= n1; n++) {
+      const u = Math.round(n * minor * 1000) / 1000, p = Math.round(origin + u * pxu) + 0.5, big = multiple(u, major), len = big ? 14 : multiple(u, minor * 5) ? 9 : 5;
       g.beginPath();
       if (horizontal) { g.moveTo(p, thick); g.lineTo(p, thick - len); } else { g.moveTo(thick, p); g.lineTo(thick - len, p); }
       g.stroke();
       if (big) {
-        if (horizontal) g.fillText(String(u), p + 2, 1);
-        else { g.save(); g.translate(1, p + 2); g.rotate(-Math.PI / 2); g.textAlign = "right"; g.fillText(String(u), 0, 0); g.restore(); }
+        const label = unit.fmt(u);
+        if (horizontal) g.fillText(label, p + 2, 1);
+        else { g.save(); g.translate(1, p + 2); g.rotate(-Math.PI / 2); g.textAlign = "right"; g.fillText(label, 0, 0); g.restore(); }
       }
     }
     return g;
@@ -937,11 +983,11 @@
       if (f === "png") {
         if (expPrefs.centre) { record("Centrage avant l'export"); centerOn(items); fitAll(); render(); }
         await new Promise((ok) => cv.toBlob((b) => { saveBlob(b, base + ".png"); ok(); }));
-        say("Image PNG exportée.");
-      } else if (f === "transparent") { saveBlob(await toBlob(transparentCanvas(d, expPrefs.res)), base + ".png"); say("PNG sans fond exporté."); }
-      else if (f === "svg") { saveBlob(new Blob([Export.svgOf(d, name)], { type: "image/svg+xml" }), base + ".svg"); say("SVG exporté : un groupe par rune."); }
-      else if (f === "zip") say("Strates exportées : " + (await exportZip(d, name, base)) + " fichiers.");
-      else { await Sheet.download({ name, description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d }, f === "sheet-pdf" ? "pdf" : "png", base); say("Fiche A4 exportée."); }
+        say("Image PNG exportée."); toast("Image PNG exportée.", "Exporter autre chose", openExport);
+      } else if (f === "transparent") { saveBlob(await toBlob(transparentCanvas(d, expPrefs.res)), base + ".png"); say("PNG sans fond exporté."); toast("PNG sans fond exporté.", "Exporter autre chose", openExport); }
+      else if (f === "svg") { saveBlob(new Blob([Export.svgOf(d, name)], { type: "image/svg+xml" }), base + ".svg"); say("SVG exporté : un groupe par rune."); toast("SVG exporté : un groupe par rune.", "Exporter autre chose", openExport); }
+      else if (f === "zip") { const nf = await exportZip(d, name, base); say("Strates exportées : " + nf + " fichiers."); toast("Strates exportées : " + nf + " fichiers.", "Exporter autre chose", openExport); }
+      else { await Sheet.download({ name, description: Bindrunes.cleanDesc($("sv-desc").value), tags: Tags.extras(d, svTags), d }, f === "sheet-pdf" ? "pdf" : "png", base); say("Fiche A4 exportée."); toast("Fiche A4 exportée.", "Exporter autre chose", openExport); }
     } catch (e) { say("Export impossible : " + e.message); }
   });
 
@@ -950,19 +996,59 @@
     const rec = Bindrunes.get(Bindrunes.cleanName($("sv-name").value)), d = cdata();
     return !!(rec && d && JSON.stringify(rec.d) === JSON.stringify(d) && (rec.description || "") === Bindrunes.cleanDesc($("sv-desc").value) && JSON.stringify(rec.tags || []) === JSON.stringify(Tags.extras(d, svTags)));
   }
-  function newBindrune() {
+  /** Remise à zéro complète ; opts : { start: {type: "rune", name} | {type: "copy", rec}, support, strata, adv }. Un bouton « Annuler » rend l'ancienne composition. */
+  function newBindrune(opts) {
+    opts = opts || {};
+    const backup = items.length ? { d: snapshot(), name: $("sv-name").value, desc: $("sv-desc").value, tags: svTags.slice() } : null;
     items = []; links = []; sel = new Set(); marquee = null; drag = null; resize = null; guides = []; snapMark = null;
     past.length = 0; future.length = 0; snaps = []; saveSnaps(); renderSnaps();
     svTags = []; $("sv-name").value = ""; $("sv-desc").value = ""; $("sv-msg").textContent = "";
-    $("dz-adv").checked = false; $("dz-strata").checked = false; Supports.set("bois");
+    $("dz-adv").checked = !!opts.adv; $("dz-strata").checked = !!opts.strata; Supports.set(opts.support || "bois");
     try { localStorage.removeItem(DRAFT); } catch (e) { /* ignoré */ }
     viewScale = null; tool = "select"; tempHand = false; closeMenu(); syncTool();
+    const st = opts.start;
+    if (st && st.type === "copy" && st.rec) {                  // copie sans nom d'une bindrune enregistrée
+      restore(st.rec.d, "Copie de « " + st.rec.name + " »");
+      $("sv-desc").value = st.rec.description || ""; svTags = Tags.extras(platesD(), st.rec.tags);
+    } else if (st && st.type === "rune") add(st.name, VW / 2, VH / 2);
+    past.length = 0; future.length = 0;
     say("Nouvelle bindrune."); refreshSave(); render(); tagEd.refresh(); applyView();
+    if (backup) toast("Nouvelle bindrune créée.", "Annuler", () => {
+      if (!restore(backup.d, "Retour à la composition précédente")) return;
+      $("sv-name").value = backup.name; $("sv-desc").value = backup.desc; svTags = Tags.extras(platesD(), backup.tags);
+      refreshSave(); tagEd.refresh(); say("Composition précédente rétablie.");
+    });
   }
-  $("dz-new").addEventListener("click", () => {
-    if (items.length && !savedAsIs() && !confirm("Commencer une nouvelle bindrune ?\n\nLa composition en cours n'est pas enregistrée à l'identique : elle sera perdue, sans retour possible.")) return;
-    newBindrune();
+  const newBox = $("dz-new-dlg");
+  function openNewDialog() {
+    if (!prefs.askNew) { newBindrune({}); return; }
+    const sr = $("dz-start-rune"), sc = $("dz-start-copy"), recs = Bindrunes.list();
+    sr.innerHTML = D.runes.map((r) => '<option value="' + r.name + '">' + r.name + "</option>").join("");
+    sc.innerHTML = recs.map((r) => "<option>" + r.name.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</option>").join("");
+    const copyRadio = document.querySelector('input[name="dz-start"][value="copy"]');
+    copyRadio.disabled = !recs.length; copyRadio.parentElement.style.opacity = recs.length ? "" : ".45";
+    document.querySelector('input[name="dz-start"][value="empty"]').checked = true;
+    sr.disabled = true; sc.disabled = true;
+    $("dz-new-support").innerHTML = Supports.list.map((x) => '<option value="' + x.id + '">' + x.label + "</option>").join("");
+    $("dz-new-support").value = "bois"; $("dz-new-strata").checked = false; $("dz-new-adv").checked = false;
+    $("dz-new-warn").hidden = !isDirty();
+    newBox.hidden = false; $("dz-new-go").focus();
+  }
+  document.querySelectorAll('input[name="dz-start"]').forEach((r) => r.addEventListener("change", () => {
+    const v = document.querySelector('input[name="dz-start"]:checked').value;
+    $("dz-start-rune").disabled = v !== "rune"; $("dz-start-copy").disabled = v !== "copy";
+  }));
+  $("dz-new-cancel").addEventListener("click", () => { newBox.hidden = true; });
+  newBox.addEventListener("pointerdown", (e) => { if (e.target === newBox) newBox.hidden = true; });
+  $("dz-new-go").addEventListener("click", () => {
+    const v = document.querySelector('input[name="dz-start"]:checked').value;
+    const o = { support: $("dz-new-support").value, strata: $("dz-new-strata").checked, adv: $("dz-new-adv").checked };
+    if (v === "rune") o.start = { type: "rune", name: $("dz-start-rune").value };
+    else if (v === "copy") { const rec = Bindrunes.get($("dz-start-copy").value); if (rec) o.start = { type: "copy", rec }; }
+    newBox.hidden = true;
+    newBindrune(o);
   });
+  $("dz-new").addEventListener("click", openNewDialog);
 
   Supports.bindSelect($("dz-support"), $("dz-support-note"));
   Supports.onChange(render);
@@ -1039,17 +1125,41 @@
   function openSaved(name, d, description, tags) {
     if (restore(d, "Ouverture de « " + name + " »")) { $("sv-name").value = name; refreshSave(); $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
-  function refreshOpen() {
-    const sel = $("dz-open");
-    sel.innerHTML = '<option value="">Choisir…</option>';
-    Bindrunes.list().forEach((b) => { const o = document.createElement("option"); o.value = b.name; o.textContent = b.name; sel.appendChild(o); });
+  /* ---- ouvrir : une fenêtre avec aperçus, recherche et tri ; les bindrunes du navigateur, puis celles du compte */
+  const openBox = $("dz-open-dlg");
+  let accItems = null;
+  const when = (t) => (t ? new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "");
+  function openCard(rec, at) {
+    const li = document.createElement("li"), b = document.createElement("button"), pv = document.createElement("span"), tx = document.createElement("span"), nm = document.createElement("b"), sm = document.createElement("small");
+    b.type = "button"; pv.className = "pv"; pv.innerHTML = Bindrunes.previewSVG(rec.d);
+    nm.textContent = rec.name; sm.textContent = Bindrunes.runesLine(rec.d) + " · " + Bindrunes.cxLine(rec.d) + (at ? " · " + when(at) : "");
+    tx.append(nm, sm); b.append(pv, tx);
+    b.addEventListener("click", () => { openBox.hidden = true; openSaved(rec.name, rec.d, rec.description, rec.tags); });
+    li.appendChild(b);
+    return li;
   }
-  Bindrunes.onChange(refreshOpen); refreshOpen();
-  $("dz-open").addEventListener("change", (e) => {
-    const rec = Bindrunes.get(e.target.value);
-    if (rec) openSaved(rec.name, rec.d, rec.description, rec.tags);
-    e.target.value = "";
-  });
+  function renderOpen() {
+    const q = Tags.fold($("dz-open-q").value), sort = $("dz-open-sort").value;
+    const match = (r) => !q || Tags.fold([r.name, r.description || "", r.d.r.map((e) => e.n).join(" "), (r.tags || []).join(" ")].join(" ")).includes(q);
+    const at = (r) => r.at || r.updated_at || 0;
+    const order = (a, b) => (sort === "name" ? a.name.localeCompare(b.name, "fr") : sort === "cx" ? Complexity.rate(b.d).score - Complexity.rate(a.d).score : at(b) - at(a));
+    const local = Bindrunes.list().filter(match).sort(order), acc = (accItems || []).filter(match).sort(order);
+    const fill = (id, list) => { const ul = $(id); ul.innerHTML = ""; list.forEach((r) => ul.appendChild(openCard(r, at(r)))); };
+    fill("dz-open-local", local); fill("dz-open-acc", acc);
+    $("dz-open-empty").hidden = !!(local.length || acc.length);
+  }
+  async function openOpen() {
+    openBox.hidden = false; $("dz-open-q").value = "";
+    const logged = !!(window.Account && window.Account.user());
+    $("dz-open-acc-box").hidden = !logged; accItems = null;
+    renderOpen(); $("dz-open-q").focus();
+    if (logged) { accItems = await window.Account.list(); if (!openBox.hidden) renderOpen(); }
+  }
+  $("dz-open-btn").addEventListener("click", openOpen);
+  $("dz-open-close").addEventListener("click", () => { openBox.hidden = true; });
+  openBox.addEventListener("pointerdown", (e) => { if (e.target === openBox) openBox.hidden = true; });
+  $("dz-open-q").addEventListener("input", renderOpen);
+  $("dz-open-sort").addEventListener("change", renderOpen);
   window.addEventListener("bindrune:open", (e) => openSaved(e.detail.name, e.detail.d, e.detail.description, e.detail.tags));
   $("sv-manage").addEventListener("click", () => window.showTab("mine"));
   /* ---- enregistrer : une fenêtre rassemble nom, description, sens à garder et étiquettes ; le bouton confirme */
@@ -1057,12 +1167,18 @@
   function refreshSave() {
     const name = Bindrunes.cleanName($("sv-name").value), exists = !!(name && Bindrunes.get(name));
     $("sv-exists").hidden = !exists;
+    $("sv-copy").hidden = !exists;
     $("sv-save").textContent = exists ? "Remplacer" : "Enregistrer";
     const doc = $("dz-doc");
     doc.textContent = name || "Sans nom"; doc.classList.toggle("empty", !name);
+    updateDirty();
   }
-  function openSave() {
+  /** Travail en cours différent de ce qui est enregistré sous ce nom : pastille devant le nom du document. */
+  const isDirty = () => items.length > 0 && !savedAsIs();
+  function updateDirty() { const d = isDirty(); $("dz-doc").classList.toggle("dirty", d); $("dz-doc").title = d ? "Modifications non enregistrées : cliquer pour enregistrer" : "Nom de la bindrune : cliquer pour le modifier"; }
+  function openSave(asCopy) {
     $("sv-msg").textContent = "";
+    if (asCopy === true && Bindrunes.cleanName($("sv-name").value)) $("sv-name").value = Bindrunes.uniqueName($("sv-name").value);
     const logged = !!(window.Account && window.Account.user());
     $("sv-dest").hidden = !logged; $("sv-acc").checked = false; $("sv-pub").checked = false;
     refreshSave(); renderBrings();
@@ -1075,6 +1191,7 @@
   saveBox.addEventListener("pointerdown", (e) => { if (e.target === saveBox) closeSave(); });
   $("sv-name").addEventListener("input", refreshSave);
   $("sv-pub").addEventListener("change", (e) => { if (e.target.checked) $("sv-acc").checked = true; });
+  $("sv-copy").addEventListener("click", () => { $("sv-name").value = Bindrunes.uniqueName($("sv-name").value); refreshSave(); $("sv-save").click(); });
   $("sv-save").addEventListener("click", async () => {
     const name = Bindrunes.cleanName($("sv-name").value);
     if (!name) { svmsg("Donne un nom à ta bindrune."); $("sv-name").focus(); return; }
@@ -1086,6 +1203,7 @@
     closeSave(); refreshSave();
     const done = "« " + name + " » enregistrée (onglet « Mes bindrunes »).";
     say(done);
+    toast(done, "Voir dans Mes bindrunes", () => window.showTab("mine"));
     if (wantPub) { await window.Account.publish(rec); say($("acc-msg").textContent || done); }
     else if (wantAcc) { await window.Account.upload(rec); say($("acc-msg").textContent || done); }
     Bindrunes.duplicateNotice(name, snapshot()).then((t) => { if (t && $("dz-msg").textContent.indexOf(done) === 0) say($("dz-msg").textContent + " " + t); });
@@ -1096,12 +1214,14 @@
     const k = e.key.toLowerCase();
     if (k === "s") { e.preventDefault(); openSave(); }
     else if (k === "e") { e.preventDefault(); openExport(); }
+    else if (k === "o") { e.preventDefault(); openOpen(); }
   });
 
   /* ---- brouillon : la composition en cours est gardée dans ce navigateur et rétablie à la réouverture */
   const DRAFT = "runes-draft";
   let draftTimer = null;
   function saveDraft() {
+    updateDirty();
     try {
       if (!items.length) { localStorage.removeItem(DRAFT); return; }
       localStorage.setItem(DRAFT, JSON.stringify({ d: snapshot(), name: $("sv-name").value, desc: $("sv-desc").value, tags: svTags, at: Date.now() }));
@@ -1235,13 +1355,33 @@
   });
   $("dz-ui-reset").addEventListener("click", () => { try { localStorage.removeItem(UI); } catch (e) { /* ignoré */ } location.reload(); });
 
+  /* ---- préférences : appliquées tout de suite, gardées dans ce navigateur */
+  const prefsBox = $("dz-prefs-dlg");
+  function fillPrefs() {
+    $("pf-snap").value = prefs.snap; $("pf-snap-v").textContent = prefs.snap;
+    $("pf-align").value = prefs.align; $("pf-align-v").textContent = prefs.align;
+    $("pf-history").value = prefs.history; $("pf-history-v").textContent = prefs.history;
+    $("pf-units").value = prefs.units; $("pf-click").checked = prefs.clickMenu; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
+  }
+  const setPrefs = (patch) => { Object.assign(prefs, Prefs.sanitize(Object.assign({}, prefs, patch))); Prefs.save(localStorage, prefs); fillPrefs(); scheduleRulers(); };
+  function openPrefs() { fillPrefs(); prefsBox.hidden = false; $("pf-close-btn").focus(); }
+  [["pf-snap", "snap"], ["pf-align", "align"], ["pf-history", "history"]].forEach(([id, key]) => $(id).addEventListener("input", (e) => setPrefs({ [key]: Number(e.target.value) })));
+  $("pf-units").addEventListener("change", (e) => setPrefs({ units: e.target.value }));
+  $("pf-click").addEventListener("change", (e) => setPrefs({ clickMenu: e.target.checked }));
+  $("pf-new").addEventListener("change", (e) => setPrefs({ askNew: e.target.checked }));
+  $("pf-close").addEventListener("change", (e) => setPrefs({ confirmClose: e.target.checked }));
+  $("pf-reset").addEventListener("click", () => setPrefs(Prefs.DEFAULTS));
+  $("pf-close-btn").addEventListener("click", () => { prefsBox.hidden = true; });
+  prefsBox.addEventListener("pointerdown", (e) => { if (e.target === prefsBox) prefsBox.hidden = true; });
+  window.addEventListener("beforeunload", (e) => { if (prefs.confirmClose && isDirty()) { e.preventDefault(); e.returnValue = ""; } });
+
   /* ---- guide de première visite (quatre étapes) ; « ? » le rouvre */
   const TOUR = "runes-tour", tourBox = $("dz-tour");
   const TOUR_STEPS = [
     { sel: '[data-pnl="runes"]', h: "Choisis des runes", t: "Clique une rune du panneau « Runes », ou glisse-la sur la plaque. Quatre au plus (six avec le mode avancé, interrupteur « + » de la barre d'outils)." },
     { sel: "#dz-stage", h: "Compose sur le plan de travail", t: "Glisse les runes, approche deux points d'ancrage pour les aimanter, clique sur une rune pour son menu (miroirs, taille, verrou…). Les poignées des coins redimensionnent. Ctrl + molette zoome la vue, Espace la déplace." },
     { sel: ".ps-tools", h: "Les outils", t: "Annuler, miroirs, centrage, et les interrupteurs : magnétisme, repères, strates, mode avancé, règles. V, H et Z choisissent Sélection, Main et Zoom." },
-    { sel: ".ps-bar", h: "Enregistre et exporte", t: "« Enregistrer » ouvre une fenêtre : nom, description, sens à garder, étiquettes. « Exporter » propose le format (image, SVG, strates, fiche A4) et ses options. À droite : Calques, Historique avec instantanés, Complexité. Touche ? pour les raccourcis." },
+    { sel: ".ps-bar", h: "Enregistre et exporte", t: "« Enregistrer » ouvre une fenêtre : nom, description, sens à garder, étiquettes. « Exporter » propose le format (image, SVG, strates, fiche A4) et ses options. Les menus Fichier, Édition, Affichage et Aide regroupent toutes les actions. À droite : Calques, Historique avec instantanés, Complexité. Touche ? pour les raccourcis." },
   ];
   let tourI = -1;
   const seen = () => { try { return localStorage.getItem(TOUR) === "1"; } catch (e) { return true; } };
@@ -1274,6 +1414,97 @@
   const tourWatch = () => { if (!$("design").hidden && !seen() && tourI < 0) setTimeout(() => { if (!$("design").hidden && !seen() && tourI < 0) showTour(0); }, 700); };
   new MutationObserver(tourWatch).observe($("design"), { attributes: true, attributeFilter: ["hidden"] });
   window.addEventListener("resize", () => { if (tourI >= 0) showTour(tourI); });
+
+  /* ---- barre de menus : Fichier, Édition, Affichage, Aide (les mêmes actions que les boutons, avec leurs raccourcis) */
+  const mdrop = $("dz-mdrop"), mbar = $("dz-menubar");
+  let mOpen = null;
+  const panelTitle = (p) => p.querySelector("summary").firstChild.textContent.trim();
+  const centerBtns = () => $("dz-center").click();
+  const MENUS = {
+    file: () => [
+      { l: "Nouvelle bindrune…", fn: openNewDialog },
+      { l: "Ouvrir…", k: "Ctrl+O", fn: openOpen },
+      { sep: true },
+      { l: "Enregistrer…", k: "Ctrl+S", fn: () => openSave() },
+      { l: "Enregistrer une copie…", fn: () => openSave(true), off: !items.length },
+      { l: "Exporter…", k: "Ctrl+E", fn: openExport, off: !items.length },
+      { sep: true },
+      { l: expanded ? "Quitter le plein écran" : "Plein écran", fn: () => $("dz-expand").click() },
+    ],
+    edit: () => [
+      { l: "Annuler", k: "Ctrl+Z", fn: undo, off: !past.length },
+      { l: "Rétablir", k: "Ctrl+Y", fn: redo, off: !future.length },
+      { sep: true },
+      { l: "Tout sélectionner", k: "Ctrl+A", fn: () => { sel = new Set(items.map((i) => i.id)); render(); }, off: !items.length },
+      { l: "Désélectionner", k: "Échap", fn: () => { sel = new Set(); render(); }, off: !sel.size },
+      { l: "Retirer la sélection", k: "Suppr", fn: () => removeMany([...sel]), off: !sel.size },
+      { sep: true },
+      { l: "Centrer la sélection", fn: centerBtns, off: !sel.size },
+      { l: "Tout centrer", fn: () => $("dz-center-all").click(), off: !items.length },
+      { l: "Miroir vertical", fn: () => mirrorSel("v"), off: !items.length },
+      { l: "Miroir horizontal", fn: () => mirrorSel("h"), off: !items.length },
+      { l: "Taille d'origine", fn: () => resizeTo(100, "Taille d'origine"), off: !items.length },
+      { sep: true },
+      { l: "Tout retirer", fn: () => $("dz-clear").click(), off: !items.length },
+      { sep: true },
+      { l: "Préférences…", fn: openPrefs },
+    ],
+    view: () => [
+      { l: "Règles", chk: $("dz-rulers").checked, fn: () => $("dz-rulers").click() },
+      { l: "Repères d'alignement", chk: $("dz-align").checked, fn: () => $("dz-align").click() },
+      { l: "Magnétisme", chk: $("dz-magnet").checked, fn: () => $("dz-magnet").click() },
+      { l: "Strates colorées", chk: $("dz-strata").checked, fn: () => $("dz-strata").click() },
+      { l: "Mode avancé", chk: $("dz-adv").checked, fn: () => $("dz-adv").click() },
+      { sep: true },
+      { l: "Zoom avant", k: "Ctrl+molette", fn: () => $("dz-view-in").click() },
+      { l: "Zoom arrière", fn: () => $("dz-view-out").click() },
+      { l: "Ajuster la vue", fn: () => $("dz-view-fit").click() },
+      { sep: true },
+      { head: "Panneaux" },
+    ].concat(panels().map((p) => ({ l: panelTitle(p), chk: !p.hidden, fn: () => { p.hidden = !p.hidden; ui.hidden = panels().filter((x) => x.hidden).map((x) => x.dataset.pnl); saveUi(); } })), [
+      { l: "Réinitialiser les panneaux", fn: () => $("dz-ui-reset").click() },
+    ]),
+    help: () => [
+      { l: "Raccourcis et gestes", k: "?", fn: openKeys },
+      { l: "Guide de prise en main", fn: () => showTour(0) },
+    ],
+  };
+  function closeMenus() { mdrop.hidden = true; mdrop.innerHTML = ""; mbar.querySelectorAll(".mbtn").forEach((b) => b.setAttribute("aria-expanded", "false")); mOpen = null; }
+  function showMenu(name, btn) {
+    mdrop.innerHTML = "";
+    MENUS[name]().forEach((en) => {
+      if (en.sep) { mdrop.appendChild(document.createElement("hr")); return; }
+      if (en.head) { const h = document.createElement("div"); h.className = "mh"; h.textContent = en.head; mdrop.appendChild(h); return; }
+      const b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", en.chk === undefined ? "menuitem" : "menuitemcheckbox"); if (en.chk !== undefined) b.setAttribute("aria-checked", String(en.chk)); if (en.off) { b.disabled = true; b.className = "off"; }
+      const l = document.createElement("span"), c = document.createElement("span"), k = document.createElement("em");
+      c.className = "chk"; c.textContent = en.chk ? "✓" : ""; l.append(c, document.createTextNode(en.l)); k.textContent = en.k || "";
+      b.append(l, k);
+      b.addEventListener("click", () => { closeMenus(); en.fn(); });
+      mdrop.appendChild(b);
+    });
+    mbar.querySelectorAll(".mbtn").forEach((x) => x.setAttribute("aria-expanded", String(x === btn)));
+    const r = btn.getBoundingClientRect();
+    mdrop.hidden = false; mdrop.style.left = r.left + "px"; mdrop.style.top = r.bottom + 2 + "px"; mOpen = name;
+  }
+  mbar.querySelectorAll(".mbtn").forEach((b) => {
+    b.addEventListener("click", () => (mOpen === b.dataset.menu ? closeMenus() : showMenu(b.dataset.menu, b)));
+    b.addEventListener("pointerenter", () => { if (mOpen && mOpen !== b.dataset.menu) showMenu(b.dataset.menu, b); });
+    b.addEventListener("keydown", (e) => { if (e.key === "ArrowDown") { e.preventDefault(); showMenu(b.dataset.menu, b); const f = mdrop.querySelector("button:not(:disabled)"); if (f) f.focus(); } });
+  });
+  mdrop.addEventListener("keydown", (e) => {
+    const btns = [...mdrop.querySelectorAll("button:not(:disabled)")], i = btns.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); btns[(i + 1) % btns.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); btns[(i - 1 + btns.length) % btns.length].focus(); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      const order = [...mbar.querySelectorAll(".mbtn")], at = order.findIndex((x) => x.dataset.menu === mOpen), nx = order[(at + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
+      e.preventDefault(); showMenu(nx.dataset.menu, nx); const f = mdrop.querySelector("button:not(:disabled)"); if (f) f.focus();
+    }
+  });
+  document.addEventListener("pointerdown", (e) => { if (mOpen && !mdrop.contains(e.target) && !mbar.contains(e.target)) closeMenus(); }, true);
+  window.addEventListener("resize", closeMenus);
+  // panneaux masqués par le menu Affichage : rétablis au chargement
+  if (Array.isArray(ui.hidden)) panels().forEach((p) => { p.hidden = ui.hidden.includes(p.dataset.pnl); });
 
   render();
   loadDraft();

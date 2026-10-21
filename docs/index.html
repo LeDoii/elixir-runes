@@ -215,11 +215,20 @@
 
     <!-- ============================ BINDRUNE ============================ -->
     <section id="design" class="ps" role="tabpanel" aria-labelledby="tab-design" hidden>
+      <!-- barre de menus -->
+      <div class="ps-menubar" id="dz-menubar" role="menubar" aria-label="Menus">
+        <button type="button" class="mbtn" data-menu="file" role="menuitem" aria-haspopup="true" aria-expanded="false">Fichier</button>
+        <button type="button" class="mbtn" data-menu="edit" role="menuitem" aria-haspopup="true" aria-expanded="false">Édition</button>
+        <button type="button" class="mbtn" data-menu="view" role="menuitem" aria-haspopup="true" aria-expanded="false">Affichage</button>
+        <button type="button" class="mbtn" data-menu="help" role="menuitem" aria-haspopup="true" aria-expanded="false">Aide</button>
+      </div>
+      <div id="dz-mdrop" class="ctxm mdrop" role="menu" hidden></div>
+
       <!-- barre d'options : nom, enregistrement, sorties -->
       <div class="ps-bar">
         <button id="dz-new" class="pbtn" type="button" title="Nouvelle bindrune : repart de zéro (runes, nom, description, étiquettes, support, historique)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M12 11v6M9 14h6"/></svg><span>Nouvelle</span></button>
         <button id="dz-save-open" class="pbtn primary" type="button" title="Enregistrer : nom, description, sens et étiquettes (Ctrl+S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Enregistrer</span></button>
-        <select id="dz-open" aria-label="Ouvrir une bindrune enregistrée"></select>
+        <button id="dz-open-btn" class="pbtn" type="button" title="Ouvrir une bindrune enregistrée (Ctrl+O)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Ouvrir…</span></button>
         <span class="sep"></span>
         <button id="dz-export-open" class="pbtn" type="button" title="Exporter : image, SVG, strates ou fiche A4, avec leurs options (Ctrl+E)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 19h16"/></svg><span>Exporter</span></button>
         <button id="dz-doc" class="docname" type="button" title="Nom de la bindrune : cliquer pour le modifier">Sans nom</button>
@@ -328,6 +337,71 @@
 
       <div id="dz-menu" class="ctxm" role="menu" hidden></div>
 
+      <div id="dz-new-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Nouvelle bindrune" hidden>
+        <div class="card">
+          <h3>Nouvelle bindrune</h3>
+          <p id="dz-new-warn" class="warn" hidden>La composition en cours n'est pas enregistrée : elle sera remplacée. Un bouton « Annuler » restera disponible quelques secondes.</p>
+          <fieldset>
+            <legend>Point de départ</legend>
+            <label class="fmt"><input type="radio" name="dz-start" value="empty" checked> <span><b>Plaque vide</b><small>On ajoute les runes une à une</small></span></label>
+            <label class="fmt"><input type="radio" name="dz-start" value="rune"> <span><b>À partir d'une rune</b><small>La rune choisie est posée au centre</small></span></label>
+            <div class="indent"><select id="dz-start-rune" aria-label="Rune de départ" disabled></select></div>
+            <label class="fmt"><input type="radio" name="dz-start" value="copy"> <span><b>À partir d'une bindrune enregistrée</b><small>Une copie, sans nom : l'originale n'est pas touchée</small></span></label>
+            <div class="indent"><select id="dz-start-copy" aria-label="Bindrune de départ" disabled></select></div>
+          </fieldset>
+          <div class="field">
+            <label for="dz-new-support">Support de gravure</label>
+            <select id="dz-new-support"></select>
+          </div>
+          <label class="check"><input type="checkbox" id="dz-new-strata"> Strates colorées</label>
+          <label class="check"><input type="checkbox" id="dz-new-adv"> Mode avancé (jusqu'à 6 runes, une même rune plusieurs fois)</label>
+          <div class="row-btns" style="margin-top:14px">
+            <span class="grow"></span>
+            <button id="dz-new-cancel" class="pbtn" type="button">Annuler</button>
+            <button id="dz-new-go" class="pbtn primary" type="button">Créer</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dz-open-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Ouvrir une bindrune" hidden>
+        <div class="card wide">
+          <h3>Ouvrir une bindrune</h3>
+          <div class="open-bar">
+            <input id="dz-open-q" type="text" placeholder="Chercher par nom, rune ou étiquette" autocomplete="off" aria-label="Recherche">
+            <select id="dz-open-sort" aria-label="Tri"><option value="recent">Les plus récentes</option><option value="name">Par nom</option><option value="cx">Par complexité</option></select>
+          </div>
+          <h4 class="pnl-sub">Dans ce navigateur</h4>
+          <ul id="dz-open-local" class="opengrid"></ul>
+          <div id="dz-open-acc-box" hidden>
+            <h4 class="pnl-sub">Sur mon compte</h4>
+            <ul id="dz-open-acc" class="opengrid"></ul>
+          </div>
+          <p id="dz-open-empty" class="hint" hidden>Aucune bindrune ne correspond.</p>
+          <div class="row-btns"><span class="grow"></span><button id="dz-open-close" class="pbtn primary" type="button">Fermer</button></div>
+        </div>
+      </div>
+
+      <div id="dz-prefs-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Préférences" hidden>
+        <div class="card">
+          <h3>Préférences</h3>
+          <div class="field"><label for="pf-snap">Portée du magnétisme : <b id="pf-snap-v"></b> unités</label><input id="pf-snap" type="range" min="4" max="40" step="1"></div>
+          <div class="field"><label for="pf-align">Portée des repères d'alignement : <b id="pf-align-v"></b> pixels</label><input id="pf-align" type="range" min="2" max="12" step="1"></div>
+          <div class="field"><label for="pf-history">Actions gardées par l'historique : <b id="pf-history-v"></b></label><input id="pf-history" type="range" min="10" max="300" step="10"></div>
+          <div class="field"><label for="pf-units">Unité des règles</label>
+            <select id="pf-units"><option value="plate">Unités de la plaque (800 × 640)</option><option value="percent">Pourcentage de la plaque</option><option value="cells">Cases de la grille des runes</option></select></div>
+          <label class="check"><input type="checkbox" id="pf-click"> Un clic sur une rune ouvre son menu</label>
+          <label class="check"><input type="checkbox" id="pf-new"> « Nouvelle bindrune » demande d'abord ses options</label>
+          <label class="check"><input type="checkbox" id="pf-close"> Prévenir à la fermeture quand le travail n'est pas enregistré</label>
+          <div class="row-btns" style="margin-top:14px">
+            <button id="pf-reset" class="pbtn" type="button">Valeurs d'origine</button>
+            <span class="grow"></span>
+            <button id="pf-close-btn" class="pbtn primary" type="button">Fermer</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dz-toasts" class="toasts" aria-live="polite"></div>
+
       <div id="dz-save-dlg" class="psmodal" role="dialog" aria-modal="true" aria-label="Enregistrer la bindrune" hidden>
         <div class="card wide">
           <h3>Enregistrer la bindrune</h3>
@@ -356,6 +430,7 @@
             <span class="hint">Liste, renommage, partage et import : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>.</span>
             <span class="grow"></span>
             <button id="sv-cancel" class="pbtn" type="button">Annuler</button>
+            <button id="sv-copy" class="pbtn" type="button" title="Garde la version existante et enregistre celle-ci sous un nom voisin" hidden>Enregistrer une copie</button>
             <button id="sv-save" class="pbtn primary" type="button">Enregistrer</button>
           </div>
         </div>
@@ -408,7 +483,7 @@
             <dt>Flèches</dt><dd>Ajuster la sélection (Maj : par 10)</dd>
             <dt>Suppr</dt><dd>Retirer la sélection</dd>
             <dt>Ctrl + Z · Ctrl + Y</dt><dd>Annuler · rétablir</dd>
-            <dt>Ctrl + S · Ctrl + E</dt><dd>Enregistrer · exporter (ouvrent leur fenêtre)</dd>
+            <dt>Ctrl + O · Ctrl + S · Ctrl + E</dt><dd>Ouvrir · enregistrer · exporter (ouvrent leur fenêtre)</dd>
             <dt>Échap</dt><dd>Ferme le menu, désélectionne, quitte le plein écran</dd>
             <dt>?</dt><dd>Ouvre cette fenêtre</dd>
           </dl>
@@ -489,6 +564,7 @@
   <script src="scoring.js"></script>
   <script src="geom.js"></script>
   <script src="combo.js"></script>
+  <script src="prefs.js"></script>
   <script src="zip.js"></script>
   <script src="export.js"></script>
   <script src="diff.js"></script>

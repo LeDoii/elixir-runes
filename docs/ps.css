@@ -282,3 +282,51 @@ body:has(#design:not([hidden])) footer { display: none; }
 .psmodal .card { text-align: left; }
 .psmodal .fmt span { align-items: flex-start; text-align: left; }
 .psmodal .field > label { text-align: left; }
+
+/* ---- barre de menus, nouvelles fenêtres, notifications, calques enrichis */
+#design.ps .ps-menubar { display: flex; gap: 2px; padding: 2px 6px; background: var(--bg1); border-bottom: 1px solid var(--line); }
+#design.ps .mbtn { background: none; border: 0; color: var(--tx); font: inherit; padding: 3px 10px; border-radius: 3px; cursor: pointer; }
+#design.ps .mbtn:hover, #design.ps .mbtn[aria-expanded="true"] { background: var(--bg3); }
+.mdrop { min-width: 260px; }
+.ctxm .chk { display: inline-block; width: 1.1em; color: #e0924f; }
+.ctxm button:hover .chk, .ctxm button:focus .chk { color: #1b1006; }
+.ctxm button.off { opacity: .45; }
+.psmodal .warn { background: #3a2a1f; border: 1px solid #e0924f; border-radius: 4px; padding: 8px 10px; color: #f1d2b4; margin: 0 0 12px; font-size: 12px; }
+.psmodal .indent { margin: 0 0 6px 26px; }
+.psmodal .indent select { width: 100%; }
+.psmodal input[type=range] { width: 100%; accent-color: #e0924f; }
+.psmodal .open-bar { display: flex; gap: 8px; margin-bottom: 4px; }
+.psmodal .open-bar input { flex: 1; }
+.psmodal .opengrid { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.psmodal .opengrid button { display: grid; grid-template-columns: 56px 1fr; gap: 8px; width: 100%; text-align: left; align-items: center; background: #333; border: 1px solid #000; border-radius: 4px; color: #d6d6d6; padding: 6px; cursor: pointer; font: inherit; }
+.psmodal .opengrid button:hover, .psmodal .opengrid button:focus-visible { border-color: #e0924f; background: #3d3226; outline: none; }
+.psmodal .opengrid .pv { background: #181818; border-radius: 3px; height: 56px; display: grid; place-items: center; padding: 3px; }
+.psmodal .opengrid .pv svg { max-width: 100%; max-height: 100%; }
+.psmodal .opengrid b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psmodal .opengrid small { color: #9b9b9b; font-size: 11px; display: block; line-height: 1.3; }
+
+#design.ps .toasts { position: absolute; left: 60px; right: 360px; bottom: 38px; z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+#design.ps .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; background: #2d2d2d; border: 1px solid #000; border-left: 3px solid var(--acc); border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.55); padding: 7px 8px 7px 12px; color: var(--tx); max-width: 90%; animation: toast-in .16s ease-out; }
+#design.ps .toast button { background: var(--bg3); border: 1px solid #000; border-radius: 3px; color: var(--acc); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; padding: 3px 9px; }
+#design.ps .toast button:hover { background: #4a4a4a; }
+#design.ps .toast .tx { background: none; border: 0; color: var(--tx2); padding: 0 4px; font-size: 14px; font-weight: 400; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 960px) { #design.ps .toasts { left: 8px; right: 8px; position: fixed; bottom: 12px; } }
+
+#design.ps .docname.dirty::before { content: "●"; color: var(--acc); margin-right: 5px; font-size: 10px; vertical-align: 1px; }
+#design.ps .dz-list li.hid .nm { opacity: .45; text-decoration: line-through; }
+#design.ps .dz-list li.dragover { box-shadow: 0 -2px 0 var(--acc); }
+#design.ps .dz-list li.dragging { opacity: .4; }
+#design.ps .dz-list .grip { cursor: grab; color: var(--tx2); font-size: 12px; line-height: 1; user-select: none; padding: 0 2px; }
+#design.ps .dz-list .eye { background: var(--bg3); border: 1px solid #000; border-radius: 3px; cursor: pointer; padding: 1px 4px; line-height: 1; color: var(--tx); }
+#design.ps .dz-list .eye svg { width: 14px; height: 14px; }
+#design.ps .dz-list .eye[aria-pressed="true"] { color: var(--tx2); }
+#design.ps .dz-list input[type=color] { width: 20px; height: 20px; padding: 0; border: 1px solid #000; border-radius: 50%; background: none; cursor: pointer; }
+#design.ps .dz-list input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+#design.ps .dz-list input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+#design.ps .dz-list li { grid-template-columns: 12px 22px minmax(0, 1fr) auto auto; }
+
+/* ---- calques : nom sur la première ligne, commandes sur la seconde (la colonne est étroite) */
+#design.ps .dz-list li { grid-template-columns: 12px 22px minmax(0, 1fr) auto; row-gap: 3px; }
+#design.ps .dz-list li .rm { grid-column: 4; grid-row: 1; }
+#design.ps .dz-list li .ctl { grid-column: 2 / -1; grid-row: 2; justify-content: flex-start; }

@@ -26,7 +26,7 @@ export function validateBindrune(d) {
   const r = [];
   for (const e of d.r) {
     if (!e || !known(e.n) || !isNum(e.x) || !isNum(e.y)) return null;
-    const entry = { n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] };
+    const entry = { n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: typeof e.c === "string" && /^#[0-9a-fA-F]{6}$/.test(e.c) ? e.c.toUpperCase() : COLORS[r.length % COLORS.length] };
     const kept = Array.isArray(e.t) ? keptTags(e) : null;                    // étiquettes gardées de la rune (absent : toutes)
     if (kept && kept.length < runeTags(e.n).length) entry.t = kept;
     const f = Number.isInteger(e.f) && e.f > 0 && e.f <= 3 ? e.f : 0;        // miroir : 1 haut ↔ bas, 2 gauche ↔ droite

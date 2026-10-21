@@ -54,4 +54,23 @@ check("comparaison : ajout, miroir, déplacement, taille, support, strates", r.i
 check("comparaison : retrait", diff(B, A).lines.some((l) => l === "« Ansuz » retirée"));
 check("comparaison : un petit écart (moins de 2 unités) n'est pas un déplacement", diff(A, plate([rune("Gebo", 45, 63), rune("Isa", 140, 64)])).same);
 check("comparaison : même rune deux fois, appariées dans l'ordre", diff(plate([rune("Isa", 0, 0), rune("Isa", 100, 0)]), plate([rune("Isa", 0, 0), rune("Isa", 100, 50)])).lines.join() === "« Isa » : déplacée de 0 ; 50");
+
+/* ---- préférences */
+const Prefs = require("../docs/prefs.js");
+check("préférences : valeurs d'origine sans stockage", JSON.stringify(Prefs.sanitize(undefined)) === JSON.stringify(Prefs.DEFAULTS) && JSON.stringify(Prefs.sanitize("x")) === JSON.stringify(Prefs.DEFAULTS));
+const p = Prefs.sanitize({ snap: 999, align: -3, units: "pouces", askNew: false, confirmClose: 0, clickMenu: "non", history: "12.7" });
+check("préférences : bornées, unités inconnues refusées, booléens stricts", p.snap === 40 && p.align === 2 && p.units === "plate" && p.askNew === false && p.confirmClose === true && p.clickMenu === true && p.history === 13, JSON.stringify(p));
+check("préférences : non numérique → valeur d'origine", Prefs.sanitize({ snap: "abc", history: null }).snap === 14 && Prefs.sanitize({ snap: NaN }).snap === 14);
+const mem = { v: null, getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
+Prefs.save(mem, { snap: 20, units: "cells", bogus: 1 });
+check("préférences : aller-retour dans le stockage, champs inconnus ignorés", Prefs.load(mem).snap === 20 && Prefs.load(mem).units === "cells" && !("bogus" in JSON.parse(mem.v)));
+mem.v = "pas du json"; check("préférences : stockage corrompu → valeurs d'origine", Prefs.load(mem).snap === 14);
+const ux = Prefs.rulerUnit("percent", "x"), uy = Prefs.rulerUnit("percent", "y"), uc = Prefs.rulerUnit("cells", "y");
+check("règles : pourcentage (800 → 100 %, 640 → 100 %) et cases (16,5 en hauteur)", ux.k * 800 === 100 && uy.k * 640 === 100 && Math.abs(uc.k * 16.5 - 1) < 1e-9 && Prefs.rulerUnit("plate", "x").k === 1);
+
+/* ---- couleurs libres (strates) */
+const { validateBindrune } = await import("../server/lib/validate.js");
+const col = (c) => validateBindrune({ r: [{ n: "Isa", x: 0, y: 0, c }], s: "bois", t: 0, l: [] }).r[0].c;
+check("couleur : #RRGGBB libre acceptée, mise en majuscules", col("#12a26a") === "#12A26A" && col("#3D5C8C") === "#3D5C8C");
+check("couleur : valeurs invalides remplacées par la couleur par défaut", ["red", "#12a", "#12345G", "javascript:1", 5, null, "#3D5C8C\"><x"].every((c) => col(c) === "#3D5C8C"));
 finish();
