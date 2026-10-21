@@ -1,0 +1,164 @@
+/* Onglet Bindrune : interface d'atelier (barre d'options, outils à gauche, plan de travail au centre, panneaux à droite, barre d'état).
+ * Thème sombre propre à cet onglet ; tout est limité à #design.ps. Les identifiants des éléments sont ceux que lit designer.js. */
+
+/* ---- quand l'onglet est ouvert : l'atelier occupe toute la largeur et la hauteur de la fenêtre, l'en-tête se réduit aux onglets */
+body:has(#design:not([hidden])) main { max-width: none; padding: 0; }
+body:has(#design:not([hidden])) .top { padding-top: .35rem; }
+body:has(#design:not([hidden])) .top .label, body:has(#design:not([hidden])) .top h1, body:has(#design:not([hidden])) .top .sub { display: none; }
+body:has(#design:not([hidden])) footer { display: none; }
+
+#design.ps {
+  --bg0: #181818; --bg1: #262626; --bg2: #303030; --bg3: #3b3b3b; --line: #151515; --line2: #444; --tx: #d6d6d6; --tx2: #9b9b9b; --acc: #e0924f; --ok: #12A26A;
+  display: flex; flex-direction: column; height: calc(100vh - 58px); min-height: 560px;
+  background: var(--bg1); color: var(--tx); font: 13px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+}
+#design.ps *, #design.ps *::before, #design.ps *::after { box-sizing: border-box; }
+#design.ps .grow { flex: 1; }
+#design.ps .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#design.ps svg { display: block; }
+
+/* ---- barre d'options */
+#design.ps .ps-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+#design.ps .ps-bar .sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
+#design.ps input[type=text], #design.ps select, #design.ps textarea {
+  font: inherit; color: var(--tx); background: var(--bg0); border: 1px solid #000; border-radius: 3px; padding: 5px 8px; width: auto; box-shadow: inset 0 1px 2px rgba(0,0,0,.5); }
+#design.ps select { max-width: 190px; padding-right: 4px; }
+#design.ps option, #design.ps optgroup { background: #222; color: var(--tx); }
+#design.ps input[type=text]:focus, #design.ps select:focus, #design.ps textarea:focus { outline: 1px solid var(--acc); outline-offset: 0; border-color: var(--acc); }
+#design.ps #sv-name { width: 230px; font-size: 14px; }
+#design.ps textarea { width: 100%; resize: vertical; }
+#design.ps .pbtn { display: inline-flex; align-items: center; gap: 6px; font: inherit; color: var(--tx); background: var(--bg3); border: 1px solid #000; border-radius: 3px; padding: 5px 10px; cursor: pointer; }
+#design.ps .pbtn svg { width: 16px; height: 16px; }
+#design.ps .pbtn:hover:not(:disabled) { background: #4a4a4a; }
+#design.ps .pbtn.primary { background: var(--acc); color: #1b1006; border-color: #5a3513; font-weight: 600; }
+#design.ps .pbtn.primary:hover { background: #eba45f; }
+#design.ps .pbtn.small { padding: 2px 8px; font-size: 12px; }
+#design.ps .pbtn[aria-pressed="true"] { background: #4d4030; border-color: var(--acc); }
+#design.ps .cxbadge { padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line2); color: var(--tx2); font-size: 12px; }
+#design.ps .cxbadge b { color: var(--tx); font-weight: 600; }
+
+/* ---- corps : outils | plan de travail | panneaux */
+#design.ps .ps-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 46px minmax(0, 1fr) 340px; }
+
+#design.ps .ps-tools { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; background: var(--bg2); border-right: 1px solid var(--line); overflow-y: auto; }
+#design.ps .ps-tools hr { width: 26px; border: 0; border-top: 1px solid var(--line2); margin: 5px 0; }
+#design.ps .tl { position: relative; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: var(--tx); background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
+#design.ps .tl svg { width: 20px; height: 20px; }
+#design.ps .tl:hover:not(:disabled) { background: var(--bg3); border-color: #000; }
+#design.ps .tl:disabled { opacity: .35; cursor: default; }
+#design.ps .tl.danger { color: #e07a6a; }
+#design.ps .tl.tg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+#design.ps .tl.tg .ic { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 4px; color: var(--tx2); }
+#design.ps .tl.tg input:checked + .ic { color: #1b1006; background: var(--acc); }
+#design.ps .tl.tg input:focus-visible + .ic { outline: 2px solid #fff; outline-offset: 1px; }
+
+#design.ps .ps-stage { background: radial-gradient(circle at 50% 40%, #2a2a2a, var(--bg0) 75%); overflow: auto; display: flex; padding: 26px; min-width: 0; }
+#design.ps .dz-wrap { margin: auto; flex: none; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px #000, 0 12px 44px rgba(0,0,0,.7); position: relative; }
+#design.ps #dz-canvas { display: block; width: 100%; height: auto; }
+#design.ps.expanded .dz-wrap { max-width: none; }
+
+#design.ps .ps-panels { background: var(--bg1); border-left: 1px solid var(--line); overflow-y: auto; }
+#design.ps .pnl { border-bottom: 1px solid var(--line); }
+#design.ps .pnl > summary { list-style: none; display: flex; align-items: center; gap: 6px; padding: 7px 10px; background: var(--bg2); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none;
+  font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--tx2); }
+#design.ps .pnl > summary::-webkit-details-marker { display: none; }
+#design.ps .pnl > summary::before { content: "▸"; font-size: 10px; transition: transform .12s; }
+#design.ps .pnl[open] > summary::before { transform: rotate(90deg); }
+#design.ps .pnl > summary:hover { color: var(--tx); }
+#design.ps .pnl-in { padding: 10px; }
+#design.ps .pnl-sub { margin: 12px 0 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tx2); font-weight: 600; }
+#design.ps .count { margin-left: auto; color: var(--acc); font-weight: 600; letter-spacing: 0; }
+
+/* ---- barre d'état */
+#design.ps .ps-status { display: flex; align-items: center; gap: 8px; padding: 3px 10px; background: var(--bg2); border-top: 1px solid var(--line); font-size: 12px; color: var(--tx2); min-height: 28px; }
+#design.ps .ps-status #dz-msg { color: var(--tx); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#design.ps .ps-status output { min-width: 44px; text-align: center; color: var(--tx); }
+
+/* ---- contenus des panneaux */
+#design.ps label { color: var(--tx2); }
+#design.ps .field { margin: 0 0 12px; }
+#design.ps .field > label:not(.check) { display: block; margin-bottom: 4px; font-family: inherit; letter-spacing: .05em; text-transform: none; font-size: 12px; color: var(--tx2); }
+#design.ps .field select { width: 100%; max-width: none; }
+#design.ps .hint { color: var(--tx2); font-size: 12px; line-height: 1.45; margin: 6px 0; font-style: normal; }
+#design.ps a.link, #design.ps button.link { color: var(--acc); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; }
+#design.ps .row-size { display: flex; align-items: center; gap: 8px; }
+#design.ps .row-size input[type=range] { flex: 1; min-width: 0; accent-color: var(--acc); }
+#design.ps .row-size output { min-width: 42px; text-align: right; color: var(--tx); }
+#design.ps .dz-size { display: block; margin-top: 0; }
+
+#design.ps .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 5px; margin: 0; }
+#design.ps .pal { background: #d9d2c1; border: 1px solid #000; border-radius: 3px; padding: 4px 2px 2px; cursor: grab; }
+#design.ps .pal span { color: #2a2a28; font-size: 9px; letter-spacing: .05em; }
+#design.ps .pal:hover, #design.ps .pal:focus-visible { background: #f0e6d0; border-color: var(--acc); outline: none; }
+#design.ps .pal.full { opacity: .4; }
+#design.ps .pal.taken { opacity: .35; }
+
+#design.ps .dz-list { list-style: none; margin: 0; padding: 0; }
+#design.ps .dz-list li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; color: var(--tx); }
+#design.ps .dz-list li:hover { background: var(--bg2); }
+#design.ps .dz-list li[aria-current="true"] { background: #3d3226; border-color: var(--acc); }
+#design.ps .dz-list .nm { font: 600 12px "Segoe UI", system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--tx); }
+#design.ps .dz-list .nm small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--tx2); font-size: 11px; }
+#design.ps .dz-list i { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 1px #000; }
+#design.ps .dz-list .ctl { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: flex-end; align-items: center; }
+#design.ps .dz-list label { display: inline-flex; gap: 3px; align-items: center; font-size: 11px; color: var(--tx2); cursor: pointer; }
+#design.ps .dz-list input[type=checkbox] { accent-color: var(--acc); margin: 0; }
+#design.ps .dz-list .ord, #design.ps .dz-list .rm { background: var(--bg3); border: 1px solid #000; border-radius: 3px; color: var(--tx2); cursor: pointer; font-size: 10px; line-height: 1; padding: 3px 5px; }
+#design.ps .dz-list .ord:hover, #design.ps .dz-list .rm:hover { color: var(--acc); }
+
+#design.ps .cplx ul { list-style: none; padding: 0; margin: 6px 0; }
+#design.ps .cplx li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line2); font-size: 12px; color: var(--tx); }
+#design.ps .cplx small { color: var(--tx2); }
+#design.ps .cplx-head { margin: 0 0 6px; font-size: 14px; color: var(--tx); }
+#design.ps .cplx-bar { height: 6px; background: #151515; border-radius: 3px; overflow: hidden; }
+#design.ps .cplx-bar i { background: var(--acc); }
+
+#design.ps .brings { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0; }
+#design.ps .bring { background: var(--bg2); border: 1px solid var(--line2); color: var(--tx); padding: 8px 10px; }
+#design.ps .bring h4 { font: 600 13px "Segoe UI", system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; margin: 0 0 4px; color: var(--tx); }
+#design.ps .bring h4 i { box-shadow: 0 0 0 1px #000; }
+#design.ps .bring h5 { color: var(--tx2); font-family: inherit; font-size: 10px; letter-spacing: .09em; }
+#design.ps .bring ul { padding-left: 14px; font-size: 12px; line-height: 1.4; color: var(--tx); }
+#design.ps .sens { padding-left: 0; list-style: none; }
+#design.ps .sens li { margin-bottom: 7px; }
+
+#design.ps .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0; }
+#design.ps .tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--acc); background: transparent; color: var(--tx); font: 11px/1.5 "Segoe UI", system-ui, sans-serif; letter-spacing: 0; }
+#design.ps .tag.locked { border-color: #666; background: rgba(255,255,255,.07); color: #bdbdbd; }
+#design.ps .tag.free { border-style: dashed; }
+#design.ps button.tag.tg { font: 11px/1.5 "Segoe UI", system-ui, sans-serif; letter-spacing: 0; color: #bdbdbd; }
+#design.ps button.tag.tg.on { background: rgba(18,162,106,.2); border-color: var(--ok); color: #eee; }
+#design.ps button.tag.tg::before { border-color: #888; }
+#design.ps button.tag.tg.on::before { background: var(--ok); border-color: var(--ok); }
+#design.ps .tagx { color: inherit; }
+#design.ps .tagctl { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+#design.ps .tagctl input, #design.ps .tagctl select { flex: 1 1 110px; min-width: 0; }
+#design.ps .tagctl .btn { font: inherit; color: var(--tx); background: var(--bg3); border: 1px solid #000; border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+
+/* ---- plein écran */
+#design.ps.expanded { position: fixed; inset: 0; z-index: 60; height: 100vh; padding: 0; overflow: hidden; background: var(--bg1); }
+
+/* ---- petits écrans : les panneaux passent sous le plan de travail */
+@media (max-width: 960px) {
+  #design.ps { height: auto; min-height: 0; }
+  #design.ps .ps-body { display: flex; flex-direction: column; }
+  #design.ps .ps-tools { flex-direction: row; flex-wrap: wrap; justify-content: center; border-right: 0; border-bottom: 1px solid var(--line); padding: 4px; }
+  #design.ps .ps-tools hr { width: 1px; height: 22px; border: 0; border-left: 1px solid var(--line2); margin: 0 4px; }
+  #design.ps .ps-tools .grow { display: none; }
+  #design.ps .ps-stage { min-height: 56vh; padding: 12px; order: -1; }
+  #design.ps .ps-tools { order: 0; }
+  #design.ps .ps-panels { border-left: 0; overflow: visible; order: 1; }
+  #design.ps .ps-bar .pbtn span { display: none; }
+  #design.ps #sv-name { width: 100%; flex: 1 1 100%; }
+  #design.ps .ps-bar .primary span { display: inline; }
+  #design.ps.expanded { overflow: auto; height: 100vh; }
+  #design.ps.expanded .ps-body { flex: 1; overflow: auto; }
+}
+
+/* ---- écrans moyens : les boutons d'export ne gardent que leur icône (le titre dit le reste) */
+@media (max-width: 1240px) {
+  #design.ps .ps-bar .pbtn:not(.primary) span { display: none; }
+  #design.ps #sv-name { width: 190px; }
+  #design.ps .ps-bar select { max-width: 150px; }
+  #design.ps .ps-body { grid-template-columns: 46px minmax(0, 1fr) 310px; }
+}

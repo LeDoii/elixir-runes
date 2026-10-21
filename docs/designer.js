@@ -505,15 +505,32 @@
     else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
   });
 
-  /* ---- mode étendu : la conception occupe toute la fenêtre, plaque agrandie (Échap pour en sortir) */
+  /* ---- vue : le plan de travail s'ajuste à la fenêtre ; − / + ou Ctrl + molette pour agrandir ou réduire la vue (sans toucher à la bindrune) */
+  const stage = $("dz-stage"), wrap = $("dz-wrap");
+  let viewScale = null;                                      // null : ajusté à la fenêtre
+  function applyView() {
+    const cs = getComputedStyle(stage), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const fitW = Math.max(240, Math.min(stage.clientWidth - padX, ((stage.clientHeight - padY) * VW) / VH));
+    const w = Math.round(fitW * (viewScale === null ? 1 : viewScale));
+    wrap.style.width = w + "px";
+    $("dz-view-val").textContent = Math.round((w / VW) * 100) + " %";
+  }
+  const zoomView = (k) => { viewScale = Math.min(4, Math.max(0.25, (viewScale === null ? 1 : viewScale) * k)); applyView(); };
+  $("dz-view-in").addEventListener("click", () => zoomView(1.25));
+  $("dz-view-out").addEventListener("click", () => zoomView(0.8));
+  $("dz-view-fit").addEventListener("click", () => { viewScale = null; applyView(); });
+  stage.addEventListener("wheel", (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomView(e.deltaY < 0 ? 1.1 : 0.9); } }, { passive: false });
+  if (window.ResizeObserver) new ResizeObserver(applyView).observe(stage); else window.addEventListener("resize", applyView);
+
+  /* ---- plein écran : l'atelier occupe toute la fenêtre (Échap pour en sortir) */
   let expanded = false;
   function setExpanded(on) {
     expanded = on;
     $("design").classList.toggle("expanded", on);
     document.body.style.overflow = on ? "hidden" : "";
-    $("dz-expand").textContent = on ? "✕ Quitter le mode étendu" : "⤢ Mode étendu";
+    $("dz-expand").querySelector("span").textContent = on ? "Quitter le plein écran" : "Plein écran";
     $("dz-expand").setAttribute("aria-pressed", String(on));
-    if (on) $("design").scrollTop = 0;
+    applyView();
   }
   $("dz-expand").addEventListener("click", () => setExpanded(!expanded));
   window.addEventListener("hashchange", () => { if (expanded && $("design").hidden) setExpanded(false); });
@@ -567,8 +584,9 @@
   /* ---- complexité : voir complexity.js */
   function renderComplexity() {
     const box = $("dz-complexity");
-    if (!items.length) { box.innerHTML = '<p class="hint">Pose des runes pour évaluer la complexité de la bindrune.</p>'; return; }
+    if (!items.length) { box.innerHTML = '<p class="hint">Pose des runes pour évaluer la complexité de la bindrune.</p>'; $("dz-cx-badge").innerHTML = ""; return; }
     const c = Complexity.rate(platesD());
+    $("dz-cx-badge").innerHTML = "Complexité <b>" + c.level + "</b> · " + c.score + " / 100";
     box.innerHTML = '<p class="cplx-head"><strong>' + c.level + "</strong> · " + c.score + ' / 100</p><div class="cplx-bar"><i style="width:' + c.score + '%"></i></div><ul>' +
       c.parts.map((p) => "<li><span>" + p.label + " <small>(" + p.detail + ")</small></span><b>" + p.pts + " / " + p.max + "</b></li>").join("") + "</ul>" +
       (c.oppositions.length ? '<p class="hint">Sens qui s\'opposent : ' + c.oppositions.map((o) => o.runes[0] + " (" + Tags.label(o.tags[0]) + ") et " + o.runes[1] + " (" + Tags.label(o.tags[1]) + ") : " + o.families[0] + " contre " + o.families[1]).join(" ; ") + ".</p>" : "") +
@@ -675,5 +693,5 @@
   render();
   loadDraft();
   draftReady = true;
-  window.__designer = { setZoom: (z) => { zoom = z; fitAll(); render(); }, getZoom: () => zoom, mirrorAll, getGuides: () => guides, align, draftKey: DRAFT, setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
+  window.__designer = { applyView, setZoom: (z) => { zoom = z; fitAll(); render(); }, getZoom: () => zoom, mirrorAll, getGuides: () => guides, align, draftKey: DRAFT, setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
 })();

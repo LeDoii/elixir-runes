@@ -14,6 +14,7 @@
   <meta name="theme-color" content="#20201E">
   <meta name="description" content="Les 24 runes et un atelier de dessin libre, avec ou sans modèle. Outil fan-made, non affilié à l'équipe d'Elixir RP.">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="ps.css">
 </head>
 <body>
   <header class="top">
@@ -213,84 +214,118 @@
     </section>
 
     <!-- ============================ BINDRUNE ============================ -->
-    <section id="design" role="tabpanel" aria-labelledby="tab-design" hidden>
-      <div class="grid2 design">
-        <div class="plate-wrap">
-          <div class="dz-top"><button id="dz-expand" class="btn ghost small" aria-pressed="false">⤢ Mode étendu</button></div>
-          <div class="dz-wrap">
+    <section id="design" class="ps" role="tabpanel" aria-labelledby="tab-design" hidden>
+      <!-- barre d'options : nom, enregistrement, sorties -->
+      <div class="ps-bar">
+        <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
+        <button id="sv-save" class="pbtn primary" type="button" title="Enregistrer dans Mes bindrunes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Enregistrer</span></button>
+        <select id="dz-open" aria-label="Ouvrir une bindrune enregistrée"></select>
+        <span class="sep"></span>
+        <button id="dz-export" class="pbtn" type="button" title="Exporter la plaque en PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 19h16"/></svg><span>PNG</span></button>
+        <button id="dz-sheet-png" class="pbtn" type="button" title="Fiche A4 en PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Fiche PNG</span></button>
+        <button id="dz-sheet-pdf" class="pbtn" type="button" title="Fiche A4 en PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Fiche PDF</span></button>
+        <span class="grow"></span>
+        <span id="dz-cx-badge" class="cxbadge" title="Complexité de la bindrune"></span>
+        <button id="dz-expand" class="pbtn" type="button" aria-pressed="false" title="Plein écran (Échap pour quitter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Plein écran</span></button>
+      </div>
+
+      <div class="ps-body">
+        <!-- barre d'outils -->
+        <div class="ps-tools" role="toolbar" aria-label="Outils">
+          <button id="dz-undo" class="tl" type="button" title="Annuler (Ctrl+Z)" aria-label="Annuler (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button id="dz-redo" class="tl" type="button" title="Rétablir (Ctrl+Y)" aria-label="Rétablir (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+          <hr>
+          <button id="dz-mirror-v" class="tl" type="button" title="Miroir vertical : le haut devient le bas" aria-label="Miroir vertical : le haut devient le bas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18" stroke-dasharray="2 2"/><path d="M12 4 6 10h12z"/><path d="M12 20 6 14h12z"/></svg></button>
+          <button id="dz-mirror-h" class="tl" type="button" title="Miroir horizontal : la gauche devient la droite" aria-label="Miroir horizontal : la gauche devient la droite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 2"/><path d="M4 12l6-6v12z"/><path d="M20 12l-6-6v12z"/></svg></button>
+          <hr>
+          <button id="dz-center" class="tl" type="button" title="Centrer la sélection" aria-label="Centrer la sélection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg></button>
+          <button id="dz-center-all" class="tl" type="button" title="Tout centrer" aria-label="Tout centrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/></svg></button>
+          <hr>
+          <label class="tl tg" title="Magnétisme : les points d'ancrage s'aimantent"><input type="checkbox" id="dz-magnet" checked><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v8a7 7 0 0 0 14 0V3h-4v8a3 3 0 0 1-6 0V3z"/><path d="M5 7h4M15 7h4"/></svg></span><span class="sr">Magnétisme : les points d'ancrage s'aimantent</span></label>
+          <label class="tl tg" title="Repères d'alignement : bords et centres des runes, centre de la plaque"><input type="checkbox" id="dz-align" checked><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20" stroke-dasharray="3 3"/><rect x="7" y="7" width="10" height="10"/></svg></span><span class="sr">Repères d'alignement : bords et centres des runes, centre de la plaque</span></label>
+          <label class="tl tg" title="Strates colorées : une couleur par rune, sans l'effet du support"><input type="checkbox" id="dz-strata"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></span><span class="sr">Strates colorées : une couleur par rune, sans l'effet du support</span></label>
+          <label class="tl tg" title="Mode avancé : jusqu'à 6 runes et une même rune plusieurs fois"><input type="checkbox" id="dz-adv"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg></span><span class="sr">Mode avancé : jusqu'à 6 runes et une même rune plusieurs fois</span></label>
+          <span class="grow"></span>
+          <button id="dz-clear" class="tl danger" type="button" title="Tout retirer" aria-label="Tout retirer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div>
+
+        <!-- plan de travail -->
+        <div class="ps-stage" id="dz-stage">
+          <div class="dz-wrap" id="dz-wrap">
             <canvas id="dz-canvas" width="1600" height="1280" aria-hidden="true"></canvas>
             <svg id="dz" viewBox="0 0 800 640" aria-label="Zone de conception de la bindrune"></svg>
           </div>
-          <div class="dz-bar">
-            <div class="dz-group" role="group" aria-label="Historique">
-              <button id="dz-undo" class="btn ghost" disabled>↶ Annuler</button>
-              <button id="dz-redo" class="btn ghost" disabled>↷ Rétablir</button>
-            </div>
-            <div class="dz-group" role="group" aria-label="Centrage">
-              <button id="dz-center" class="btn ghost">Centrer la sélection</button>
-              <button id="dz-center-all" class="btn ghost">Tout centrer</button>
-            </div>
-            <div class="dz-group" role="group" aria-label="Miroir de la bindrune">
-              <button id="dz-mirror-v" class="btn ghost" title="Retourne toute la bindrune : le haut devient le bas">⇅ Miroir vertical</button>
-              <button id="dz-mirror-h" class="btn ghost" title="Retourne toute la bindrune : la gauche devient la droite">⇄ Miroir horizontal</button>
-            </div>
-            <div class="dz-group" role="group" aria-label="Sortie">
-              <button id="dz-export" class="btn ghost">Exporter en PNG</button>
-              <button id="dz-sheet-png" class="btn ghost">Fiche PNG</button>
-              <button id="dz-sheet-pdf" class="btn ghost">Fiche PDF</button>
-            </div>
-            <div class="dz-group dz-danger" role="group" aria-label="Effacer">
-              <button id="dz-clear" class="btn ghost">Tout retirer</button>
-            </div>
-          </div>
-          <div class="dz-size">
-            <label for="dz-size">Taille de la bindrune</label>
-            <input id="dz-size" type="range" min="40" max="160" step="5" value="100">
-            <output id="dz-size-val" for="dz-size">100 %</output>
-            <button id="dz-size-reset" class="btn ghost small" type="button">100 %</button>
-          </div>
-          <p id="dz-msg" class="hint center-text" role="status"></p>
-          <h3>Complexité</h3>
-          <div id="dz-complexity" class="cplx"></div>
-          <h3>Ce que chaque rune apporte</h3>
-          <div id="dz-brings" class="brings"></div>
         </div>
-        <div class="text">
-          <h2>Bindrune</h2>
-          <p>Choisis des runes dans la palette, glisse-les sur la plaque et assemble-les. Les extrémités et les angles
-            de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie.</p>
-          <div class="field">
-            <label for="dz-support">Support de gravure</label>
-            <select id="dz-support"></select>
-            <p class="hint" id="dz-support-note"></p>
-          </div>
-          <h3>Palette <span id="dz-count" class="count"></span></h3>
-          <div id="palette" class="palette"></div>
-          <div class="field">
-            <label class="check"><input type="checkbox" id="dz-magnet" checked> Magnétisme</label>
-            <label class="check"><input type="checkbox" id="dz-align" checked> Repères d'alignement (bords et centres des runes, centre de la plaque)</label>
-            <label class="check"><input type="checkbox" id="dz-strata"> Strates colorées (une couleur par rune, sans l'effet du support)</label>
-            <label class="check"><input type="checkbox" id="dz-adv"> Mode avancé (jusqu'à 6 runes au lieu de 4, et une même rune plusieurs fois)</label>
-          </div>
-          <h3>Sur la plaque</h3>
-          <ul id="dz-list" class="dz-list"></ul>
-          <p class="hint">Glisse une rune pour la déplacer ; clic maintenu sur le fond pour entourer plusieurs runes (Maj ou Ctrl : ajouter à la sélection, Ctrl+A : toutes) ; flèches du clavier pour ajuster (Maj : par 10), Suppr pour retirer.
-            La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle. « Verrou » empêche de la déplacer ; ▲ et ▼ la mettent au premier plan ou à l'arrière-plan. La composition en cours est gardée comme brouillon dans ce navigateur.</p>
-          <h3>Enregistrer</h3>
-          <div class="save-row">
-            <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
-            <button id="sv-save" class="btn">Enregistrer</button>
-          </div>
-          <textarea id="sv-desc" rows="2" maxlength="300" placeholder="Description (facultative, 300 caractères) : à quoi sert cette bindrune ?" aria-label="Description"></textarea>
-          <div id="sv-tags"></div>
-          <p class="hint">Étiquettes grises : les sens gardés de chaque rune (cases à cocher dans « Ce que chaque rune apporte »). Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
-          <div class="field" style="margin-top:.8rem">
-            <label for="dz-open">Ouvrir une bindrune enregistrée</label>
-            <select id="dz-open"></select>
-          </div>
-          <p id="sv-msg" class="hint" role="status"></p>
-          <p class="hint">Liste, renommage, partage, import et export : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>.</p>
-        </div>
+
+        <!-- panneaux -->
+        <aside class="ps-panels" aria-label="Panneaux">
+          <details class="pnl" open>
+            <summary>Calques <span id="dz-count" class="count"></span></summary>
+            <div class="pnl-in">
+              <ul id="dz-list" class="dz-list"></ul>
+              <p class="hint">Glisse une rune pour la déplacer ; clic maintenu sur le fond pour en entourer plusieurs (Maj ou Ctrl : ajouter, Ctrl+A : toutes) ; flèches pour ajuster (Maj : par 10), Suppr pour retirer. « Aimant » libère la rune de tout magnétisme, « Verrou » l'empêche de bouger, ▲ ▼ changent l'ordre d'empilement.</p>
+            </div>
+          </details>
+          <details class="pnl" open>
+            <summary>Propriétés</summary>
+            <div class="pnl-in">
+              <div class="field">
+                <label for="dz-support">Support de gravure</label>
+                <select id="dz-support"></select>
+                <p class="hint" id="dz-support-note"></p>
+              </div>
+              <div class="field dz-size">
+                <label for="dz-size">Taille de la bindrune</label>
+                <div class="row-size">
+                  <input id="dz-size" type="range" min="40" max="160" step="5" value="100">
+                  <output id="dz-size-val" for="dz-size">100 %</output>
+                  <button id="dz-size-reset" class="pbtn small" type="button" title="Taille d'origine">100 %</button>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details class="pnl" open>
+            <summary>Runes</summary>
+            <div class="pnl-in"><div id="palette" class="palette"></div></div>
+          </details>
+          <details class="pnl">
+            <summary>Complexité</summary>
+            <div class="pnl-in"><div id="dz-complexity" class="cplx"></div></div>
+          </details>
+          <details class="pnl">
+            <summary>Sens et étiquettes</summary>
+            <div class="pnl-in">
+              <div id="dz-brings" class="brings"></div>
+              <h4 class="pnl-sub">Étiquettes de la bindrune</h4>
+              <div id="sv-tags"></div>
+              <p class="hint">Étiquettes grises : celles qui sont actives ci-dessus. Tu peux en ajouter d'autres, de la liste ou libres (6 au plus). Une bindrune porte au moins une étiquette.</p>
+            </div>
+          </details>
+          <details class="pnl">
+            <summary>Description</summary>
+            <div class="pnl-in">
+              <textarea id="sv-desc" rows="3" maxlength="300" placeholder="Description (facultative, 300 caractères) : à quoi sert cette bindrune ?" aria-label="Description"></textarea>
+              <p id="sv-msg" class="hint" role="status"></p>
+              <p class="hint">Liste, renommage, partage, import et export : onglet <button type="button" class="link" id="sv-manage">Mes bindrunes</button>. La composition en cours est gardée comme brouillon dans ce navigateur.</p>
+            </div>
+          </details>
+          <details class="pnl">
+            <summary>Aide</summary>
+            <div class="pnl-in">
+              <p class="hint">Choisis des runes dans le panneau « Runes », glisse-les sur la plaque et assemble-les. Les extrémités et les angles de chaque rune portent un point d'ancrage (la petite boule) : en approchant deux points, ils s'aimantent. Clique sur deux points qui se touchent pour <strong>lier</strong> les runes : leurs points deviennent verts et l'ensemble se déplace d'un bloc ; un second clic délie. Quatre runes au plus (six en mode avancé).</p>
+            </div>
+          </details>
+        </aside>
+      </div>
+
+      <!-- barre d'état -->
+      <div class="ps-status">
+        <span id="dz-msg" role="status"></span>
+        <span class="grow"></span>
+        <button id="dz-view-out" class="pbtn small" type="button" title="Réduire la vue (Ctrl + molette)" aria-label="Réduire la vue">−</button>
+        <output id="dz-view-val">100 %</output>
+        <button id="dz-view-in" class="pbtn small" type="button" title="Agrandir la vue (Ctrl + molette)" aria-label="Agrandir la vue">+</button>
+        <button id="dz-view-fit" class="pbtn small" type="button" title="Ajuster la vue à la fenêtre">Ajuster</button>
       </div>
     </section>
   </main>
