@@ -69,28 +69,29 @@
       $("b-msg").textContent = j.total ? "" : "Aucune bindrune.";
       const ul = $("b-list"); ul.innerHTML = "";
       j.items.forEach((it) => {
-        const li = el("li", "mcard"), info = el("div"), acts = el("div", "macts");
-        li.appendChild(preview(it.d));
-        const h = el("h4", "", it.name);
-        h.appendChild(el("span", "badge " + it.source, it.source === "code" ? "code court" : "compte"));
-        if (it.published) h.appendChild(el("span", "badge pub", "publiée"));
-        info.appendChild(h);
-        info.appendChild(el("p", "meta", (it.d ? it.d.r.map((e) => e.n).join(" · ") + " · " + Supports.get(it.d.s).label : "données illisibles") + " · " + fmt(it.at)));
-        info.appendChild(el("p", "meta", (it.source === "code" ? "Code " + it.id.slice(0, 4) + "-" + it.id.slice(4) + " · " : "") + (it.user ? "Auteur : " + (it.user.name || "?") + " (" + it.user.id + ")" : "Anonyme")));
-        if (it.description) info.appendChild(el("p", "desc", it.description));
-        if ((it.tags || []).length) info.appendChild(el("p", "meta", "Étiquettes : " + it.tags.join(", ")));
-        if (it.published) action(acts, "Dépublier", async () => {
+        const unpublish = async () => {
           if (!confirm("Retirer « " + it.name + " » de la galerie ? Elle reste sur le compte de son auteur.")) return;
           try { await post("/api/admin/bindrunes/account/" + encodeURIComponent(it.id) + "/unpublish", {}); await loadBind(state.bind.page); $("b-msg").textContent = "« " + it.name + " » dépubliée."; }
           catch (e) { $("b-msg").textContent = "Action impossible : " + e.message; }
-        });
-        if (it.user) action(acts, "Voir l'auteur", () => { state.user = it.user.id; showChip(it.user.name || it.user.id); loadBind(1); });
-        action(acts, "Supprimer", async () => {
+        };
+        const del = async () => {
           if (!confirm("Supprimer définitivement « " + it.name + " » ?" + (it.source === "code" ? " Le code court ne fonctionnera plus." : ""))) return;
           try { await api("/api/admin/bindrunes/" + it.source + "/" + encodeURIComponent(it.id), { method: "DELETE" }); await loadBind(state.bind.page); loadStats(); $("b-msg").textContent = "« " + it.name + " » supprimée."; }
           catch (e) { $("b-msg").textContent = "Suppression impossible : " + e.message; }
-        }, true);
-        info.appendChild(acts); li.appendChild(info); ul.appendChild(li);
+        };
+        ul.appendChild(Cards.card({
+          preview: preview(it.d).firstChild, tag: it.published ? "Publiée" : "",
+          name: it.name, badges: [[it.source === "code" ? "code court" : "compte", it.source]],
+          by: it.user ? "Auteur : " + (it.user.name || "?") + " (" + it.user.id + ")" : "Anonyme",
+          runes: it.d ? it.d.r.map((e) => e.n).join(" · ") : "données illisibles",
+          meta: [(it.d ? Supports.get(it.d.s).label + " · " : "") + fmt(it.at) + (it.source === "code" ? " · Code " + it.id.slice(0, 4) + "-" + it.id.slice(4) : "")],
+          desc: it.description, extra: (it.tags || []).length ? [el("p", "bmeta", "Étiquettes : " + it.tags.join(", "))] : [],
+          actions: [
+            it.user && Cards.button("Voir l'auteur", () => { state.user = it.user.id; showChip(it.user.name || it.user.id); loadBind(1); }, true),
+            it.published && Cards.button("Dépublier", unpublish),
+            Cards.dropdown("⋯", [["Supprimer", del, true]], "more"),
+          ],
+        }));
       });
       pager("b", j.page, j.pages, j.total, loadBind);
     } catch (e) { $("b-msg").textContent = e.message; }
@@ -114,24 +115,18 @@
       $("u-msg").textContent = j.total ? "" : "Aucun utilisateur.";
       const ul = $("u-list"); ul.innerHTML = "";
       j.items.forEach((u) => {
-        const li = el("li", "mcard ucard"), info = el("div"), acts = el("div", "macts");
-        const h = el("h4", "", u.name);
-        if (u.admin) h.appendChild(el("span", "badge admin", "admin"));
-        if (u.banned) h.appendChild(el("span", "badge banned", "bloqué"));
-        info.appendChild(h);
-        info.appendChild(el("p", "meta", "@" + u.username + " · " + u.id));
-        info.appendChild(el("p", "meta", "Inscrit " + fmt(u.created_at) + " · dernière connexion " + fmt(u.last_login)));
-        info.appendChild(el("p", "meta", u.bindrunes + " bindrune" + (u.bindrunes > 1 ? "s" : "") + " · " + u.codes + " code" + (u.codes > 1 ? "s" : "") + " court" + (u.codes > 1 ? "s" : "")));
-        action(acts, "Voir ses bindrunes", () => { state.user = u.id; showChip(u.name); select("bind"); loadBind(1); });
-        if (!u.admin) {
-          action(acts, u.banned ? "Débloquer" : "Bloquer", async () => {
-            const verb = u.banned ? "Débloquer" : "Bloquer";
-            if (!confirm(verb + " " + u.name + " ?" + (u.banned ? "" : " Sa connexion sera refusée et ses sessions coupées ; ses bindrunes restent."))) return;
-            try { await post("/api/admin/users/" + u.id + "/ban", { banned: !u.banned }); await loadUsers(state.users.page); loadStats(); $("u-msg").textContent = u.name + (u.banned ? " débloqué." : " bloqué."); }
-            catch (e) { $("u-msg").textContent = "Action impossible : " + e.message; }
-          }, !u.banned);
-        }
-        info.appendChild(acts); li.appendChild(info); ul.appendChild(li);
+        const ban = async () => {
+          const verb = u.banned ? "Débloquer" : "Bloquer";
+          if (!confirm(verb + " " + u.name + " ?" + (u.banned ? "" : " Sa connexion sera refusée et ses sessions coupées ; ses bindrunes restent."))) return;
+          try { await post("/api/admin/users/" + u.id + "/ban", { banned: !u.banned }); await loadUsers(state.users.page); loadStats(); $("u-msg").textContent = u.name + (u.banned ? " débloqué." : " bloqué."); }
+          catch (e) { $("u-msg").textContent = "Action impossible : " + e.message; }
+        };
+        ul.appendChild(Cards.card({
+          name: u.name, badges: [u.admin && ["admin", "admin"], u.banned && ["bloqué", "banned"]].filter(Boolean),
+          by: "@" + u.username + " · " + u.id,
+          meta: ["Inscrit " + fmt(u.created_at) + " · dernière connexion " + fmt(u.last_login), u.bindrunes + " bindrune" + (u.bindrunes > 1 ? "s" : "") + " · " + u.codes + " code" + (u.codes > 1 ? "s" : "") + " court" + (u.codes > 1 ? "s" : "")],
+          actions: [Cards.button("Voir ses bindrunes", () => { state.user = u.id; showChip(u.name); select("bind"); loadBind(1); }, true), !u.admin && Cards.dropdown("⋯", [[u.banned ? "Débloquer" : "Bloquer", ban, !u.banned]], "more")],
+        }));
       });
       pager("u", j.page, j.pages, j.total, loadUsers);
     } catch (e) { $("u-msg").textContent = e.message; }

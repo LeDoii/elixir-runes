@@ -293,22 +293,7 @@
     else all.sort((x, y) => (y.at || 0) - (x.at || 0));
     return all;
   }
-  /** Menu déroulant : un bouton qui ouvre une liste d'actions (un seul ouvert à la fois, fermé au clic ailleurs ou sur Échap). */
-  function dropdown(label, items, cls) {
-    const dd = document.createElement("details"), sm = document.createElement("summary"), box = document.createElement("div");
-    dd.className = "dd" + (cls ? " " + cls : ""); sm.textContent = label; box.className = "ddm";
-    items.filter(Boolean).forEach(([text, fn, danger]) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.textContent = text; if (danger) b.className = "danger";
-      b.addEventListener("click", () => { dd.open = false; fn(); });
-      box.appendChild(b);
-    });
-    dd.append(sm, box);
-    return dd;
-  }
-  document.addEventListener("click", (e) => { document.querySelectorAll("#mine details.dd[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll("#mine details.dd[open]").forEach((d) => { d.open = false; }); });
-  document.addEventListener("toggle", (e) => { if (e.target.matches && e.target.matches("#mine details.dd") && e.target.open) document.querySelectorAll("#mine details.dd[open]").forEach((d) => { if (d !== e.target) d.open = false; }); }, true);
+  const dropdown = Cards.dropdown;
 
   function card(rec) {
     const li = document.createElement("li"), pv = document.createElement("div"), body = document.createElement("div");
@@ -421,7 +406,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { applyRemote, dropLocal, sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { applyRemote, dropLocal, sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, cxOf, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

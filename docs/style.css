@@ -317,7 +317,7 @@ input.search:focus, select:focus { outline: 2px solid rgba(164,85,31,.45); outli
 .mine-empty { text-align: center; padding: 3rem 1rem; border: 1px dashed var(--grey); color: var(--grey2); font-size: 1.2rem; }
 .mine-empty small { font-size: .95rem; }
 .mine-none { grid-column: 1 / -1; text-align: center; padding: 2rem 1rem; color: var(--grey2); font-style: italic; }
-#mine .mine-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.1rem; align-items: stretch; }
+.bgrid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.1rem; align-items: stretch; }
 .bcard { display: flex; flex-direction: column; border: 1px solid var(--line); background: rgba(255,255,255,.4); }
 .bpv { position: relative; aspect-ratio: 4 / 3; display: grid; place-items: center; padding: 14px; background: radial-gradient(circle at 38% 32%, #E2A982, #CD8F66 55%, #A9704C); }
 .bpv { overflow: hidden; }
@@ -351,3 +351,11 @@ input.search:focus, select:focus { outline: 2px solid rgba(164,85,31,.45); outli
 .bed summary { cursor: pointer; font-size: .9rem; color: var(--warm); text-decoration: underline; list-style: none; }
 .bed summary::-webkit-details-marker { display: none; }
 .bed[open] summary { margin-bottom: .4rem; }
+.bgrid.one { grid-template-columns: minmax(280px, 380px); justify-content: center; }
+.g-shared { margin-bottom: 1.4rem; padding: .8rem; border: 1px solid var(--warm); background: rgba(164,85,31,.06); }
+.g-shared .feat { margin: 0 0 .6rem; font-family: ui-monospace, Consolas, monospace; font-size: .74rem; letter-spacing: .16em; text-transform: uppercase; color: var(--warm); text-align: center; }
+.bby { margin: 0; font-style: italic; color: var(--ink); }
+.btags button.tg { font: inherit; font-size: .85rem; padding: .05rem .55rem; border: 1px solid var(--grey); border-radius: 999px; background: rgba(255,255,255,.35); color: var(--text); cursor: pointer; }
+.btags button.tg:hover { border-color: var(--warm); color: var(--warm); }
+.bcard.nopv .bbody { padding-top: .9rem; }
+.bname .badge { font-family: ui-monospace, Consolas, monospace; }

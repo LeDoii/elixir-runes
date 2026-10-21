@@ -57,27 +57,23 @@
 
     <!-- ============================ GALERIE ============================ -->
     <section id="galerie" role="tabpanel" aria-labelledby="tab-galerie" hidden>
-      <div id="g-shared" class="inbox" hidden></div>
-      <div class="grid2 mine-top">
-        <div class="text">
-          <h2>Galerie</h2>
-          <p>Les bindrunes publiées par les joueurs. Chacune est créditée à son auteur : ouvre-la dans l'onglet Bindrune,
-            entraîne-toi à la tracer ou enregistre-en une copie.</p>
-          <p class="hint">Pour publier une des tiennes : connecte-toi avec Discord dans « Mes bindrunes », puis « Publier dans la galerie ».</p>
+      <div id="g-shared" class="g-shared" hidden></div>
+      <header class="mine-head">
+        <div class="mine-title">
+          <h2>Galerie <span id="g-count" class="mine-count"></span></h2>
+          <p class="lead">Les bindrunes publiées par les joueurs, chacune créditée à son auteur. Pour publier une des tiennes : connecte-toi avec Discord dans « Mes bindrunes », puis « Publier dans la galerie ».</p>
         </div>
-        <div class="text">
-          <div class="toolbar">
-            <input id="g-q" type="search" placeholder="Nom, description, étiquette ou auteur" aria-label="Recherche" autocomplete="off">
-            <select id="g-tag" aria-label="Étiquette"></select>
-            <select id="g-sort" aria-label="Tri">
-              <option value="recent">Les plus récentes</option>
-              <option value="name">Par nom</option>
-            </select>
-          </div>
-        </div>
+      </header>
+      <div class="mine-bar">
+        <input id="g-q" type="search" placeholder="Nom, description, étiquette ou auteur" aria-label="Recherche" autocomplete="off">
+        <select id="g-tag" aria-label="Étiquette"></select>
+        <select id="g-sort" aria-label="Tri">
+          <option value="recent">Les plus récentes</option>
+          <option value="name">Par nom</option>
+        </select>
       </div>
-      <p id="g-msg" class="hint center-text" role="status"></p>
-      <ul id="g-list" class="mine-grid"></ul>
+      <p id="g-msg" class="status" role="status"></p>
+      <ul id="g-list" class="bgrid"></ul>
       <div class="pager"><button id="g-prev" class="btn ghost">Précédent</button><span id="g-page" class="hint"></span><button id="g-next" class="btn ghost">Suivant</button></div>
     </section>
 
@@ -129,7 +125,7 @@
       <p id="mine-msg" class="status" role="status"></p>
       <p id="acc-msg" class="status" role="status"></p>
       <p id="mine-empty" class="mine-empty">Aucune bindrune enregistrée pour l'instant.<br><small>Compose-en une dans l'onglet Bindrune, puis clique sur « Enregistrer ».</small></p>
-      <ul id="mine-list" class="mine-grid"></ul>
+      <ul id="mine-list" class="bgrid"></ul>
     </section>
 
     <!-- ============================ DESSIN LIBRE ============================ -->
@@ -563,6 +559,7 @@
   <script src="zip.js"></script>
   <script src="export.js"></script>
   <script src="diff.js"></script>
+  <script src="cards.js"></script>
   <script src="tags.js"></script>
   <script src="complexity.js"></script>
   <script src="sheet.js"></script>

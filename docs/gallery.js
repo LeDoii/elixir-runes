@@ -49,34 +49,36 @@
     catch (e) { say("Fiche impossible : " + e.message); }
   }
 
+  /** Quelques étiquettes cliquables (elles filtrent la galerie) ; le reste en « + N ». */
+  function tagRow(item) {
+    const all = Tags.all(item.d, item.tags), row = el("p", "btags");
+    all.slice(0, 5).forEach((t) => { const c = el("button", "tg", Tags.label(t)); c.type = "button"; c.title = "Voir les bindrunes « " + Tags.label(t) + " »"; c.addEventListener("click", () => pickTag(Tags.norm(t))); row.appendChild(c); });
+    if (all.length > 5) row.appendChild(el("span", "more", "+ " + (all.length - 5)));
+    return row;
+  }
+  const openIn = (item) => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } }));
+  const copyLink = (item) => {
+    const url = location.origin + "/#galerie=" + item.id;
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say("Lien copié."), () => prompt("Copie ce lien :", url));
+    else prompt("Copie ce lien :", url);
+  };
   function card(item, shared) {
-    const li = el("li", "mcard"), info = el("div"), acts = el("div", "macts");
-    const pv = el("div", "mprev"); pv.innerHTML = B.previewSVG(item.d);
-    info.appendChild(el("h4", "", item.name));
-    info.appendChild(el("p", "author", "par " + item.author));
-    info.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label + " · " + B.cxLine(item.d) + (item.published_at ? " · publiée le " + fmt(item.published_at) : "")));
-    if (item.description) info.appendChild(el("p", "desc", item.description));
-    info.appendChild(Tags.chips(Tags.derive(item.d), item.tags || [], pickTag));
-    action(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
-    action(acts, "S'entraîner", () => {
+    const c = B.cxOf(item.d), lvl = el("span", "", "Complexité " + c.level.toLowerCase() + " · " + c.score + " / 100"), meta = el("span");
+    lvl.className = "lvl"; meta.append(lvl, document.createTextNode(" · " + Supports.get(item.d.s).label + (item.published_at ? " · publiée le " + fmt(item.published_at) : "")));
+    const train = () => {
       const rec = keep(item);
       if (rec) window.dispatchEvent(new CustomEvent("bindrune:train", { detail: { name: rec.name } }));
       else say("Impossible d'enregistrer une copie : stockage du navigateur indisponible.");
+    };
+    return Cards.card({
+      preview: B.previewSVG(item.d), name: item.name, by: "par " + item.author, runes: B.runesLine(item.d), meta: [meta], desc: item.description, extra: [tagRow(item)],
+      actions: [
+        Cards.button("Ouvrir", () => openIn(item), true, "Ouvrir dans l'onglet Bindrune"),
+        Cards.button("Enregistrer chez moi", () => { const rec = keep(item); say(rec ? "« " + rec.name + " » enregistrée dans « Mes bindrunes » (d'après " + item.author + ")." : "Enregistrement impossible : stockage du navigateur indisponible."); }),
+        Cards.dropdown("Fiche", [["Fiche PNG", () => sheet(item, "png")], ["Fiche PDF", () => sheet(item, "pdf")]]),
+        Cards.dropdown("⋯", [["S'entraîner", train], ["Copier le lien", () => copyLink(item)], !shared && ["Autres bindrunes de cet auteur", () => { $("g-q").value = item.author; load(1); }]], "more"),
+      ],
     });
-    action(acts, "Enregistrer chez moi", () => {
-      const rec = keep(item);
-      say(rec ? "« " + rec.name + " » enregistrée dans « Mes bindrunes » (d'après " + item.author + ")." : "Enregistrement impossible : stockage du navigateur indisponible.");
-    });
-    action(acts, "Fiche PNG", () => sheet(item, "png"));
-    action(acts, "Fiche PDF", () => sheet(item, "pdf"));
-    action(acts, "Lien", () => {
-      const url = location.origin + "/#galerie=" + item.id;
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say("Lien copié."), () => prompt("Copie ce lien :", url));
-      else prompt("Copie ce lien :", url);
-    });
-    if (!shared) action(acts, "Autres bindrunes de cet auteur", () => { $("g-q").value = item.author; load(1); });
-    info.appendChild(acts); li.appendChild(pv); li.appendChild(info);
-    return li;
   }
 
   async function load(page) {
@@ -89,6 +91,7 @@
     try {
       const j = await api("/api/gallery?" + q.toString());
       state.page = j.page;
+      $("g-count").textContent = j.total ? "· " + j.total : "";
       say(j.total ? "" : ($("g-q").value.trim() || state.tag ? "Aucune bindrune ne correspond." : "La galerie est vide pour l'instant."));
       const ul = $("g-list"); ul.innerHTML = "";
       j.items.forEach((it) => ul.appendChild(card(it, false)));
@@ -104,17 +107,11 @@
     try {
       const item = await api("/api/gallery/" + encodeURIComponent(id));
       box.innerHTML = ""; box.hidden = false;
-      const pv = el("div", "mprev"); pv.innerHTML = B.previewSVG(item.d);
-      const body = el("div");
-      body.appendChild(el("h3", "", "« " + item.name + " », par " + item.author));
-      body.appendChild(el("p", "meta", B.runesLine(item.d) + " · " + Supports.get(item.d.s).label + " · " + B.cxLine(item.d)));
-      if (item.description) body.appendChild(el("p", "desc", item.description));
-      body.appendChild(Tags.chips(Tags.derive(item.d), item.tags || [], pickTag));
-      const acts = el("div", "macts");
-      action(acts, "Ouvrir dans Bindrune", () => window.dispatchEvent(new CustomEvent("bindrune:open", { detail: { name: item.name, description: item.description, tags: item.tags, d: item.d } })));
-      action(acts, "Enregistrer chez moi", () => { const rec = keep(item); say(rec ? "« " + rec.name + " » enregistrée dans « Mes bindrunes »." : "Enregistrement impossible."); });
-      action(acts, "Fermer", () => { box.hidden = true; });
-      body.appendChild(acts); box.appendChild(pv); box.appendChild(body);
+      const li = card(item, true);
+      li.classList.add("featured");
+      const head = el("p", "feat", "Bindrune partagée avec toi"), close = Cards.button("Fermer", () => { box.hidden = true; });
+      li.querySelector(".bacts").appendChild(close);
+      box.append(head, el("ul", "bgrid one")); box.lastChild.appendChild(li);
     } catch (e) { say("Cette bindrune n'est plus dans la galerie."); }
   }
 

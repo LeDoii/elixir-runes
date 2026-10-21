@@ -30,7 +30,7 @@
       <ul id="adm-stats" class="statgrid"></ul>
 
       <section id="p-bind">
-        <div class="toolbar">
+        <div class="toolbar mine-bar">
           <select id="f-source" aria-label="Source">
             <option value="">Comptes et codes courts</option>
             <option value="account">Bindrunes de comptes</option>
@@ -44,15 +44,15 @@
           <a id="f-export" class="btn ghost" href="/api/admin/export" download>Exporter (JSON)</a>
         </div>
         <p id="f-chip" class="hint" hidden></p>
-        <p id="b-msg" class="hint" role="status"></p>
-        <ul id="b-list" class="admin-grid"></ul>
+        <p id="b-msg" class="status" role="status"></p>
+        <ul id="b-list" class="bgrid"></ul>
         <div class="pager"><button id="b-prev" class="btn ghost">Précédent</button><span id="b-page" class="hint"></span><button id="b-next" class="btn ghost">Suivant</button></div>
       </section>
 
       <section id="p-users" hidden>
-        <div class="toolbar"><input id="u-q" type="search" placeholder="Pseudo ou identifiant Discord" aria-label="Recherche" autocomplete="off"></div>
-        <p id="u-msg" class="hint" role="status"></p>
-        <ul id="u-list" class="admin-grid"></ul>
+        <div class="toolbar mine-bar"><input id="u-q" type="search" placeholder="Pseudo ou identifiant Discord" aria-label="Recherche" autocomplete="off"></div>
+        <p id="u-msg" class="status" role="status"></p>
+        <ul id="u-list" class="bgrid"></ul>
         <div class="pager"><button id="u-prev" class="btn ghost">Précédent</button><span id="u-page" class="hint"></span><button id="u-next" class="btn ghost">Suivant</button></div>
       </section>
 
@@ -84,6 +84,7 @@
   <script src="data.js"></script>
   <script src="geom.js"></script>
   <script src="supports.js"></script>
+  <script src="cards.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>
