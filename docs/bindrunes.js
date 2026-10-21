@@ -32,6 +32,8 @@
       if (kept && kept.length < Tags.runeTags(e.n).length) entry.t = kept;
       const f = Number.isInteger(e.f) && e.f > 0 && e.f <= 3 ? e.f : 0;      // miroir : 1 haut ↔ bas, 2 gauche ↔ droite
       if (f) entry.f = f;
+      const k = isNum(e.k) ? Math.round(Math.min(3, Math.max(0.25, e.k)) * 100) / 100 : 1;              // échelle de la rune (1 : taille d'origine)
+      if (k !== 1) entry.k = k;
       r.push(entry);
     }
     const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
@@ -181,12 +183,12 @@
   const say = (t) => { $("mine-msg").textContent = t; };
   function previewSVG(d) {
     const parts = [];
-    d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, pts: s.pts })));
+    d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;
     return '<svg viewBox="' + x0 + " " + y0 + " " + (x1 - x0) + " " + (y1 - y0) + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      parts.map((p) => '<polyline points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="none" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + D.strokeWidth + '" stroke-linejoin="miter"/>').join("") + "</svg>";
+      parts.map((p) => '<polyline points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="none" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + D.strokeWidth * p.k + '" stroke-linejoin="miter"/>').join("") + "</svg>";
   }
   const when = (at) => (at ? new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "");
   const runesLine = (d) => d.r.map((e) => e.n).join(" · ");

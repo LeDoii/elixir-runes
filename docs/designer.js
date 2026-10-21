@@ -17,7 +17,6 @@
 
   const svg = $("dz");
   let items = [], links = [], nextId = 1, snapMark = null, drag = null, marquee = null, guides = [];
-  let zoom = 1;                                              // taille de la bindrune sur la plaque (0,4 à 1,6) : tout est dessiné à cette échelle autour du centre
   let sel = new Set();                                       // identifiants des runes sélectionnées (une, ou plusieurs avec le cadre de sélection)
   const advanced = () => $("dz-adv").checked;                 // mode avancé : jusqu'à 6 runes, une même rune plusieurs fois
   const maxRunes = () => (advanced() ? 6 : 4);
@@ -26,20 +25,43 @@
   /* ---- annuler / rétablir : historique de la composition (runes, positions, aimants, liaisons) */
   const past = [], future = [];
   let nudgeTimer = null;
-  const stateJson = () => JSON.stringify({ items, links, nextId, zoom });
-  function refreshHistory() { $("dz-undo").disabled = !past.length; $("dz-redo").disabled = !future.length; }
-  /** À appeler juste avant de modifier la composition. */
-  function record() { past.push(stateJson()); if (past.length > 100) past.shift(); future.length = 0; refreshHistory(); }
+  const stateJson = () => JSON.stringify({ items, links, nextId });
+  function refreshHistory() { $("dz-undo").disabled = !past.length; $("dz-redo").disabled = !future.length; renderHistory(); }
+  /** À appeler juste avant de modifier la composition ; label dit ce qui va changer (panneau Historique). */
+  function record(label) { past.push({ s: stateJson(), label: label || "Modification" }); if (past.length > 100) past.shift(); future.length = 0; refreshHistory(); }
   function loadState(json) {
     const s = JSON.parse(json);
-    items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId); zoom = s.zoom || 1;
+    items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId);
     sel = new Set([...sel].filter((id) => itemById(id)));
     snapMark = null;
   }
-  function undo() { if (!past.length) return; future.push(stateJson()); loadState(past.pop()); say("Annulé."); render(); }
-  function redo() { if (!future.length) return; past.push(stateJson()); loadState(future.pop()); say("Rétabli."); render(); }
+  function undo() { if (!past.length) return; const p = past.pop(); future.push({ s: stateJson(), label: p.label }); loadState(p.s); say("Annulé : " + p.label + "."); render(); }
+  function redo() { if (!future.length) return; const f = future.pop(); past.push({ s: stateJson(), label: f.label }); loadState(f.s); say("Rétabli : " + f.label + "."); render(); }
+  /** Revient à l'état obtenu après n actions (0 : état initial). */
+  function goTo(n) {
+    while (past.length > n) { const p = past.pop(); future.push({ s: stateJson(), label: p.label }); loadState(p.s); }
+    while (past.length < n && future.length) { const f = future.pop(); past.push({ s: stateJson(), label: f.label }); loadState(f.s); }
+    say(""); render();
+  }
+  function renderHistory() {
+    const ol = $("dz-history");
+    if (!ol) return;
+    const rows = [{ label: "État initial", n: 0 }].concat(past.map((p, i) => ({ label: p.label, n: i + 1 })), future.slice().reverse().map((f, i) => ({ label: f.label, n: past.length + i + 1, future: true })));
+    ol.innerHTML = "";
+    rows.forEach((r) => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = r.label;
+      if (r.future) li.className = "future";
+      if (r.n === past.length) { li.setAttribute("aria-current", "true"); }
+      b.addEventListener("click", () => goTo(r.n));
+      li.appendChild(b); ol.appendChild(li);
+    });
+    $("dz-hist-n").textContent = past.length ? past.length + (past.length > 1 ? " actions" : " action") : "";
+    const cur = ol.querySelector('[aria-current="true"]');
+    if (cur && ol.scrollHeight > ol.clientHeight) ol.scrollTop = cur.offsetTop - ol.clientHeight + cur.offsetHeight + 4;
+  }
 
-  const abs = (it) => Geom.anchors(it.name, it.f).map((p) => [p[0] + it.x, p[1] + it.y]);
+  const abs = (it) => Geom.anchors(it.name, it.f, it.k).map((p) => [p[0] + it.x, p[1] + it.y]);
   const itemById = (id) => items.find((i) => i.id === id);
   const selItems = () => items.filter((i) => sel.has(i.id));
   /** Les runes sélectionnées et celles qui leur sont liées : ce qui bouge ensemble. */
@@ -70,15 +92,16 @@
   };
 
   /* ---- cadre : emprise des runes, maintien dans la plaque, centrage */
-  const boxCache = {};
-  function runeBox(name, f) {                                // emprise de la rune (épaisseur du trait comprise), dans son repère
-    const key = name + "|" + (f || 0);
+  let boxCache = {};
+  function runeBox(name, f, k) {                             // emprise de la rune (épaisseur du trait comprise), dans son repère
+    const kk = k || 1, key = name + "|" + (f || 0) + "|" + kk;
     if (boxCache[key]) return boxCache[key];
-    const all = Geom.strokes(name, f).flatMap((s) => s.pts);
-    return (boxCache[key] = [Math.min(...all.map((p) => p[0])) - HW, Math.min(...all.map((p) => p[1])) - HW, Math.max(...all.map((p) => p[0])) + HW, Math.max(...all.map((p) => p[1])) + HW]);
+    if (Object.keys(boxCache).length > 500) boxCache = {};
+    const all = Geom.strokes(name, f, kk).flatMap((s) => s.pts), pad = HW * kk;
+    return (boxCache[key] = [Math.min(...all.map((p) => p[0])) - pad, Math.min(...all.map((p) => p[1])) - pad, Math.max(...all.map((p) => p[0])) + pad, Math.max(...all.map((p) => p[1])) + pad]);
   }
   function boundsOf(members) {
-    const bs = members.map((m) => { const b = runeBox(m.name, m.f); return [b[0] + m.x, b[1] + m.y, b[2] + m.x, b[3] + m.y]; });
+    const bs = members.map((m) => { const b = runeBox(m.name, m.f, m.k); return [b[0] + m.x, b[1] + m.y, b[2] + m.x, b[3] + m.y]; });
     return [Math.min(...bs.map((b) => b[0])), Math.min(...bs.map((b) => b[1])), Math.max(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3]))];
   }
   /** Ramène l'ensemble dans le cadre ; s'il est plus grand que le cadre sur un axe, il est centré sur cet axe. */
@@ -86,7 +109,7 @@
     if (!members.length) return;
     const [x0, y0, x1, y1] = boundsOf(members);
     // le cadre visible, ramené dans le repère des runes : plus la bindrune est grande, plus il est petit
-    const axis = (lo, hi, size) => { const mid = size / 2, half = (size / 2 - MARGIN) / zoom, a = mid - half, b = mid + half; return hi - lo >= b - a ? mid - (lo + hi) / 2 : lo < a ? a - lo : hi > b ? b - hi : 0; };
+    const axis = (lo, hi, size) => { const mid = size / 2, half = size / 2 - MARGIN, a = mid - half, b = mid + half; return hi - lo >= b - a ? mid - (lo + hi) / 2 : lo < a ? a - lo : hi > b ? b - hi : 0; };
     const dx = axis(x0, x1, VW), dy = axis(y0, y1, VH);
     members.forEach((m) => { m.x += dx; m.y += dy; });
   }
@@ -106,7 +129,7 @@
     let best = null;
     active.forEach((m) => abs(m).forEach((a) => others.forEach((o) => abs(o).forEach((b) => {
       const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (d <= SNAP_R / zoom && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
+      if (d <= SNAP_R && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
     }))));
     if (best) { members.forEach((m) => { m.x += best.dx; m.y += best.dy; }); snapMark = best.at; }
   }
@@ -118,7 +141,7 @@
     guides = [];
     if (!$("dz-align").checked || snapMark || !items.length) return;
     const others = items.filter((o) => !members.includes(o));
-    const [x0, y0, x1, y1] = boundsOf(members), tol = ALIGN_R / zoom;
+    const [x0, y0, x1, y1] = boundsOf(members), tol = ALIGN_R;
     const mine = { x: [x0, (x0 + x1) / 2, x1], y: [y0, (y0 + y1) / 2, y1] };
     const targets = { x: [VW / 2], y: [VH / 2] };
     others.forEach((o) => { const [a, b, c, d] = boundsOf([o]); targets.x.push(a, (a + c) / 2, c); targets.y.push(b, (b + d) / 2, d); });
@@ -131,7 +154,7 @@
     if (shift.x || shift.y) members.forEach((m) => { m.x += shift.x; m.y += shift.y; });
   }
   const locked = (members) => members.find((m) => m.locked);
-  const lockMsg = (m) => say("« " + m.name + " » est verrouillée : décoche « Verrou » dans la liste pour la déplacer.");
+  const lockMsg = (m) => say("« " + m.name + " » est verrouillée : décoche « Verrou » dans les calques pour la modifier.");
 
   /* ---- rendu */
   function el(tag, attrs, parent) {
@@ -145,25 +168,29 @@
   function drawCanvas() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(Supports.plate(Supports.current(), cv.width, cv.height), 0, 0);
-    ctx.setTransform(RES * zoom, 0, 0, RES * zoom, RES * (VW / 2) * (1 - zoom), RES * (VH / 2) * (1 - zoom));   // échelle autour du centre de la plaque
+    ctx.setTransform(RES, 0, 0, RES, 0, 0);
     const placed = items.map((it) => ({ it, paths: Geom.placed(it).map((s) => s.pts) }));
     if ($("dz-strata").checked) {
-      ctx.save(); ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3; ctx.lineWidth = D.strokeWidth;
+      ctx.save(); ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3;
       placed.forEach(({ it, paths }) => {
+        ctx.lineWidth = D.strokeWidth * (it.k || 1);
         ctx.strokeStyle = it.color; ctx.globalAlpha = 0.88;
         ctx.beginPath();
         paths.forEach((p) => p.forEach((pt, i) => (i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]))));
         ctx.stroke();
       });
       ctx.restore();
-    } else if (placed.length) {
-      Supports.engrave(ctx, placed.reduce((a, x) => a.concat(x.paths), []), D.strokeWidth, Supports.current(), { cap: "butt" });
+    } else if (placed.length) {                              // une gravure par échelle : l'épaisseur du trait suit celle de la rune
+      const byK = {};
+      placed.forEach(({ it, paths }) => { (byK[it.k || 1] = byK[it.k || 1] || []).push(...paths); });
+      Object.keys(byK).forEach((k) => Supports.engrave(ctx, byK[k], D.strokeWidth * Number(k), Supports.current(), { cap: "butt" }));
     }
   }
 
   /* ---- rendu : le SVG ne porte que l'interaction (zones de prise, ancrages, sélection) */
-  function selectionRect(gr, stroke, extra) {
-    const [x0, y0, x1, y1] = D.bbox;
+  function selectionRect(gr, stroke, extra, k) {
+    const kk = k || 1, [bx0, by0, bx1, by1] = D.bbox, [cx, cy] = Geom.center();
+    const x0 = cx + (bx0 - cx) * kk, y0 = cy + (by0 - cy) * kk, x1 = cx + (bx1 - cx) * kk, y1 = cy + (by1 - cy) * kk;
     el("rect", Object.assign({ x: x0 - 22, y: y0 - 14, width: x1 - x0 + 44, height: y1 - y0 + 28, fill: "none", stroke, "stroke-dasharray": "6 5", rx: 4, class: "ui", "pointer-events": "none" }, extra), gr);
   }
   function render() {
@@ -171,20 +198,20 @@
     svg.innerHTML = "";
     el("rect", { width: VW, height: VH, fill: "transparent", id: "dz-bg" }, svg);
     const grp = selMembers();
-    const world = el("g", { id: "dz-world", transform: "translate(" + VW / 2 + " " + VH / 2 + ") scale(" + zoom + ") translate(" + -VW / 2 + " " + -VH / 2 + ")" }, svg);
+    const world = el("g", { id: "dz-world" }, svg);
     items.forEach((it) => {
       const gr = el("g", { transform: "translate(" + it.x + " " + it.y + ")", "data-id": it.id, style: "cursor:" + (it.locked ? "not-allowed" : drag && drag.it === it ? "grabbing" : "grab") }, world);
-      Geom.strokes(it.name, it.f).forEach((s) => {
+      Geom.strokes(it.name, it.f, it.k).forEach((s) => {
         el("polyline", { points: s.pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "transparent", "stroke-width": 34, "pointer-events": "stroke", class: "ui" }, gr);
       });
       if (sel.has(it.id)) {
-        selectionRect(gr, "#fff", { "stroke-width": 2 });
-        selectionRect(gr, "#20201E", { "stroke-width": 1.4, "stroke-dashoffset": 5 });
+        selectionRect(gr, "#fff", { "stroke-width": 2 }, it.k);
+        selectionRect(gr, "#20201E", { "stroke-width": 1.4, "stroke-dashoffset": 5 }, it.k);
       } else if (grp.includes(it)) {
-        selectionRect(gr, LINK_COLOR, { "stroke-width": 1.6 });
+        selectionRect(gr, LINK_COLOR, { "stroke-width": 1.6 }, it.k);
       }
       const linked = linkedPoints(it);
-      Geom.anchors(it.name, it.f).forEach((a, pi) => {
+      Geom.anchors(it.name, it.f, it.k).forEach((a, pi) => {
         const isLink = linked.has(pi);
         if (!isLink && !(magnet() && it.snap)) return;
         el("circle", { cx: a[0], cy: a[1], r: 10, fill: "transparent", class: "ui", "data-pt": pi, style: "cursor:pointer" }, gr);   // zone de clic
@@ -196,15 +223,16 @@
       el("rect", { x: m[0], y: m[1], width: m[2] - m[0], height: m[3] - m[1], class: "marquee" }, world);
     }
     guides.forEach((g) => {                                  // repères d'alignement : ligne sur toute la plaque visible
-      const span = Math.max(VW, VH) / zoom, a = g.axis === "x" ? { x1: g.v, x2: g.v, y1: VH / 2 - span, y2: VH / 2 + span } : { x1: VW / 2 - span, x2: VW / 2 + span, y1: g.v, y2: g.v };
-      el("line", Object.assign({ stroke: "#fff", "stroke-width": 3 / zoom, class: "ui", "pointer-events": "none" }, a), world);
-      el("line", Object.assign({ stroke: "#A4551F", "stroke-width": 1.4 / zoom, "stroke-dasharray": "6 5", class: "ui", "pointer-events": "none" }, a), world);
+      const span = Math.max(VW, VH), a = g.axis === "x" ? { x1: g.v, x2: g.v, y1: VH / 2 - span, y2: VH / 2 + span } : { x1: VW / 2 - span, x2: VW / 2 + span, y1: g.v, y2: g.v };
+      el("line", Object.assign({ stroke: "#fff", "stroke-width": 3, class: "ui", "pointer-events": "none" }, a), world);
+      el("line", Object.assign({ stroke: "#A4551F", "stroke-width": 1.4, "stroke-dasharray": "6 5", class: "ui", "pointer-events": "none" }, a), world);
     });
     if (snapMark) {
       el("circle", { cx: snapMark[0], cy: snapMark[1], r: 13, fill: "none", stroke: "#fff", "stroke-width": 3, class: "ui", "pointer-events": "none" }, world);
       el("circle", { cx: snapMark[0], cy: snapMark[1], r: 13, fill: "none", stroke: "#2a140a", "stroke-width": 1.4, class: "ui", "pointer-events": "none" }, world);
     }
-    $("dz-size").value = Math.round(zoom * 100); $("dz-size-val").textContent = Math.round(zoom * 100) + " %";
+    syncSize();
+    scheduleRulers();
     scheduleDraft();
     renderList();
     renderBrings();
@@ -232,10 +260,10 @@
         '<button class="rm" title="Retirer" aria-label="Retirer ' + it.name + '">✕</button>';
       li.addEventListener("click", (e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(it.id)) sel.delete(it.id); else sel.add(it.id); } else sel = new Set([it.id]); render(); });
       li.querySelector(".ctl").addEventListener("click", (e) => e.stopPropagation());
-      li.querySelector("input.snap").addEventListener("change", (e) => { record(); it.snap = e.target.checked; render(); });
-      li.querySelector("input.lock").addEventListener("change", (e) => { record(); it.locked = e.target.checked; say(it.locked ? "« " + it.name + " » verrouillée : elle ne bouge plus." : "« " + it.name + " » déverrouillée."); render(); });
-      li.querySelector(".up").addEventListener("click", () => { record(); items = items.filter((i) => i !== it).concat(it); say("« " + it.name + " » passe au premier plan."); render(); });
-      li.querySelector(".down").addEventListener("click", () => { record(); items = [it].concat(items.filter((i) => i !== it)); say("« " + it.name + " » passe à l'arrière-plan."); render(); });
+      li.querySelector("input.snap").addEventListener("change", (e) => { record("Aimant de " + it.name); it.snap = e.target.checked; render(); });
+      li.querySelector("input.lock").addEventListener("change", (e) => { record((e.target.checked ? "Verrouillage de " : "Déverrouillage de ") + it.name); it.locked = e.target.checked; say(it.locked ? "« " + it.name + " » verrouillée : elle ne bouge plus." : "« " + it.name + " » déverrouillée."); render(); });
+      li.querySelector(".up").addEventListener("click", () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); say("« " + it.name + " » passe au premier plan."); render(); });
+      li.querySelector(".down").addEventListener("click", () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); say("« " + it.name + " » passe à l'arrière-plan."); render(); });
       li.querySelector(".rm").addEventListener("click", (e) => { e.stopPropagation(); remove(it.id); });
       ul.appendChild(li);
     });
@@ -254,9 +282,9 @@
       return;
     }
     say("");
-    record();
+    record("Ajout de " + name);
     const used = items.map((i) => i.color);
-    const it = { id: nextId++, name, x: 0, y: 0, f: 0, snap: true, keep: null, locked: false, color: COLORS.find((c) => !used.includes(c)) || COLORS[0] };
+    const it = { id: nextId++, name, x: 0, y: 0, f: 0, k: 1, snap: true, keep: null, locked: false, color: COLORS.find((c) => !used.includes(c)) || COLORS[0] };
     const [x0, y0, x1, y1] = D.bbox;
     it.x = cx - (x0 + x1) / 2; it.y = cy - (y0 + y1) / 2;
     items.push(it);
@@ -268,7 +296,7 @@
   const remove = (id) => removeMany([id]);
   function removeMany(ids) {
     if (!ids.length) return;
-    record();
+    record(ids.length > 1 ? "Retrait de " + ids.length + " runes" : "Retrait de " + (itemById(ids[0]) || { name: "la rune" }).name);
     items = items.filter((i) => !ids.includes(i.id));
     links = links.filter((l) => !ids.includes(l.a) && !ids.includes(l.b));
     ids.forEach((id) => sel.delete(id));
@@ -278,14 +306,14 @@
   /* ---- liaison : un clic sur un point d'ancrage lie les runes dont les points se touchent (un second clic délie) */
   function clickAnchor(it, pi) {
     const own = links.filter((l) => (l.a === it.id && l.pa === pi) || (l.b === it.id && l.pb === pi));
-    if (own.length) { record(); links = links.filter((l) => !own.includes(l)); say("Liaison retirée."); render(); return; }
+    if (own.length) { record("Liaison retirée"); links = links.filter((l) => !own.includes(l)); say("Liaison retirée."); render(); return; }
     const a = abs(it)[pi], partners = [];
     items.forEach((o) => {
       if (o === it) return;
       abs(o).forEach((b, pj) => { if (Math.hypot(b[0] - a[0], b[1] - a[1]) <= LINK_R) partners.push([o, pj, b]); });
     });
     if (!partners.length) { say("Aucun point d'une autre rune à cet endroit : amène deux points d'ancrage l'un sur l'autre (l'aimant aide), puis clique dessus."); return; }
-    record();
+    record("Liaison de " + it.name);
     const grp = groupOf(it), [first, , fb] = partners[0];
     if (!grp.includes(first)) { const dx = fb[0] - a[0], dy = fb[1] - a[1]; grp.forEach((m) => { m.x += dx; m.y += dy; }); }   // les points se superposent exactement
     partners.forEach(([o, pj]) => {
@@ -299,15 +327,14 @@
   /* ---- déplacement d'une rune (ou de son ensemble) sur la plaque */
   function svgPoint(e) {
     const r = svg.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width) * VW, py = ((e.clientY - r.top) / r.height) * VH;
-    return [VW / 2 + (px - VW / 2) / zoom, VH / 2 + (py - VH / 2) / zoom];     // plaque -> repère des runes (taille comprise)
+    return [((e.clientX - r.left) / r.width) * VW, ((e.clientY - r.top) / r.height) * VH];
   }
   /* ---- cadre de sélection : clic gauche maintenu sur le fond de la plaque ; Maj / Ctrl ajoute à la sélection */
   const marqueeRect = () => [Math.min(marquee.x0, marquee.x1), Math.min(marquee.y0, marquee.y1), Math.max(marquee.x0, marquee.x1), Math.max(marquee.y0, marquee.y1)];
   /** Une rune est prise si le cadre touche un de ses traits (épaisseur comprise). */
   function touches(it, [x0, y0, x1, y1]) {
     const inside = (x, y) => x >= x0 - HW && x <= x1 + HW && y >= y0 - HW && y <= y1 + HW;
-    return Geom.strokes(it.name, it.f).some((s) => s.pts.some((p, i) => {
+    return Geom.strokes(it.name, it.f, it.k).some((s) => s.pts.some((p, i) => {
       const a = [p[0] + it.x, p[1] + it.y];
       if (!i) return inside(a[0], a[1]);
       const q = s.pts[i - 1], b = [q[0] + it.x, q[1] + it.y], n = Math.max(1, Math.ceil(Math.hypot(a[0] - b[0], a[1] - b[1]) / 5));
@@ -351,7 +378,7 @@
     if (!drag.moved && Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) < 4) return;   // un simple clic ne déplace rien
     const stuck = locked(drag.members);
     if (stuck) { if (!drag.warned) { drag.warned = true; lockMsg(stuck); } return; }
-    if (!drag.moved) record();                               // un déplacement = une seule étape d'historique
+    if (!drag.moved) record("Déplacement de " + (drag.members.length > 1 ? drag.members.length + " runes" : drag.it.name));   // un déplacement = une seule étape d'historique
     drag.moved = true;
     const [px, py] = svgPoint(e);
     drag.members.forEach((m, i) => { m.x = drag.starts[i][0] + px - drag.px; m.y = drag.starts[i][1] + py - drag.py; });
@@ -372,7 +399,7 @@
     drag = null; snapMark = null; guides = [];
     if (!d.moved && d.pt === null && sel.size > 1) sel = new Set([d.it.id]);   // simple clic sur une rune : elle seule reste sélectionnée
     if (!d.moved && d.pt !== null && e.type === "pointerup") clickAnchor(d.it, d.pt);
-    else render();
+    else { render(); if (!d.moved && d.pt === null && e.type === "pointerup") openMenu(e.clientX, e.clientY, d.it); }
   };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
@@ -380,7 +407,8 @@
   window.addEventListener("keydown", (e) => {
     if ($("design").hidden) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
-    if (e.key === "Escape") {                                // Échap : désélectionne d'abord, puis quitte le mode étendu
+    if (e.key === "Escape" && !menu.hidden) { closeMenu(); return; }
+    if (e.key === "Escape") {                                // Échap : ferme le menu, désélectionne, puis quitte le plein écran
       if (sel.size) { sel = new Set(); render(); } else if (expanded) setExpanded(false);
       return;
     }
@@ -390,7 +418,7 @@
     const step = e.shiftKey ? 10 : 1;
     const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
     if ((mv || e.key === "Delete" || e.key === "Backspace") && locked(members)) { e.preventDefault(); lockMsg(locked(members)); return; }
-    if (mv) { e.preventDefault(); if (!nudgeTimer) record(); clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 500); members.forEach((m) => { m.x += mv[0]; m.y += mv[1]; }); fit(members); render(); }
+    if (mv) { e.preventDefault(); if (!nudgeTimer) record("Ajustement au clavier"); clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 500); members.forEach((m) => { m.x += mv[0]; m.y += mv[1]; }); fit(members); render(); }
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeMany([...sel]); }
 
   });
@@ -400,7 +428,7 @@
     const g = selMembers();
     if (!g.length) { say("Sélectionne d'abord une rune."); return; }
     if (locked(g)) { lockMsg(locked(g)); return; }
-    record();
+    record("Centrage");
     centerOn(g); fit(g);
     say(g.length > 1 ? (sel.size > 1 ? "Sélection de " + g.length + " runes centrée." : "Ensemble de " + g.length + " runes centré.") : "« " + g[0].name + " » centrée.");
     render();
@@ -408,34 +436,124 @@
   $("dz-center-all").addEventListener("click", () => {
     if (!items.length) return;
     if (locked(items)) { lockMsg(locked(items)); return; }
-    record();
+    record("Centrage de la composition");
     centerOn(items); fitAll();
     say("Composition centrée.");
     render();
   });
 
-  /* ---- miroir de toute la bindrune : « vertical » retourne haut ↔ bas, « horizontal » gauche ↔ droite (le même bouton, pressé deux fois, rétablit) */
-  function mirrorAll(axis) {
+  /* ---- miroir et taille : la sélection (avec les runes liées, qui forment un bloc), sinon toute la composition */
+  const targets = () => { const m = selMembers(); return m.length ? m : items; };
+  const scope = () => (!sel.size ? "toute la bindrune" : selMembers().length > 1 ? "la sélection" : "la rune");
+  /** Miroir « vertical » : haut ↔ bas ; « horizontal » : gauche ↔ droite (le même bouton, pressé deux fois, rétablit). */
+  function mirrorSel(axis) {
     if (!items.length) { say("Ajoute d'abord des runes."); return; }
-    record();
-    const [x0, y0, x1, y1] = boundsOf(items);
-    Geom.mirror(items, axis, (x0 + x1) / 2, (y0 + y1) / 2);
+    const members = targets();
+    if (locked(members)) { lockMsg(locked(members)); return; }
+    record(axis === "v" ? "Miroir vertical" : "Miroir horizontal");
+    const [x0, y0, x1, y1] = boundsOf(members);
+    Geom.mirror(members, axis, (x0 + x1) / 2, (y0 + y1) / 2);
     snapMark = null;
-    say(axis === "v" ? "Bindrune retournée : le haut est devenu le bas." : "Bindrune retournée : la gauche est devenue la droite.");
+    say("Miroir " + (axis === "v" ? "vertical" : "horizontal") + " : " + scope() + ".");
     render();
   }
-  $("dz-mirror-v").addEventListener("click", () => mirrorAll("v"));
-  $("dz-mirror-h").addEventListener("click", () => mirrorAll("h"));
+  $("dz-mirror-v").addEventListener("click", () => mirrorSel("v"));
+  $("dz-mirror-h").addEventListener("click", () => mirrorSel("h"));
 
-  /* ---- taille de la bindrune : tout est agrandi ou réduit autour du centre de la plaque, traits compris */
+  /** Échelle de référence affichée par le curseur : la dernière rune sélectionnée, sinon la première. */
+  const refItem = () => (sel.size && itemById([...sel].pop())) || items[0];
+  /** Fixe l'échelle de référence à pct % ; les autres runes du bloc suivent dans la même proportion, autour du centre du bloc. */
+  function applyPct(pct) {
+    const members = targets(), ref = refItem();
+    if (!ref || !members.length) return false;
+    if (locked(members)) { lockMsg(locked(members)); return false; }
+    const factor = pct / 100 / (ref.k || 1);
+    if (Math.abs(factor - 1) < 1e-4) return false;
+    const [x0, y0, x1, y1] = boundsOf(members);
+    Geom.scaleAbout(members, factor, (x0 + x1) / 2, (y0 + y1) / 2);
+    fit(members);
+    return true;
+  }
+  function resizeTo(pct, label) { if (!items.length) { say("Ajoute d'abord des runes."); return; } const ref = refItem(); if (Math.abs(pct / 100 - (ref.k || 1)) < 1e-4) return; if (locked(targets())) { lockMsg(locked(targets())); return; } record(label); applyPct(pct); say("Taille : " + scope() + " à " + Math.round(refItem().k * 100) + " %."); render(); }
   let sizing = false;
   $("dz-size").addEventListener("input", (e) => {
-    if (!sizing) { record(); sizing = true; }                // un geste sur le curseur = une seule étape d'historique
-    zoom = Number(e.target.value) / 100;
-    fitAll(); say(""); render();
+    if (!items.length) return;
+    if (!sizing) { if (locked(targets())) { lockMsg(locked(targets())); render(); return; } record("Taille de " + scope()); sizing = true; }   // un geste sur le curseur = une seule étape d'historique
+    applyPct(Number(e.target.value)); say(""); render();
   });
   $("dz-size").addEventListener("change", () => { sizing = false; });
-  $("dz-size-reset").addEventListener("click", () => { if (zoom === 1) return; record(); zoom = 1; fitAll(); say("Taille d'origine."); render(); });
+  $("dz-size-reset").addEventListener("click", () => resizeTo(100, "Taille d'origine"));
+  /** Curseur et libellé de taille : ils suivent la sélection. */
+  function syncSize() {
+    const ref = refItem(), pct = ref ? Math.round((ref.k || 1) * 100) : 100;
+    $("dz-size").value = pct; $("dz-size-val").textContent = pct + " %";
+    $("dz-size").disabled = !items.length; $("dz-size-reset").disabled = !items.length;
+    $("dz-size-label").textContent = !items.length ? "Taille" : !sel.size ? "Taille : toutes les runes" : selMembers().length > 1 ? "Taille : la sélection (" + selMembers().length + " runes)" : "Taille : " + ref.name;
+  }
+
+  /* ---- menu contextuel : un clic sur une rune (ou clic droit) propose des actions sur elle ou sur la sélection */
+  const menu = $("dz-menu");
+  const closeMenu = () => { menu.hidden = true; menu.innerHTML = ""; };
+  function openMenu(cx, cy, it) {
+    const members = selMembers(), multi = sel.size > 1 || members.length > 1, single = sel.size === 1;
+    const everyone = selItems();
+    const act = (label, fn) => () => { closeMenu(); fn(); };
+    const entries = [
+      { head: multi ? members.length + " runes" : it.name },
+      { label: "Miroir vertical", hint: "haut ↔ bas", fn: () => mirrorSel("v") },
+      { label: "Miroir horizontal", hint: "gauche ↔ droite", fn: () => mirrorSel("h") },
+      { sep: true },
+      { label: "Agrandir", hint: "+ 10 %", fn: () => resizeTo(Math.round((refItem().k || 1) * 110), "Agrandissement") },
+      { label: "Réduire", hint: "− 10 %", fn: () => resizeTo(Math.round((refItem().k || 1) * 91), "Réduction") },
+      { label: "Taille d'origine", hint: "100 %", fn: () => resizeTo(100, "Taille d'origine") },
+      { sep: true },
+    ];
+    if (single) {
+      entries.push({ label: "Premier plan", fn: () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); render(); } });
+      entries.push({ label: "Arrière-plan", fn: () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); render(); } });
+    }
+    const lockedNow = everyone.every((i) => i.locked), snapNow = everyone.every((i) => i.snap);
+    entries.push({ label: lockedNow ? "Déverrouiller" : "Verrouiller", fn: () => { record((lockedNow ? "Déverrouillage" : "Verrouillage") + " de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.locked = !lockedNow; }); render(); } });
+    entries.push({ label: snapNow ? "Désactiver l'aimant" : "Activer l'aimant", fn: () => { record("Aimant de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.snap = !snapNow; }); render(); } });
+    entries.push({ label: "Centrer", fn: () => $("dz-center").click() });
+    entries.push({ label: "Sens et étiquettes…", fn: () => { const p = $("pnl-sens"); p.open = true; const card = document.querySelector('.bring[data-id="' + it.id + '"]'); if (card) { card.scrollIntoView({ block: "nearest" }); card.classList.add("flash"); setTimeout(() => card.classList.remove("flash"), 1200); } } });
+    entries.push({ sep: true });
+    entries.push({ label: "Retirer", danger: true, fn: () => removeMany(everyone.map((i) => i.id)) });
+
+    menu.innerHTML = "";
+    entries.forEach((en) => {
+      if (en.sep) { menu.appendChild(document.createElement("hr")); return; }
+      if (en.head) { const h = document.createElement("div"); h.className = "mh"; h.textContent = en.head; menu.appendChild(h); return; }
+      const b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", "menuitem"); if (en.danger) b.className = "danger";
+      b.innerHTML = "<span></span><em></em>"; b.firstChild.textContent = en.label; b.lastChild.textContent = en.hint || "";
+      b.addEventListener("click", act(en.label, en.fn));
+      menu.appendChild(b);
+    });
+    menu.hidden = false;
+    const r = menu.getBoundingClientRect();
+    menu.style.left = Math.max(4, Math.min(cx + 4, window.innerWidth - r.width - 4)) + "px";
+    menu.style.top = Math.max(4, Math.min(cy + 4, window.innerHeight - r.height - 4)) + "px";
+    const first = menu.querySelector("button"); if (first) first.focus({ preventScroll: true });
+  }
+  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); }, true);
+  window.addEventListener("resize", closeMenu);
+  $("dz-stage").addEventListener("scroll", closeMenu);
+  menu.addEventListener("keydown", (e) => {
+    const btns = [...menu.querySelectorAll("button")], i = btns.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); btns[(i + 1) % btns.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); btns[(i - 1 + btns.length) % btns.length].focus(); }
+  });
+  svg.addEventListener("contextmenu", (e) => {                // clic droit sur une rune
+    const g = e.target.closest("g[data-id]");
+    if (!g) return;
+    e.preventDefault();
+    const it = itemById(Number(g.dataset.id));
+    if (!it) return;
+    if (!sel.has(it.id)) sel = new Set([it.id]);
+    render();
+    openMenu(e.clientX, e.clientY, it);
+  });
 
   /* ---- palette : clic (ajout au centre) ou glisser-déposer sur la plaque */
   function miniSVG(r) {
@@ -493,7 +611,7 @@
     }
     say(""); render();
   });
-  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record(); items = []; links = []; sel = new Set(); zoom = 1; say(""); render(); });
+  $("dz-clear").addEventListener("click", () => { if (!items.length) return; record("Tout retiré"); items = []; links = []; sel = new Set(); say(""); render(); });
   $("dz-align").addEventListener("change", () => { guides = []; render(); });
   $("dz-undo").addEventListener("click", undo);
   $("dz-redo").addEventListener("click", redo);
@@ -514,6 +632,7 @@
     const w = Math.round(fitW * (viewScale === null ? 1 : viewScale));
     wrap.style.width = w + "px";
     $("dz-view-val").textContent = Math.round((w / VW) * 100) + " %";
+    scheduleRulers();
   }
   const zoomView = (k) => { viewScale = Math.min(4, Math.max(0.25, (viewScale === null ? 1 : viewScale) * k)); applyView(); };
   $("dz-view-in").addEventListener("click", () => zoomView(1.25));
@@ -521,6 +640,61 @@
   $("dz-view-fit").addEventListener("click", () => { viewScale = null; applyView(); });
   stage.addEventListener("wheel", (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomView(e.deltaY < 0 ? 1.1 : 0.9); } }, { passive: false });
   if (window.ResizeObserver) new ResizeObserver(applyView).observe(stage); else window.addEventListener("resize", applyView);
+
+  /* ---- règles graduées : unités de la plaque (la plaque mesure 800 × 640), alignées sur le plan de travail ; le curseur y laisse un repère */
+  const rx = $("dz-ruler-x"), ry = $("dz-ruler-y"), box = $("dz-center-box");
+  let rulersOn = true, cursor = null, rulerFrame = 0;
+  try { rulersOn = localStorage.getItem("runes-rulers") !== "0"; } catch (e) { /* stockage indisponible */ }
+  $("dz-rulers").checked = rulersOn;
+  const STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+  function ticks(cv, horizontal, origin, scale, length) {
+    const dpr = window.devicePixelRatio || 1, thick = 20;
+    cv.width = Math.round((horizontal ? length : thick) * dpr); cv.height = Math.round((horizontal ? thick : length) * dpr);
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = "#303030"; g.fillRect(0, 0, horizontal ? length : thick, horizontal ? thick : length);
+    const plateEnd = origin + (horizontal ? VW : VH) * scale;                      // la plaque est un peu plus claire que le reste
+    g.fillStyle = "#3d3d3d";
+    if (horizontal) g.fillRect(Math.max(0, origin), 0, Math.min(length, plateEnd) - Math.max(0, origin), thick); else g.fillRect(0, Math.max(0, origin), thick, Math.min(length, plateEnd) - Math.max(0, origin));
+    const minor = STEPS.find((s) => s * scale >= 7) || 500, major = STEPS.find((s) => s * scale >= 56 && s % minor === 0) || 1000;
+    g.strokeStyle = "#8a8a8a"; g.fillStyle = "#b5b5b5"; g.lineWidth = 1; g.font = "9px system-ui, sans-serif"; g.textBaseline = "top"; g.textAlign = "left";
+    const u0 = Math.ceil(-origin / scale / minor) * minor, u1 = Math.floor((length - origin) / scale);
+    for (let u = u0; u <= u1; u += minor) {
+      const p = Math.round(origin + u * scale) + 0.5, big = u % major === 0, len = big ? 14 : u % (minor * 5) === 0 ? 9 : 5;
+      g.beginPath();
+      if (horizontal) { g.moveTo(p, thick); g.lineTo(p, thick - len); } else { g.moveTo(thick, p); g.lineTo(thick - len, p); }
+      g.stroke();
+      if (big) {
+        if (horizontal) g.fillText(String(u), p + 2, 1);
+        else { g.save(); g.translate(1, p + 2); g.rotate(-Math.PI / 2); g.textAlign = "right"; g.fillText(String(u), 0, 0); g.restore(); }
+      }
+    }
+    return g;
+  }
+  function drawRulers() {
+    rulerFrame = 0;
+    box.classList.toggle("no-rulers", !rulersOn);
+    if (!rulersOn) return;
+    const st = stage.getBoundingClientRect(), w = wrap.getBoundingClientRect(), scale = w.width / VW;
+    if (!st.width || !scale) return;
+    const gx = ticks(rx, true, w.left - st.left, scale, st.width), gy = ticks(ry, false, w.top - st.top, scale, st.height);
+    if (cursor) {                                            // repère du curseur sur chaque règle, et position dans la barre d'état
+      const cxp = cursor[0] - st.left, cyp = cursor[1] - st.top;
+      gx.strokeStyle = gy.strokeStyle = "#e0924f"; gx.lineWidth = gy.lineWidth = 1.5;
+      gx.beginPath(); gx.moveTo(cxp + 0.5, 0); gx.lineTo(cxp + 0.5, 20); gx.stroke();
+      gy.beginPath(); gy.moveTo(0, cyp + 0.5); gy.lineTo(20, cyp + 0.5); gy.stroke();
+    }
+  }
+  function scheduleRulers() { if (!rulerFrame) rulerFrame = requestAnimationFrame(drawRulers); }
+  $("dz-rulers").addEventListener("change", (e) => { rulersOn = e.target.checked; try { localStorage.setItem("runes-rulers", rulersOn ? "1" : "0"); } catch (err) { /* ignoré */ } scheduleRulers(); applyView(); });
+  stage.addEventListener("scroll", scheduleRulers);
+  stage.addEventListener("pointermove", (e) => {
+    cursor = [e.clientX, e.clientY];
+    const w = wrap.getBoundingClientRect(), u = ((e.clientX - w.left) / w.width) * VW, v = ((e.clientY - w.top) / w.height) * VH;
+    $("dz-xy").textContent = u >= 0 && u <= VW && v >= 0 && v <= VH ? "x " + Math.round(u) + "  y " + Math.round(v) : "";
+    scheduleRulers();
+  });
+  stage.addEventListener("pointerleave", () => { cursor = null; $("dz-xy").textContent = ""; scheduleRulers(); });
 
   /* ---- plein écran : l'atelier occupe toute la fenêtre (Échap pour en sortir) */
   let expanded = false;
@@ -538,7 +712,7 @@
   /* ---- export PNG : la composition est d'abord centrée ; le canevas seul (pas d'ancrages ni de sélection) */
   $("dz-export").addEventListener("click", () => {
     if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
-    record();
+    record("Centrage avant l'export");
     centerOn(items); fitAll();
     render();
     say("Composition centrée avant l'export.");
@@ -562,7 +736,7 @@
     if (!items.length) { box.innerHTML = '<p class="hint">Les runes posées sur la plaque apparaissent ici, avec leurs sens et leurs traits.</p>'; return; }
     items.forEach((it) => {
       const r = byName(it.name), d = document.createElement("div"), kept = Tags.keptTags({ n: it.name, t: it.keep }), flat = Tags.runeTags(it.name);
-      d.className = "bring";
+      d.className = "bring"; d.dataset.id = it.id;
       d.innerHTML = '<h4><i style="background:' + it.color + '"></i>' + r.name + "</h4>" +
         "<h5>Sens (un interrupteur par étiquette)</h5><ul class=\"sens\">" + r.sens.map((t, i) =>
           "<li><div class=\"tags\">" + (Tags.RUNE_TAGS[r.name][i].length
@@ -573,7 +747,7 @@
         const tag = btn.dataset.tag, next = btn.classList.contains("on") ? kept.filter((k) => k !== tag) : flat.filter((k) => k === tag || kept.includes(k));
         const test = items.map((o) => ({ n: o.name, t: o === it ? next : o.keep }));
         if (!Tags.all({ r: test }, svTags).length) { say("Une bindrune garde au moins une étiquette : active une autre étiquette ou ajoutes-en une."); return; }
-        record();
+        record((btn.classList.contains("on") ? "Étiquette retirée : " : "Étiquette activée : ") + Tags.label(tag));
         it.keep = next.length === flat.length ? null : next;
         say(""); render();
       }));
@@ -611,17 +785,17 @@
   const tagEd = Tags.editor({ locked: () => Tags.derive(platesD()), get: () => svTags, set: (t) => { svTags = Tags.extras(platesD(), t); scheduleDraft(); } });
   $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
-  const snapshot = () => Object.assign({
-    r: items.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {})),
+  const snapshot = () => ({
+    r: items.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
     s: Supports.current(), t: $("dz-strata").checked ? 1 : 0,
     l: links.map((k) => [items.findIndex((i) => i.id === k.a), items.findIndex((i) => i.id === k.b), k.pa, k.pb]),
-  }, zoom !== 1 ? { z: Math.round(zoom * 100) / 100 } : {});
-  function restore(raw) {
+  });
+  function restore(raw, label) {
     const d = Bindrunes.validate(raw);
     if (!d) return false;
-    record();
-    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
-    zoom = d.z || 1;
+    record(label || "Ouverture");
+    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
+    if (d.z) Geom.scaleAbout(items, d.z, VW / 2, VH / 2);     // ancien format : taille générale, convertie en échelle de chaque rune
     links = (d.l || []).map(([i, j, pa, pb]) => ({ a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
     sel = new Set(); snapMark = null;
@@ -633,7 +807,7 @@
     return true;
   }
   function openSaved(name, d, description, tags) {
-    if (restore(d)) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
+    if (restore(d, "Ouverture de « " + name + " »")) { $("sv-name").value = name; $("sv-desc").value = description || ""; svTags = Tags.extras(platesD(), tags); tagEd.refresh(); svmsg("« " + name + " » ouverte."); window.showTab("design"); }
   }
   function refreshOpen() {
     const sel = $("dz-open");
@@ -693,5 +867,5 @@
   render();
   loadDraft();
   draftReady = true;
-  window.__designer = { applyView, setZoom: (z) => { zoom = z; fitAll(); render(); }, getZoom: () => zoom, mirrorAll, getGuides: () => guides, align, draftKey: DRAFT, setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
+  window.__designer = { applyView, goTo, resizeTo: (p) => resizeTo(p, "Taille"), mirror: mirrorSel, getGuides: () => guides, align, draftKey: DRAFT, setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
 })();

@@ -60,4 +60,33 @@ check("empreinte : la bindrune retournée est une autre combinaison", comboKey(p
 check("empreinte : tout retourner dans un sens ou dans l'autre donne deux combinaisons différentes", comboKey(plate([rune("Gebo", 44, 64, 1), rune("Ansuz", 236, 64, 1)])) !== comboKey(plate([rune("Gebo", 44, 64, 2), rune("Ansuz", 236, 64, 2)])));
 check("empreinte : la taille ne compte pas", comboKey(plate(A.r, { z: 1.4 })) === comboKey(A));
 check("empreinte : parité navigateur / serveur avec miroirs", [1, 2, 3].every((f) => comboKey(plate([rune("Gebo", 44, 64, f), rune("Isa", 140, 100, 0), rune("Ansuz", 236, 64, f)])) === Combo.key(plate([rune("Gebo", 44, 64, f), rune("Isa", 140, 100, 0), rune("Ansuz", 236, 64, f)]))));
+
+/* ---- échelle propre à chaque rune */
+const kOf = (n, k) => Geom.strokes(n, 0, k)[0].pts;
+check("échelle 1 : les traits d'origine, sans copie", Geom.strokes("Isa", 0, 1) === Geom.strokes("Isa", 0) );
+const big = Geom.anchors("Isa", 0, 2), base = Geom.anchors("Isa", 0);
+check("échelle 2 : les points s'écartent du centre de la case (256, 256)", big[0][1] === 256 + (base[0][1] - 256) * 2 && big[0][0] === 256);
+check("échelle : même nombre de points d'ancrage, même ordre", RUNES.every((n) => [0.5, 2].every((k) => Geom.anchors(n, 3, k).length === Geom.anchors(n, 0).length)));
+check("échelle puis échelle inverse : retour à l'origine", JSON.stringify(Geom.scalePts(Geom.scalePts(kOf("Gebo", 1), 2), 0.5).map((p) => p.map((v) => Math.round(v * 1e6) / 1e6))) === JSON.stringify(kOf("Gebo", 1)));
+const grp = [{ n: "Gebo", x: 0, y: 0 }, { n: "Ansuz", x: 0, y: 0 }];
+const contact = (es) => { const A = Geom.anchors(es[0].n, es[0].f, es[0].k).map(([x, y]) => [x + es[0].x, y + es[0].y]), B = Geom.anchors(es[1].n, es[1].f, es[1].k).map(([x, y]) => [x + es[1].x, y + es[1].y]); return A.filter((p) => B.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6)).length; };
+const c0 = contact(grp);
+const eff = Geom.scaleAbout(grp, 1.5, 256, 256);
+check("redimensionner un bloc : facteur appliqué, échelles multipliées", eff === 1.5 && grp.every((e) => e.k === 1.5));
+check("redimensionner un bloc : des runes en contact le restent (même nombre de points communs)", c0 > 0 && contact(grp) === c0);
+const single = [{ n: "Isa", x: 100, y: 50 }];
+Geom.scaleAbout(single, 2, single[0].x + 256, single[0].y + 256);
+check("redimensionner une rune seule autour de son centre : sa case reste centrée au même endroit", single[0].x === 100 && single[0].y === 50 && single[0].k === 2);
+const lim = [{ n: "Isa", x: 0, y: 0, k: 2 }, { n: "Laguz", x: 0, y: 0, k: 1 }];
+const f2 = Geom.scaleAbout(lim, 5, 0, 0);
+check("redimensionner : le facteur est borné pour garder toutes les échelles dans 0,25 – 3", f2 === 1.5 && lim[0].k === 3 && lim[1].k === 1.5, JSON.stringify(lim));
+const small = [{ n: "Isa", x: 0, y: 0, k: 0.5 }]; Geom.scaleAbout(small, 0.01, 0, 0);
+check("redimensionner : plancher à 0,25", small[0].k === 0.25);
+check("miroir d'une rune à l'échelle : même emprise", (() => { const a = [{ n: "Algiz", x: 10, y: 20, k: 1.6 }]; const bb = (e) => { const p = Geom.placed(e[0]).flatMap((s) => s.pts); return [Math.min(...p.map((q) => q[0])), Math.min(...p.map((q) => q[1])), Math.max(...p.map((q) => q[0])), Math.max(...p.map((q) => q[1]))]; }; const b0 = bb(a); Geom.mirror(a, "v", 256 + 10, 256 + 20); const b1 = bb(a); return b0.every((v, i) => near(v, b1[i])) && a[0].f === 1 && a[0].k === 1.6; })());
+v = validateBindrune(plate([{ n: "Isa", x: 0, y: 0, k: 1.5 }, { n: "Gebo", x: 0, y: 0, k: 1 }, { n: "Ansuz", x: 0, y: 0, k: 99 }, { n: "Laguz", x: 0, y: 0, k: 0.01 }, { n: "Mannaz", x: 0, y: 0, k: "x" }]));
+check("validation : échelle conservée, 1 omise, bornée à 0,25 – 3, non numérique ignorée", v.r[0].k === 1.5 && v.r[1].k === undefined && v.r[2].k === 3 && v.r[3].k === 0.25 && v.r[4].k === undefined, JSON.stringify(v.r.map((r) => r.k)));
+const K = (k) => plate([rune("Gebo", 44, 64), Object.assign(rune("Ansuz", 236, 64), k ? { k } : {})]);
+check("empreinte : une rune redimensionnée est une autre combinaison", comboKey(K(1.5)) !== comboKey(K(0)));
+check("empreinte : échelle 1 explicite = pas d'échelle", comboKey(plate([rune("Gebo", 44, 64), Object.assign(rune("Ansuz", 236, 64), { k: 1 })])) === comboKey(K(0)));
+check("empreinte : parité navigateur / serveur avec échelles et miroirs", [[0, 1.5], [1, 0.5], [3, 2]].every(([f, k]) => { const dd = plate([rune("Gebo", 44, 64, f), Object.assign(rune("Isa", 140, 100, 0), { k }), rune("Ansuz", 236, 64, f)]); return comboKey(dd) === Combo.key(dd); }));
 finish();

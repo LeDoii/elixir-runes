@@ -20,14 +20,14 @@
   }
   function preview(d) {
     const parts = [];
-    if (d) d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, pts: s.pts })));
+    if (d) d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
     const box = el("div", "mprev");
     if (!parts.length) { box.textContent = "?"; return box; }
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;
     box.innerHTML = '<svg viewBox="' + x0 + " " + y0 + " " + (x1 - x0) + " " + (y1 - y0) + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      parts.map((p) => '<polyline points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="none" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + D.strokeWidth + '"/>').join("") + "</svg>";
+      parts.map((p) => '<polyline points="' + p.pts.map((q) => q.join(",")).join(" ") + '" fill="none" stroke="' + p.c + '" stroke-opacity=".88" stroke-width="' + D.strokeWidth * p.k + '"/>').join("") + "</svg>";
     return box;
   }
   function pager(prefix, page, pages, total, onGo) {

@@ -145,7 +145,8 @@ body:has(#design:not([hidden])) footer { display: none; }
   #design.ps .ps-tools { flex-direction: row; flex-wrap: wrap; justify-content: center; border-right: 0; border-bottom: 1px solid var(--line); padding: 4px; }
   #design.ps .ps-tools hr { width: 1px; height: 22px; border: 0; border-left: 1px solid var(--line2); margin: 0 4px; }
   #design.ps .ps-tools .grow { display: none; }
-  #design.ps .ps-stage { min-height: 56vh; padding: 12px; order: -1; }
+  #design.ps .ps-center { min-height: 56vh; order: -1; }
+  #design.ps .ps-stage { padding: 12px; }
   #design.ps .ps-tools { order: 0; }
   #design.ps .ps-panels { border-left: 0; overflow: visible; order: 1; }
   #design.ps .ps-bar .pbtn span { display: none; }
@@ -162,3 +163,34 @@ body:has(#design:not([hidden])) footer { display: none; }
   #design.ps .ps-bar select { max-width: 150px; }
   #design.ps .ps-body { grid-template-columns: 46px minmax(0, 1fr) 310px; }
 }
+
+/* ---- règles graduées autour du plan de travail */
+#design.ps .ps-center { display: grid; grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: 20px minmax(0, 1fr); min-width: 0; min-height: 0; }
+#design.ps .ruler { display: block; background: #303030; }
+#design.ps .ruler.corner { grid-column: 1; grid-row: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+#design.ps canvas.ruler.hx { grid-column: 2; grid-row: 1; width: 100%; height: 20px; border-bottom: 1px solid var(--line); }
+#design.ps canvas.ruler.vy { grid-column: 1; grid-row: 2; width: 20px; height: 100%; border-right: 1px solid var(--line); }
+#design.ps .ps-center .ps-stage { grid-column: 2; grid-row: 2; }
+#design.ps .ps-center.no-rulers { grid-template-columns: 0 minmax(0, 1fr); grid-template-rows: 0 minmax(0, 1fr); }
+#design.ps .ps-center.no-rulers .ruler { display: none; }
+
+/* ---- panneau Historique */
+#design.ps .hist { list-style: none; margin: 0; padding: 0; max-height: 230px; overflow-y: auto; background: var(--bg0); border: 1px solid #000; border-radius: 3px; }
+#design.ps .hist li button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid #222; color: var(--tx); padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+#design.ps .hist li button:hover { background: var(--bg2); }
+#design.ps .hist li[aria-current="true"] button { background: #3d3226; color: #fff; box-shadow: inset 3px 0 var(--acc); }
+#design.ps .hist li.future button { color: #707070; font-style: italic; }
+#design.ps .bring.flash { outline: 2px solid var(--acc); }
+#design.ps .ps-status #dz-xy { min-width: 84px; text-align: right; color: var(--tx2); font-variant-numeric: tabular-nums; }
+
+/* ---- menu contextuel d'une rune */
+.ctxm { position: fixed; z-index: 100; min-width: 230px; background: #2d2d2d; border: 1px solid #000; border-radius: 5px; box-shadow: 0 12px 34px rgba(0,0,0,.65); padding: 4px; color: #ddd; font: 13px/1.3 "Segoe UI", system-ui, sans-serif; }
+.ctxm[hidden] { display: none; }
+.ctxm .mh { padding: 5px 10px 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: #e0924f; font-weight: 600; }
+.ctxm hr { border: 0; border-top: 1px solid #444; margin: 4px 2px; }
+.ctxm button { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 22px; background: none; border: 0; color: inherit; padding: 6px 10px; border-radius: 3px; cursor: pointer; text-align: left; font: inherit; }
+.ctxm button em { font-style: normal; font-size: 11px; color: #8d8d8d; }
+.ctxm button:hover, .ctxm button:focus { background: #e0924f; color: #1b1006; outline: none; }
+.ctxm button:hover em, .ctxm button:focus em { color: #5a3513; }
+.ctxm button.danger { color: #ec8a79; }
+.ctxm button.danger:hover, .ctxm button.danger:focus { background: #b3402f; color: #fff; }

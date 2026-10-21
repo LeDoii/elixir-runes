@@ -50,15 +50,18 @@
     g.setTransform(RES * sc, 0, 0, RES * sc, 0, 0);
     g.translate(400 / sc - (x0 + x1) / 2, 320 / sc - (y0 + y1) / 2);
     if (d.t === 1) {
-      g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth;
+      g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ e, paths }) => {
+        g.lineWidth = D.strokeWidth * (e.k || 1);
         g.strokeStyle = e.c; g.globalAlpha = 0.88; g.beginPath();
         paths.forEach((p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1]))));
         g.stroke();
       });
       g.restore();
-    } else {
-      root.Supports.engrave(g, placed.reduce((a, x) => a.concat(x.paths), []), D.strokeWidth, d.s, { cap: "butt" });
+    } else {                                                     // une gravure par échelle : l'épaisseur du trait suit celle de la rune
+      const byK = {};
+      placed.forEach(({ e, paths }) => { (byK[e.k || 1] = byK[e.k || 1] || []).push(...paths); });
+      Object.keys(byK).forEach((k) => root.Supports.engrave(g, byK[k], D.strokeWidth * Number(k), d.s, { cap: "butt" }));
     }
     return c;
   }
