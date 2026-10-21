@@ -8,11 +8,11 @@
 const STEP_X = 24, STEP_Y = 16.5;
 
 export function comboKey(d) {
-  const items = d.r.map((e) => ({ n: e.n, x: e.x, y: e.y }));
+  const items = d.r.map((e) => ({ n: e.n, x: e.x, y: e.y, f: e.f || 0 }));
   let best = null;
   items.forEach((ref) => {                                   // chaque rune sert tour à tour de repère : plus petite écriture retenue
-    const rel = items.map((i) => [i.n, Math.round((i.x - ref.x) / STEP_X), Math.round((i.y - ref.y) / STEP_Y)])
-      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1] || a[2] - b[2]));
+    const rel = items.map((i) => (i.f ? [i.n, Math.round((i.x - ref.x) / STEP_X), Math.round((i.y - ref.y) / STEP_Y), i.f] : [i.n, Math.round((i.x - ref.x) / STEP_X), Math.round((i.y - ref.y) / STEP_Y)]))
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1] || a[2] - b[2] || (a[3] || 0) - (b[3] || 0)));
     const s = JSON.stringify(rel);
     if (best === null || s < best) best = s;
   });

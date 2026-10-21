@@ -13,16 +13,7 @@
   const listeners = [];
 
   /** Points d'ancrage d'une rune (extrémités et angles de chaque trait, sans doublon). */
-  const anchorCache = {};
-  function anchors(name) {
-    if (anchorCache[name]) return anchorCache[name];
-    const seen = new Set(), out = [];
-    byName(name).strokes.forEach((s) => s.pts.forEach((p) => {
-      const k = p[0] + "," + p[1];
-      if (!seen.has(k)) { seen.add(k); out.push(p); }
-    }));
-    return (anchorCache[name] = out);
-  }
+  const anchors = (name, f) => Geom.anchors(name, f);
 
   /* ------------------------------------------------------------------ validation */
   const cleanName = (s) => String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
@@ -39,12 +30,17 @@
       const entry = { n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] };
       const kept = Array.isArray(e.t) ? Tags.keptTags(e) : null;             // étiquettes gardées de la rune (absent : toutes)
       if (kept && kept.length < Tags.runeTags(e.n).length) entry.t = kept;
+      const f = Number.isInteger(e.f) && e.f > 0 && e.f <= 3 ? e.f : 0;      // miroir : 1 haut ↔ bas, 2 gauche ↔ droite
+      if (f) entry.f = f;
       r.push(entry);
     }
     const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
       k[0] !== k[1] && k[0] >= 0 && k[1] >= 0 && k[0] < r.length && k[1] < r.length &&
       k[2] >= 0 && k[3] >= 0 && k[2] < anchors(r[k[0]].n).length && k[3] < anchors(r[k[1]].n).length);
-    return { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
+    const out = { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
+    const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
+    if (z !== 1) out.z = z;
+    return out;
   }
 
   /* ------------------------------------------------------------------ stockage */
@@ -122,7 +118,7 @@
     const key = rec.name + "|" + rec.at;
     if (modelCache[key]) return modelCache[key];
     const strokes = [];
-    rec.d.r.forEach((e) => byName(e.n).strokes.forEach((s) => strokes.push({ name: s.name, pts: s.pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
+    rec.d.r.forEach((e) => Geom.placed(e).forEach((s) => strokes.push({ name: s.name, pts: s.pts })));
     const all = strokes.flatMap((s) => s.pts);
     const x0 = Math.min(...all.map((p) => p[0])), x1 = Math.max(...all.map((p) => p[0]));
     const y0 = Math.min(...all.map((p) => p[1])), y1 = Math.max(...all.map((p) => p[1]));
@@ -185,7 +181,7 @@
   const say = (t) => { $("mine-msg").textContent = t; };
   function previewSVG(d) {
     const parts = [];
-    d.r.forEach((e) => byName(e.n).strokes.forEach((s) => parts.push({ c: e.c, pts: s.pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
+    d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, pts: s.pts })));
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;

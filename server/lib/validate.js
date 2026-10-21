@@ -29,11 +29,16 @@ export function validateBindrune(d) {
     const entry = { n: e.n, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10, m: e.m === 0 ? 0 : 1, c: COLORS.includes(e.c) ? e.c : COLORS[r.length % COLORS.length] };
     const kept = Array.isArray(e.t) ? keptTags(e) : null;                    // étiquettes gardées de la rune (absent : toutes)
     if (kept && kept.length < runeTags(e.n).length) entry.t = kept;
+    const f = Number.isInteger(e.f) && e.f > 0 && e.f <= 3 ? e.f : 0;        // miroir : 1 haut ↔ bas, 2 gauche ↔ droite
+    if (f) entry.f = f;
     r.push(entry);
   }
   const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) =>
     Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
     k[0] !== k[1] && k[0] >= 0 && k[1] >= 0 && k[0] < r.length && k[1] < r.length &&
     k[2] >= 0 && k[3] >= 0 && k[2] < ANCHORS[r[k[0]].n] && k[3] < ANCHORS[r[k[1]].n]);
-  return { r, s: SUPPORT_IDS.includes(d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
+  const out = { r, s: SUPPORT_IDS.includes(d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
+  const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
+  if (z !== 1) out.z = z;
+  return out;
 }

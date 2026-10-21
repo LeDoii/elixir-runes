@@ -230,6 +230,10 @@
               <button id="dz-center" class="btn ghost">Centrer la sélection</button>
               <button id="dz-center-all" class="btn ghost">Tout centrer</button>
             </div>
+            <div class="dz-group" role="group" aria-label="Miroir de la bindrune">
+              <button id="dz-mirror-v" class="btn ghost" title="Retourne toute la bindrune : le haut devient le bas">⇅ Miroir vertical</button>
+              <button id="dz-mirror-h" class="btn ghost" title="Retourne toute la bindrune : la gauche devient la droite">⇄ Miroir horizontal</button>
+            </div>
             <div class="dz-group" role="group" aria-label="Sortie">
               <button id="dz-export" class="btn ghost">Exporter en PNG</button>
               <button id="dz-sheet-png" class="btn ghost">Fiche PNG</button>
@@ -238,6 +242,12 @@
             <div class="dz-group dz-danger" role="group" aria-label="Effacer">
               <button id="dz-clear" class="btn ghost">Tout retirer</button>
             </div>
+          </div>
+          <div class="dz-size">
+            <label for="dz-size">Taille de la bindrune</label>
+            <input id="dz-size" type="range" min="40" max="160" step="5" value="100">
+            <output id="dz-size-val" for="dz-size">100 %</output>
+            <button id="dz-size-reset" class="btn ghost small" type="button">100 %</button>
           </div>
           <p id="dz-msg" class="hint center-text" role="status"></p>
           <h3>Complexité</h3>
@@ -258,13 +268,14 @@
           <div id="palette" class="palette"></div>
           <div class="field">
             <label class="check"><input type="checkbox" id="dz-magnet" checked> Magnétisme</label>
+            <label class="check"><input type="checkbox" id="dz-align" checked> Repères d'alignement (bords et centres des runes, centre de la plaque)</label>
             <label class="check"><input type="checkbox" id="dz-strata"> Strates colorées (une couleur par rune, sans l'effet du support)</label>
             <label class="check"><input type="checkbox" id="dz-adv"> Mode avancé (jusqu'à 6 runes au lieu de 4, et une même rune plusieurs fois)</label>
           </div>
           <h3>Sur la plaque</h3>
           <ul id="dz-list" class="dz-list"></ul>
           <p class="hint">Glisse une rune pour la déplacer ; clic maintenu sur le fond pour entourer plusieurs runes (Maj ou Ctrl : ajouter à la sélection, Ctrl+A : toutes) ; flèches du clavier pour ajuster (Maj : par 10), Suppr pour retirer.
-            La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle.</p>
+            La case « Aimant » d'une rune la libère (ou la réactive) : décochée, elle ne s'accroche à rien et rien ne s'accroche à elle. « Verrou » empêche de la déplacer ; ▲ et ▼ la mettent au premier plan ou à l'arrière-plan. La composition en cours est gardée comme brouillon dans ce navigateur.</p>
           <h3>Enregistrer</h3>
           <div class="save-row">
             <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" aria-label="Nom de la bindrune" autocomplete="off">
@@ -313,6 +324,7 @@
   <script src="difficulty.js"></script>
   <script src="supports.js"></script>
   <script src="scoring.js"></script>
+  <script src="geom.js"></script>
   <script src="combo.js"></script>
   <script src="tags.js"></script>
   <script src="complexity.js"></script>

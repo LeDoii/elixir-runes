@@ -42,11 +42,11 @@
   function plateCanvas(d, w, h) {
     const D = root.RUNES, byName = (n) => D.runes.find((r) => r.name === n), c = cnv(w, h), g = c.getContext("2d"), RES = w / 800, HW = D.strokeWidth / 2;
     g.drawImage(root.Supports.plate(d.s, w, h), 0, 0);
-    const placed = d.r.map((e) => ({ e, paths: byName(e.n).strokes.map((s) => s.pts.map((p) => [p[0] + e.x, p[1] + e.y])) }));
+    const placed = d.r.map((e) => ({ e, paths: root.Geom.placed(e).map((s) => s.pts) }));
     const all = placed.flatMap((p) => p.paths.flat());
     const x0 = Math.min(...all.map((p) => p[0])) - HW, x1 = Math.max(...all.map((p) => p[0])) + HW;
     const y0 = Math.min(...all.map((p) => p[1])) - HW, y1 = Math.max(...all.map((p) => p[1])) + HW;
-    const sc = Math.min(1, 740 / (x1 - x0), 590 / (y1 - y0));
+    const z = d.z || 1, sc = z * Math.min(1, 740 / ((x1 - x0) * z), 590 / ((y1 - y0) * z));   // z : taille choisie dans l'onglet Bindrune
     g.setTransform(RES * sc, 0, 0, RES * sc, 0, 0);
     g.translate(400 / sc - (x0 + x1) / 2, 320 / sc - (y0 + y1) / 2);
     if (d.t === 1) {

@@ -280,3 +280,13 @@ input.search:focus, select:focus { outline: 2px solid rgba(164,85,31,.45); outli
 #draw.expanded .grid2 { grid-template-columns: minmax(0, 3fr) minmax(300px, 1fr); max-width: none; }
 #draw.expanded #canvas { max-width: calc(100vh - 150px); margin-left: auto; margin-right: auto; }
 @media (max-width: 800px) { #draw.expanded .grid2 { grid-template-columns: 1fr; } }
+
+/* ---- taille, verrou et ordre d'empilement */
+.dz-size { display: flex; align-items: center; justify-content: center; gap: .7rem; margin-top: .8rem; flex-wrap: wrap; }
+.dz-size label { font-family: ui-monospace, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; font-size: .7rem; color: var(--grey2); }
+.dz-size input[type=range] { width: min(320px, 55vw); accent-color: var(--warm); }
+.dz-size output { min-width: 3.2rem; text-align: right; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; }
+.dz-list li { grid-template-columns: .8rem 1fr auto auto; }
+.dz-list .ctl { display: flex; flex-wrap: wrap; gap: .2rem .7rem; align-items: center; justify-content: flex-end; }
+.dz-list .ord { background: none; border: 1px solid var(--line); border-radius: 2px; cursor: pointer; font-size: .7rem; line-height: 1; padding: .2rem .35rem; color: var(--grey2); }
+.dz-list .ord:hover { color: var(--warm); border-color: var(--warm); }

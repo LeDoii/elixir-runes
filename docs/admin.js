@@ -20,7 +20,7 @@
   }
   function preview(d) {
     const parts = [];
-    if (d) d.r.forEach((e) => byName(e.n).strokes.forEach((s) => parts.push({ c: e.c, pts: s.pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
+    if (d) d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, pts: s.pts })));
     const box = el("div", "mprev");
     if (!parts.length) { box.textContent = "?"; return box; }
     const all = parts.flatMap((p) => p.pts);
