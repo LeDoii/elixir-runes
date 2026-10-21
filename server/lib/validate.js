@@ -35,10 +35,11 @@ export function validateBindrune(d) {
     if (k !== 1) entry.k = k;
     r.push(entry);
   }
-  const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) =>
-    Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
-    k[0] !== k[1] && k[0] >= 0 && k[1] >= 0 && k[0] < r.length && k[1] < r.length &&
-    k[2] >= 0 && k[3] >= 0 && k[2] < ANCHORS[r[k[0]].n] && k[3] < ANCHORS[r[k[1]].n]);
+  const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => {
+    if (!Array.isArray(k) || (k.length !== 4 && k.length !== 5) || !k.every(Number.isInteger) || k[0] === k[1] || k[0] < 0 || k[1] < 0 || k[0] >= r.length || k[1] >= r.length || k[2] < 0 || k[3] < 0) return false;
+    if (k.length === 5) return k[4] === 1 && k[2] < 64 && k[3] < 64;        // liaison par les lignes : numéros de segments
+    return k[2] < ANCHORS[r[k[0]].n] && k[3] < ANCHORS[r[k[1]].n];
+  });
   const out = { r, s: SUPPORT_IDS.includes(d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
   const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
   if (z !== 1) out.z = z;

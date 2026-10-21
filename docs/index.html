@@ -381,7 +381,6 @@
           <div class="field"><label for="pf-history">Actions gardées par l'historique : <b id="pf-history-v"></b></label><input id="pf-history" type="range" min="10" max="300" step="10"></div>
           <div class="field"><label for="pf-units">Unité des règles</label>
             <select id="pf-units"><option value="plate">Unités de la plaque (800 × 640)</option><option value="percent">Pourcentage de la plaque</option><option value="cells">Cases de la grille des runes</option></select></div>
-          <label class="check"><input type="checkbox" id="pf-click"> Un clic sur une rune ouvre son menu</label>
           <label class="check"><input type="checkbox" id="pf-new"> « Nouvelle bindrune » demande d'abord ses options</label>
           <label class="check"><input type="checkbox" id="pf-close"> Prévenir à la fermeture quand le travail n'est pas enregistré</label>
           <div class="row-btns" style="margin-top:14px">
@@ -400,6 +399,7 @@
           <div class="field">
             <label for="sv-name">Nom</label>
             <input id="sv-name" type="text" maxlength="40" placeholder="Nom de la bindrune" autocomplete="off">
+            <p id="sv-mirror" class="hint warn" hidden></p>
             <p id="sv-exists" class="hint" hidden>Une bindrune enregistrée porte déjà ce nom : elle sera remplacée.</p>
           </div>
           <div class="field">

@@ -36,9 +36,11 @@
       if (k !== 1) entry.k = k;
       r.push(entry);
     }
-    const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => Array.isArray(k) && k.length === 4 && k.every(Number.isInteger) &&
-      k[0] !== k[1] && k[0] >= 0 && k[1] >= 0 && k[0] < r.length && k[1] < r.length &&
-      k[2] >= 0 && k[3] >= 0 && k[2] < anchors(r[k[0]].n).length && k[3] < anchors(r[k[1]].n).length);
+    const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => {
+      if (!Array.isArray(k) || (k.length !== 4 && k.length !== 5) || !k.every(Number.isInteger) || k[0] === k[1] || k[0] < 0 || k[1] < 0 || k[0] >= r.length || k[1] >= r.length || k[2] < 0 || k[3] < 0) return false;
+      if (k.length === 5) return k[4] === 1 && k[2] < 64 && k[3] < 64;      // liaison par les lignes : numéros de segments
+      return k[2] < anchors(r[k[0]].n).length && k[3] < anchors(r[k[1]].n).length;
+    });
     const out = { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
     const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
     if (z !== 1) out.z = z;
@@ -197,7 +199,8 @@
   const say = (t) => { $("mine-msg").textContent = t; };
   function previewSVG(d) {
     const parts = [];
-    d.r.forEach((e) => Geom.placed(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
+    d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
+    Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts }));
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;

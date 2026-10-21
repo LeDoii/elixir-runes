@@ -59,7 +59,7 @@ check("comparaison : même rune deux fois, appariées dans l'ordre", diff(plate(
 const Prefs = require("../docs/prefs.js");
 check("préférences : valeurs d'origine sans stockage", JSON.stringify(Prefs.sanitize(undefined)) === JSON.stringify(Prefs.DEFAULTS) && JSON.stringify(Prefs.sanitize("x")) === JSON.stringify(Prefs.DEFAULTS));
 const p = Prefs.sanitize({ snap: 999, align: -3, units: "pouces", askNew: false, confirmClose: 0, clickMenu: "non", history: "12.7" });
-check("préférences : bornées, unités inconnues refusées, booléens stricts", p.snap === 40 && p.align === 2 && p.units === "plate" && p.askNew === false && p.confirmClose === true && p.clickMenu === true && p.history === 13, JSON.stringify(p));
+check("préférences : bornées, unités inconnues refusées, booléens stricts", p.snap === 40 && p.align === 2 && p.units === "plate" && p.askNew === false && p.confirmClose === true && p.clickMenu === undefined && p.history === 13, JSON.stringify(p));
 check("préférences : non numérique → valeur d'origine", Prefs.sanitize({ snap: "abc", history: null }).snap === 14 && Prefs.sanitize({ snap: NaN }).snap === 14);
 const mem = { v: null, getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
 Prefs.save(mem, { snap: 20, units: "cells", bogus: 1 });

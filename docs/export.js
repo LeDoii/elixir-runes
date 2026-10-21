@@ -20,10 +20,17 @@
     return [x0 - MARGIN, y0 - MARGIN, x1 + MARGIN, y1 + MARGIN].map(num);
   }
   /** Le groupe SVG d'une rune posée, dans sa couleur. */
-  function runeGroup(e, id) {
-    const sw = root.RUNES.strokeWidth * (e.k || 1);
+  function runeGroup(e, id, joins) {
+    const sw = root.RUNES.strokeWidth * (e.k || 1), pts = (a) => a.map((p) => num(p[0]) + "," + num(p[1])).join(" ");
     return '<g id="' + esc(id) + '" fill="none" stroke="' + esc(e.c) + '" stroke-opacity=".88" stroke-width="' + num(sw) + '" stroke-linejoin="miter" stroke-linecap="butt">' +
-      root.Geom.placed(e).map((s) => '<polyline data-trait="' + esc(s.name) + '" points="' + s.pts.map((p) => num(p[0]) + "," + num(p[1])).join(" ") + '"/>').join("") + "</g>";
+      root.Geom.drawn(e).map((s) => '<polyline data-trait="' + esc(s.name) + '" points="' + pts(s.pts) + '"/>').join("") +
+      (joins || []).map((j) => '<polyline data-trait="joint" points="' + pts(j) + '"/>').join("") + "</g>";
+  }
+  /** Joints des points d'ancrage liés, rangés par rune (celle du premier point de chaque liaison). */
+  function joinsByRune(d) {
+    const out = {};
+    root.Geom.joins((d.l || []).filter((k) => k.length === 4).map(([i, j, pa, pb]) => [d.r[i], d.r[j], pa, pb])).forEach((j) => { const i = d.r.indexOf(j.e); (out[i] = out[i] || []).push(j.pts); });
+    return out;
   }
   const svgOpen = (b) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + b.join(" ") + '" width="' + num(b[2] - b[0]) + '" height="' + num(b[3] - b[1]) + '">';
   const idOf = (e, i) => String(i + 1).padStart(2, "0") + "-" + e.n;
@@ -31,12 +38,13 @@
   /** SVG de toute la bindrune : un groupe par rune, dans l'ordre d'empilement, fond transparent. */
   function svgOf(d, title) {
     const b = bounds(d);
-    return svgOpen(b) + "<title>" + esc(title || "Bindrune") + "</title>" + d.r.map((e, i) => runeGroup(e, idOf(e, i))).join("") + "</svg>\n";
+    const jr = joinsByRune(d);
+    return svgOpen(b) + "<title>" + esc(title || "Bindrune") + "</title>" + d.r.map((e, i) => runeGroup(e, idOf(e, i), jr[i])).join("") + "</svg>\n";
   }
   /** Une strate par rune : { name, svg, box, e } avec le même cadre pour toutes. */
   function layers(d, title) {
-    const b = bounds(d);
-    return d.r.map((e, i) => ({ name: idOf(e, i), box: b, e, svg: svgOpen(b) + "<title>" + esc((title || "Bindrune") + " · " + e.n) + "</title>" + runeGroup(e, idOf(e, i)) + "</svg>\n" }));
+    const b = bounds(d), jr = joinsByRune(d);
+    return d.r.map((e, i) => ({ name: idOf(e, i), box: b, e, svg: svgOpen(b) + "<title>" + esc((title || "Bindrune") + " · " + e.n) + "</title>" + runeGroup(e, idOf(e, i), jr[i]) + "</svg>\n" }));
   }
   return { bounds, svgOf, layers, idOf };
 });

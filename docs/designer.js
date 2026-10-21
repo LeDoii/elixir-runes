@@ -7,6 +7,8 @@
   const NS = "http://www.w3.org/2000/svg";
   const VW = 800, VH = 640;                                  // viewBox de la plaque (échelle 1 : la grille de la rune)
   const prefs = Prefs.load(localStorage);                    // portées, unités des règles, confirmations (fenêtre « Préférences »)
+  const LINE_MAGNET = 8;                                     // portée de l'aimant des lignes (unités de la plaque)
+  const LINE_REACH = 60;                                     // portée de « Lier par les lignes »
   const LINK_R = 6;                                          // écart maximal entre deux points pour les lier
   const MARGIN = 10;                                         // marge du cadre : une rune ne dépasse jamais
   const HW = D.strokeWidth / 2;
@@ -15,7 +17,7 @@
   const byName = (n) => D.runes.find((r) => r.name === n);
 
   const svg = $("dz");
-  let items = [], links = [], nextId = 1, snapMark = null, drag = null, marquee = null, guides = [];
+  let items = [], links = [], nextId = 1, snapMark = null, lineMark = null, drag = null, marquee = null, guides = [];
   let sel = new Set();                                       // identifiants des runes sélectionnées (une, ou plusieurs avec le cadre de sélection)
   const advanced = () => $("dz-adv").checked;                 // mode avancé : jusqu'à 6 runes, une même rune plusieurs fois
   const maxRunes = () => (advanced() ? 6 : 4);
@@ -32,7 +34,8 @@
     const s = JSON.parse(json);
     items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId);
     sel = new Set([...sel].filter((id) => itemById(id)));
-    snapMark = null;
+    snapMark = null; lineMark = null;
+    if (items.some((i) => i.f) && !$("dz-adv").checked) $("dz-adv").checked = true;     // une composition retournée n'existe qu'en mode avancé
   }
   function undo() { if (!past.length) return; const p = past.pop(); future.push({ s: stateJson(), label: p.label }); loadState(p.s); say("Annulé : " + p.label + "."); render(); }
   function redo() { if (!future.length) return; const f = future.pop(); past.push({ s: stateJson(), label: f.label }); loadState(f.s); say("Rétabli : " + f.label + "."); render(); }
@@ -81,7 +84,7 @@
   }
   const linkedPoints = (it) => {
     const s = new Set();
-    links.forEach((l) => { if (l.a === it.id) s.add(l.pa); if (l.b === it.id) s.add(l.pb); });
+    links.forEach((l) => { if (l.line) return; if (l.a === it.id) s.add(l.pa); if (l.b === it.id) s.add(l.pb); });
     return s;
   };
   const groups = () => {                                     // tous les ensembles (une rune seule en est un)
@@ -121,7 +124,7 @@
 
   /* ---- magnétisme : l'ensemble déplacé s'accroche aux points d'ancrage des autres runes */
   function snapGroup(members) {
-    snapMark = null;
+    snapMark = null; lineMark = null;
     if (!magnet()) return;
     const active = members.filter((m) => m.snap), others = items.filter((o) => !members.includes(o) && o.snap);
     if (!active.length || !others.length) return;
@@ -130,7 +133,9 @@
       const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (d <= prefs.snap && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
     }))));
-    if (best) { members.forEach((m) => { m.x += best.dx; m.y += best.dy; }); snapMark = best.at; }
+    if (best) { members.forEach((m) => { m.x += best.dx; m.y += best.dy; }); snapMark = best.at; return; }
+    const ls = Geom.lineSnap(active, others, Math.min(prefs.snap, LINE_MAGNET));      // pas de point proche : les lignes parallèles s'accrochent
+    if (ls) { members.forEach((m) => { m.x += ls.dx; m.y += ls.dy; }); lineMark = { from: ls.from, to: ls.to }; }
   }
   /** Place un ensemble : dans le cadre, aimanté, puis encore dans le cadre (le cadre l'emporte). */
   function settle(members) { fit(members); snapGroup(members); fit(members); }
@@ -138,7 +143,7 @@
   /* ---- repères d'alignement : bords et centres de l'ensemble déplacé contre ceux des autres runes et le centre de la plaque */
   function align(members) {
     guides = [];
-    if (!$("dz-align").checked || snapMark || !items.length) return;
+    if (!$("dz-align").checked || snapMark || lineMark || !items.length) return;
     const others = items.filter((o) => !members.includes(o));
     const [x0, y0, x1, y1] = boundsOf(members), tol = prefs.align;
     const mine = { x: [x0, (x0 + x1) / 2, x1], y: [y0, (y0 + y1) / 2, y1] };
@@ -172,7 +177,8 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (avecPlaque) g.drawImage(Supports.plate(Supports.current(), pw, ph), 0, 0);
     g.setTransform(tf[0], 0, 0, tf[1], tf[2], tf[3]);
-    const placed = items.filter((it) => !(ecran && it.hidden)).map((it) => ({ it, paths: Geom.placed(it).map((s) => s.pts) }));
+    const placed = items.filter((it) => !(ecran && it.hidden)).map((it) => ({ it, paths: Geom.drawn(it).map((s) => s.pts) }));
+    Geom.joins(links.filter((l) => !l.line && itemById(l.a) && itemById(l.b)).map((l) => [itemById(l.a), itemById(l.b), l.pa, l.pb])).forEach((j) => { const p = placed.find((x) => x.it === j.e); if (p) p.paths.push(j.pts); });   // les bords se rejoignent aux points liés
     if ($("dz-strata").checked) {
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ it, paths }) => {
@@ -205,12 +211,21 @@
     el("rect", { x: X0, y: Y0, width: X1 - X0, height: Y1 - Y0, fill: "none", stroke: "#e0924f", "stroke-width": 1.2, "stroke-dasharray": "4 4", class: "ui", "pointer-events": "none" }, world);
     [["nw", X0, Y0, "nwse-resize"], ["ne", X1, Y0, "nesw-resize"], ["sw", X0, Y1, "nesw-resize"], ["se", X1, Y1, "nwse-resize"]].forEach(([h, x, y, cur]) =>
       el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, fill: "#fff", stroke: "#20201E", "stroke-width": 1.4, class: "ui", "data-h": h, style: "cursor:" + cur }, world));
-    [["mv", mx, Y0 - 24, "⇅", "Miroir vertical"], ["mh", X0 - 24, my, "⇄", "Miroir horizontal"]].forEach(([h, x, y, glyph, tip]) => {
+    [["mv", mx, Y0 - 24, "⇅", "Miroir vertical"], ["mh", X0 - 24, my, "⇄", "Miroir horizontal"]].filter(([h]) => !mirrorBlock(h === "mv" ? "v" : "h")).forEach(([h, x, y, glyph, tip]) => {
       const c = el("circle", { cx: x, cy: y, r: 11, fill: "#fff", stroke: "#20201E", "stroke-width": 1.4, class: "ui", "data-h": h, style: "cursor:pointer" }, world);
       const t = document.createElementNS(NS, "title"); t.textContent = tip; c.appendChild(t);
       const tx = el("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central", "font-size": 14, fill: "#20201E", "pointer-events": "none" }, world);
       tx.textContent = glyph;
     });
+  }
+  const LIMIT_MSG = "Taille limitée par le bord du plan de travail.";
+  /** Plus grand facteur d'agrandissement autour de (ox, oy) qui garde l'emprise des runes dans le cadre du plan (l'emprise grandit linéairement). */
+  function maxFactor(members, ox, oy) {
+    const [x0, y0, x1, y1] = boundsOf(members);
+    let f = Infinity;
+    const axis = (lo, hi, o, size) => [lo, hi].forEach((e) => { if (e > o + 1e-6) f = Math.min(f, (size - MARGIN - o) / (e - o)); else if (e < o - 1e-6) f = Math.min(f, (o - MARGIN) / (o - e)); });
+    axis(x0, x1, ox, VW); axis(y0, y1, oy, VH);
+    return Math.max(f, 1);
   }
   let resize = null;
   function startHandle(e, h) {
@@ -219,20 +234,26 @@
     if (!members.length) return;
     if (locked(members)) { lockMsg(locked(members)); return; }
     const [x0, y0, x1, y1] = boundsOf(members), corner = { nw: [x0, y0], ne: [x1, y0], sw: [x0, y1], se: [x1, y1] }, opp = corner[{ nw: "se", ne: "sw", sw: "ne", se: "nw" }[h]], c0 = corner[h];
-    resize = { members, starts: members.map((m) => ({ x: m.x, y: m.y, k: m.k || 1 })), opp, c0, len2: (c0[0] - opp[0]) ** 2 + (c0[1] - opp[1]) ** 2, recorded: false };
+    resize = { members, starts: members.map((m) => ({ x: m.x, y: m.y, k: m.k || 1 })), opp, c0, len2: (c0[0] - opp[0]) ** 2 + (c0[1] - opp[1]) ** 2, recorded: false, fmax: maxFactor(members, opp[0], opp[1]), hit: false };
     svg.setPointerCapture(e.pointerId);
   }
   function moveHandle(e) {
     const [px, py] = svgPoint(e), { opp, c0, len2, members, starts } = resize;
-    const f = Math.max(0.05, ((px - opp[0]) * (c0[0] - opp[0]) + (py - opp[1]) * (c0[1] - opp[1])) / len2);
+    const want = Math.max(0.05, ((px - opp[0]) * (c0[0] - opp[0]) + (py - opp[1]) * (c0[1] - opp[1])) / len2), f = Math.min(want, resize.fmax);   // jamais au-delà du bord du plan
+    resize.hit = want > resize.fmax + 1e-6;
     if (!resize.recorded) { record("Redimensionnement"); resize.recorded = true; }
     members.forEach((m, i) => { m.x = starts[i].x; m.y = starts[i].y; m.k = starts[i].k; });
     Geom.scaleAbout(members, f, opp[0], opp[1]);
     fit(members);
-    say("Taille : " + Math.round((members[0].k || 1) * 100) + " %");
+    say(resize.hit ? LIMIT_MSG : "Taille : " + Math.round((members[0].k || 1) * 100) + " %");
     render();
   }
 
+  function lineMarker(world, a, b, w) {
+    const at = { x1: a[0], y1: a[1], x2: b[0], y2: b[1], "stroke-linecap": "round", class: "ui", "pointer-events": "none" };
+    el("line", Object.assign({ stroke: "#fff", "stroke-width": w + 3 }, at), world);
+    el("line", Object.assign({ stroke: LINK_COLOR, "stroke-width": w }, at), world);
+  }
   function render() {
     drawCanvas();
     svg.innerHTML = "";
@@ -259,6 +280,12 @@
         el("circle", { cx: a[0], cy: a[1], r: isLink ? 7 : 5, fill: isLink ? LINK_COLOR : "#fff", stroke: isLink ? "#fff" : "#20201E", "stroke-width": isLink ? 2.4 : 1.8, class: "ui", "pointer-events": "none" }, gr);
       });
     });
+    links.filter((l) => l.line).forEach((l) => {             // liaisons par les lignes : la zone où les deux lignes se confondent
+      const A = itemById(l.a), B = itemById(l.b);
+      if (!A || !B || A.hidden || B.hidden) return;
+      Geom.lineContacts(A, B, 6).filter((c) => c.sa === l.sa && c.sb === l.sb).forEach((c) => lineMarker(world, c.from, c.to, 3.2));
+    });
+    if (lineMark) lineMarker(world, lineMark.from, lineMark.to, 4.4);
     if (activeTool() === "select" && sel.size && !(drag && drag.moved) && !(marquee && marquee.moved)) drawHandles(world);
     if (marquee && marquee.moved) {
       const m = marqueeRect();
@@ -285,6 +312,7 @@
       b.classList.toggle("taken", !advanced() && items.some((i) => i.name === b.dataset.name));
     });
     refreshHistory();
+    syncMirror();
   }
 
   const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -482,10 +510,10 @@
     }
     if (!drag) return;
     const d = drag;
-    drag = null; snapMark = null; guides = [];
+    drag = null; snapMark = null; lineMark = null; guides = [];
     if (!d.moved && d.pt === null && sel.size > 1) sel = new Set([d.it.id]);   // simple clic sur une rune : elle seule reste sélectionnée
     if (!d.moved && d.pt !== null && e.type === "pointerup") clickAnchor(d.it, d.pt);
-    else { render(); if (prefs.clickMenu && !d.moved && d.pt === null && e.type === "pointerup") openMenu(e.clientX, e.clientY, d.it); }
+    else render();
   };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
@@ -541,15 +569,32 @@
   const targets = () => { const m = selMembers(); return m.length ? m : items; };
   const scope = () => (!sel.size ? "toute la bindrune" : selMembers().length > 1 ? "la sélection" : "la rune");
   /** Miroir « vertical » : haut ↔ bas ; « horizontal » : gauche ↔ droite (le même bouton, pressé deux fois, rétablit). */
+  /** Le miroir change-t-il la forme de la rune ? (Isa, Gebo, Dagaz, Ingwaz : jamais ; Berkano, Thurisaz… : pas en vertical ; voir geom.js) */
+  function mirrorMatters(m, axis) { const bit = axis === "v" ? Geom.FLIP_V : Geom.FLIP_H; return Geom.canonF(m.name, (m.f || 0) ^ bit) !== Geom.canonF(m.name, m.f || 0); }
+  /** Pourquoi le miroir est indisponible (texte), ou null s'il est utilisable. */
+  function mirrorBlock(axis) {
+    if (!advanced()) return "réservé au mode avancé (une rune retournée est instable)";
+    const members = targets();
+    if (members.length && !members.some((m) => mirrorMatters(m, axis))) return "sans effet : " + (members.length > 1 ? "ces runes sont symétriques" : "cette rune est symétrique") + " de ce côté";
+    return null;
+  }
+  function syncMirror() {
+    [["v", "dz-mirror-v", "Miroir vertical (sélection, sinon toute la bindrune) : le haut devient le bas"], ["h", "dz-mirror-h", "Miroir horizontal (sélection, sinon toute la bindrune) : la gauche devient la droite"]].forEach(([axis, id, tip]) => {
+      const why = items.length || !advanced() ? mirrorBlock(axis) : null, b = $(id);
+      b.disabled = !!why; b.title = tip + (why ? " — indisponible : " + why : "");
+    });
+  }
   function mirrorSel(axis) {
     if (!items.length) { say("Ajoute d'abord des runes."); return; }
+    const why = mirrorBlock(axis);
+    if (why) { say("Miroir " + (axis === "v" ? "vertical" : "horizontal") + " indisponible : " + why + "."); return; }
     const members = targets();
     if (locked(members)) { lockMsg(locked(members)); return; }
     record(axis === "v" ? "Miroir vertical" : "Miroir horizontal");
     const [x0, y0, x1, y1] = boundsOf(members);
     Geom.mirror(members, axis, (x0 + x1) / 2, (y0 + y1) / 2);
     snapMark = null;
-    say("Miroir " + (axis === "v" ? "vertical" : "horizontal") + " : " + scope() + ".");
+    say("Miroir " + (axis === "v" ? "vertical" : "horizontal") + " : " + scope() + ". Une rune retournée est instable : elle peut subir des altérations.");
     render();
   }
   $("dz-mirror-v").addEventListener("click", () => mirrorSel("v"));
@@ -558,23 +603,27 @@
   /** Échelle de référence affichée par le curseur : la dernière rune sélectionnée, sinon la première. */
   const refItem = () => (sel.size && itemById([...sel].pop())) || items[0];
   /** Fixe l'échelle de référence à pct % ; les autres runes du bloc suivent dans la même proportion, autour du centre du bloc. */
+  let sizeLimited = false;
   function applyPct(pct) {
+    sizeLimited = false;
     const members = targets(), ref = refItem();
     if (!ref || !members.length) return false;
     if (locked(members)) { lockMsg(locked(members)); return false; }
-    const factor = pct / 100 / (ref.k || 1);
+    let factor = pct / 100 / (ref.k || 1);
+    const [x0, y0, x1, y1] = boundsOf(members), fmax = maxFactor(members, (x0 + x1) / 2, (y0 + y1) / 2);
+    sizeLimited = factor > fmax + 1e-6;
+    if (sizeLimited) factor = fmax;                          // l'agrandissement s'arrête au bord du plan de travail
     if (Math.abs(factor - 1) < 1e-4) return false;
-    const [x0, y0, x1, y1] = boundsOf(members);
     Geom.scaleAbout(members, factor, (x0 + x1) / 2, (y0 + y1) / 2);
     fit(members);
     return true;
   }
-  function resizeTo(pct, label) { if (!items.length) { say("Ajoute d'abord des runes."); return; } const ref = refItem(); if (Math.abs(pct / 100 - (ref.k || 1)) < 1e-4) return; if (locked(targets())) { lockMsg(locked(targets())); return; } record(label); applyPct(pct); say("Taille : " + scope() + " à " + Math.round(refItem().k * 100) + " %."); render(); }
+  function resizeTo(pct, label) { if (!items.length) { say("Ajoute d'abord des runes."); return; } const ref = refItem(); if (Math.abs(pct / 100 - (ref.k || 1)) < 1e-4) return; if (locked(targets())) { lockMsg(locked(targets())); return; } record(label); if (!applyPct(pct)) { past.pop(); refreshHistory(); } say(sizeLimited ? LIMIT_MSG : "Taille : " + scope() + " à " + Math.round(refItem().k * 100) + " %."); render(); }
   let sizing = false;
   $("dz-size").addEventListener("input", (e) => {
     if (!items.length) return;
     if (!sizing) { if (locked(targets())) { lockMsg(locked(targets())); render(); return; } record("Taille de " + scope()); sizing = true; }   // un geste sur le curseur = une seule étape d'historique
-    applyPct(Number(e.target.value)); say(""); render();
+    applyPct(Number(e.target.value)); say(sizeLimited ? LIMIT_MSG : ""); render();
   });
   $("dz-size").addEventListener("change", () => { sizing = false; });
   $("dz-size-reset").addEventListener("click", () => resizeTo(100, "Taille d'origine"));
@@ -586,7 +635,38 @@
     $("dz-size-label").textContent = !items.length ? "Taille" : !sel.size ? "Taille : toutes les runes" : selMembers().length > 1 ? "Taille : la sélection (" + selMembers().length + " runes)" : "Taille : " + ref.name;
   }
 
-  /* ---- menu contextuel : un clic sur une rune (ou clic droit) propose des actions sur elle ou sur la sélection */
+  /* ---- liaison par les lignes : les lignes parallèles de deux runes sont amenées l'une sur l'autre, puis les runes se déplacent ensemble */
+  function linkLines() {
+    const members = selMembers();
+    if (!members.length) { say("Sélectionne d'abord une rune."); return; }
+    if (locked(members)) { lockMsg(locked(members)); return; }
+    const others = items.filter((o) => !members.includes(o) && !o.hidden);
+    const ls = others.length ? Geom.lineSnap(members, others, LINE_REACH) : null;
+    if (!ls) { say(others.length ? "Aucune ligne parallèle d'une autre rune à proximité : rapproche les runes, lignes face à face, puis réessaie." : "Il faut une autre rune pour lier par les lignes."); return; }
+    record("Liaison par les lignes");
+    const starts = members.map((m) => [m.x, m.y]);
+    members.forEach((m) => { m.x += ls.dx; m.y += ls.dy; });
+    fit(members);
+    let added = 0;
+    const names = new Set();
+    members.forEach((m) => others.forEach((o) => {
+      const best = Geom.lineContacts(m, o, 6).sort((p, q) => Math.hypot(q.to[0] - q.from[0], q.to[1] - q.from[1]) - Math.hypot(p.to[0] - p.from[0], p.to[1] - p.from[1]))[0];
+      if (!best || links.length >= 20 || links.some((l) => l.line && l.a === m.id && l.b === o.id && l.sa === best.sa && l.sb === best.sb)) return;
+      links.push({ a: m.id, b: o.id, sa: best.sa, sb: best.sb, line: true }); added++; names.add(o.name);
+    }));
+    if (!added) { members.forEach((m, i) => { [m.x, m.y] = starts[i]; }); past.pop(); refreshHistory(); say("Les lignes n'ont pas pu se rejoindre sans sortir du plan de travail."); render(); return; }
+    say("Liées par les lignes à « " + [...names].join(" », « ") + " » : l'ensemble se déplace d'un bloc.");
+    render();
+  }
+  function unlinkLines() {
+    const own = links.filter((l) => l.line && (sel.has(l.a) || sel.has(l.b)));
+    if (!own.length) return;
+    record("Liaison par les lignes retirée");
+    links = links.filter((l) => !own.includes(l));
+    say("Liaison par les lignes retirée."); render();
+  }
+
+  /* ---- menu contextuel : le clic droit sur une rune propose des actions sur elle ou sur la sélection */
   const menu = $("dz-menu");
   const closeMenu = () => { menu.hidden = true; menu.innerHTML = ""; };
   function openMenu(cx, cy, it) {
@@ -595,8 +675,8 @@
     const act = (label, fn) => () => { closeMenu(); fn(); };
     const entries = [
       { head: multi ? members.length + " runes" : it.name },
-      { label: "Miroir vertical", hint: "haut ↔ bas", fn: () => mirrorSel("v") },
-      { label: "Miroir horizontal", hint: "gauche ↔ droite", fn: () => mirrorSel("h") },
+      ...(mirrorBlock("v") ? [] : [{ label: "Miroir vertical", hint: "haut ↔ bas", fn: () => mirrorSel("v") }]),
+      ...(mirrorBlock("h") ? [] : [{ label: "Miroir horizontal", hint: "gauche ↔ droite", fn: () => mirrorSel("h") }]),
       { sep: true },
       { label: "Agrandir", hint: "+ 10 %", fn: () => resizeTo(Math.round((refItem().k || 1) * 110), "Agrandissement") },
       { label: "Réduire", hint: "− 10 %", fn: () => resizeTo(Math.round((refItem().k || 1) * 91), "Réduction") },
@@ -607,6 +687,8 @@
       entries.push({ label: "Premier plan", fn: () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); render(); } });
       entries.push({ label: "Arrière-plan", fn: () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); render(); } });
     }
+    entries.push({ label: "Lier par les lignes", hint: "bord contre bord", fn: linkLines });
+    if (links.some((l) => l.line && (sel.has(l.a) || sel.has(l.b)))) entries.push({ label: "Délier les lignes", fn: unlinkLines });
     const lockedNow = everyone.every((i) => i.locked), snapNow = everyone.every((i) => i.snap);
     entries.push({ label: lockedNow ? "Déverrouiller" : "Verrouiller", fn: () => { record((lockedNow ? "Déverrouillage" : "Verrouillage") + " de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.locked = !lockedNow; }); render(); } });
     entries.push({ label: snapNow ? "Désactiver l'aimant" : "Activer l'aimant", fn: () => { record("Aimant de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.snap = !snapNow; }); render(); } });
@@ -639,6 +721,7 @@
     if (e.key === "ArrowDown") { e.preventDefault(); btns[(i + 1) % btns.length].focus(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); btns[(i - 1 + btns.length) % btns.length].focus(); }
   });
+  $("dz-stage").addEventListener("contextmenu", (e) => { e.preventDefault(); });   // pas de menu du navigateur sur le plan de travail
   svg.addEventListener("contextmenu", (e) => {                // clic droit sur une rune
     const g = e.target.closest("g[data-id]");
     if (!g) return;
@@ -652,7 +735,7 @@
 
   /* ---- palette : clic (ajout au centre) ou glisser-déposer sur la plaque */
   function miniSVG(r) {
-    return '<svg viewBox="112 28 288 456" xmlns="http://www.w3.org/2000/svg">' + r.strokes.map((s) =>
+    return '<svg viewBox="112 28 288 456" xmlns="http://www.w3.org/2000/svg">' + Geom.drawn({ name: r.name, x: 0, y: 0 }).map((s) =>
       '<polyline points="' + s.pts.map((p) => p.join(",")).join(" ") + '" fill="none" stroke="#20201E" stroke-width="' + D.strokeWidth + '"/>').join("") + "</svg>";
   }
   const pal = $("palette");
@@ -699,9 +782,9 @@
   /* ---- options */
   $("dz-magnet").addEventListener("change", () => { snapMark = null; render(); });
   $("dz-adv").addEventListener("change", (e) => {
-    if (!e.target.checked && (items.length > 4 || hasDuplicates())) {
+    if (!e.target.checked && (items.length > 4 || hasDuplicates() || items.some((i) => i.f))) {
       e.target.checked = true;
-      say(items.length > 4 ? "Retire d'abord des runes : le mode normal est limité à 4." : "Retire d'abord les runes en double : le mode normal n'emploie une rune qu'une fois.");
+      say(items.some((i) => i.f) && items.length <= 4 && !hasDuplicates() ? "Remets d'abord les runes à l'endroit : le miroir n'existe qu'en mode avancé." : items.length > 4 ? "Retire d'abord des runes : le mode normal est limité à 4." : "Retire d'abord les runes en double : le mode normal n'emploie une rune qu'une fois.");
       return;
     }
     say(""); render();
@@ -1103,7 +1186,7 @@
   const toD = (its, lks, support, strata) => ({
     r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
     s: support, t: strata,
-    l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.pa, k.pb]),
+    l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.line ? k.sa : k.pa, k.line ? k.sb : k.pb].concat(k.line ? [1] : [])),
   });
   const snapshot = () => toD(items, links, Supports.current(), $("dz-strata").checked ? 1 : 0);
   function restore(raw, label) {
@@ -1112,10 +1195,10 @@
     record(label || "Ouverture");
     items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
     if (d.z) Geom.scaleAbout(items, d.z, VW / 2, VH / 2);     // ancien format : taille générale, convertie en échelle de chaque rune
-    links = (d.l || []).map(([i, j, pa, pb]) => ({ a: items[i].id, pa, b: items[j].id, pb }));
+    links = (d.l || []).map(([i, j, pa, pb, line]) => (line ? { a: items[i].id, sa: pa, b: items[j].id, sb: pb, line: true } : { a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
     sel = new Set(); snapMark = null;
-    $("dz-adv").checked = items.length > 4 || hasDuplicates();
+    $("dz-adv").checked = items.length > 4 || hasDuplicates() || items.some((i) => i.f);
     guides = [];
     $("dz-strata").checked = d.t === 1;
     Supports.set(d.s);
@@ -1161,6 +1244,9 @@
   function refreshSave() {
     const name = Bindrunes.cleanName($("sv-name").value), exists = !!(name && Bindrunes.get(name));
     $("sv-exists").hidden = !exists;
+    const mir = items.filter((i) => i.f);
+    $("sv-mirror").hidden = !mir.length;
+    $("sv-mirror").textContent = mir.length ? "Attention : " + mir.map((i) => i.name).join(", ") + (mir.length > 1 ? " sont retournées (miroir)" : " est retournée (miroir)") + ". Une rune retournée est instable : elle peut subir des altérations." : "";
     $("sv-copy").hidden = !exists;
     $("sv-save").textContent = exists ? "Remplacer" : "Enregistrer";
     const doc = $("dz-doc");
@@ -1190,6 +1276,8 @@
     if (!name) { svmsg("Donne un nom à ta bindrune."); $("sv-name").focus(); return; }
     if (!items.length) { svmsg("Ajoute au moins une rune avant d'enregistrer."); return; }
     if (!Tags.all(platesD(), svTags).length) { svmsg("Garde au moins une étiquette : active un sens d'une rune ou ajoute une étiquette."); return; }
+    const mirrored = items.filter((i) => i.f);
+    if (mirrored.length && !confirm("Une rune sous l'effet d'un miroir est instable et peut subir des altérations (" + mirrored.map((i) => i.name).join(", ") + "). Enregistrer quand même ?")) return;
     const rec = Bindrunes.save(name, snapshot(), $("sv-desc").value, svTags);
     if (!rec) { svmsg("Enregistrement impossible : le stockage du navigateur est indisponible."); return; }
     const wantPub = !$("sv-dest").hidden && $("sv-pub").checked;
@@ -1308,22 +1396,19 @@
     const id = p.dataset.pnl;
     if (ui.open && typeof ui.open[id] === "boolean") p.open = ui.open[id];
     p.addEventListener("toggle", () => { ui.open = ui.open || {}; ui.open[id] = p.open; saveUi(); });
-    const mv = document.createElement("span");
-    mv.className = "pmv";
-    [["▲", -1, "Monter le panneau"], ["▼", 1, "Descendre le panneau"]].forEach(([g, dir, tip]) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.textContent = g; b.title = tip; b.setAttribute("aria-label", tip + " " + p.querySelector("summary").firstChild.textContent.trim());
-      b.addEventListener("click", (e) => {
-        e.preventDefault(); e.stopPropagation();
-        const all = panels(), i = all.indexOf(p), j = i + dir;
-        if (j < 0 || j >= all.length) return;
-        if (dir < 0) panelsBox.insertBefore(p, all[j]); else panelsBox.insertBefore(all[j], p);
-        ui.order = panels().map((x) => x.dataset.pnl); saveUi();
-      });
-      mv.appendChild(b);
-    });
-    p.querySelector("summary").appendChild(mv);
+    const head = p.querySelector("summary");                 // on réarrange les panneaux en glissant leur titre
+    head.draggable = true;
+    head.addEventListener("dragstart", (e) => { dragPnl = p; p.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); try { e.dataTransfer.setDragImage(head, 16, 12); } catch (x) { /* ignoré */ } });
+    head.addEventListener("dragend", () => { p.classList.remove("dragging"); dragPnl = null; ui.order = panels().map((x) => x.dataset.pnl); saveUi(); });
   });
+  let dragPnl = null;
+  panelsBox.addEventListener("dragover", (e) => {
+    if (!dragPnl) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    const before = panels().filter((x) => x !== dragPnl).find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; }) || null;
+    if (before ? dragPnl.nextElementSibling !== before : panels().pop() !== dragPnl) panelsBox.insertBefore(dragPnl, before);
+  });
+  panelsBox.addEventListener("drop", (e) => { if (dragPnl) e.preventDefault(); });
   const setPanelsW = (w) => $("design").style.setProperty("--panels-w", w + "px");
   if (Number.isFinite(ui.w)) setPanelsW(Math.min(640, Math.max(240, ui.w)));
   const split = document.createElement("div");
@@ -1353,13 +1438,12 @@
     $("pf-snap").value = prefs.snap; $("pf-snap-v").textContent = prefs.snap;
     $("pf-align").value = prefs.align; $("pf-align-v").textContent = prefs.align;
     $("pf-history").value = prefs.history; $("pf-history-v").textContent = prefs.history;
-    $("pf-units").value = prefs.units; $("pf-click").checked = prefs.clickMenu; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
+    $("pf-units").value = prefs.units; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
   }
   const setPrefs = (patch) => { Object.assign(prefs, Prefs.sanitize(Object.assign({}, prefs, patch))); Prefs.save(localStorage, prefs); fillPrefs(); scheduleRulers(); };
   function openPrefs() { fillPrefs(); prefsBox.hidden = false; $("pf-close-btn").focus(); }
   [["pf-snap", "snap"], ["pf-align", "align"], ["pf-history", "history"]].forEach(([id, key]) => $(id).addEventListener("input", (e) => setPrefs({ [key]: Number(e.target.value) })));
   $("pf-units").addEventListener("change", (e) => setPrefs({ units: e.target.value }));
-  $("pf-click").addEventListener("change", (e) => setPrefs({ clickMenu: e.target.checked }));
   $("pf-new").addEventListener("change", (e) => setPrefs({ askNew: e.target.checked }));
   $("pf-close").addEventListener("change", (e) => setPrefs({ confirmClose: e.target.checked }));
   $("pf-reset").addEventListener("click", () => setPrefs(Prefs.DEFAULTS));

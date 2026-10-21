@@ -30,11 +30,11 @@ const a = comp(), b0 = bounds(a), cx = (b0[0] + b0[2]) / 2, cy = (b0[1] + b0[3])
 Geom.mirror(a, "v", cx, cy);
 const b1 = bounds(a);
 check("miroir vertical : l'emprise reste la même, centrée au même endroit", b0.every((v, i) => near(v, b1[i])), JSON.stringify([b0, b1]));
-check("miroir vertical : chaque rune porte le drapeau 1", a.every((e) => e.f === 1));
+check("miroir vertical : chaque rune dont la forme change porte le drapeau 1, les autres (Gebo, Isa) restent à 0", a.every((e) => e.f === (e.n === "Ansuz" ? 1 : 0)), JSON.stringify(a.map((e) => [e.n, e.f])));
 Geom.mirror(a, "v", cx, cy);
 check("deux miroirs verticaux : composition d'origine", JSON.stringify(a.map((e) => [e.n, e.x, e.y, e.f || 0])) === JSON.stringify(comp().map((e) => [e.n, e.x, e.y, 0])));
 const h = comp(); Geom.mirror(h, "h", cx, cy); Geom.mirror(h, "v", cx, cy);
-check("miroirs vertical puis horizontal : drapeau 3 (rotation de 180°)", h.every((e) => e.f === 3));
+check("miroirs vertical puis horizontal : rotation de 180° (drapeau 3 pour Ansuz, 0 pour les runes symétriques)", h.every((e) => e.f === (e.n === "Ansuz" ? 3 : 0)));
 const rot = bounds(h);
 check("rotation de 180° : même emprise", b0.every((v, i) => near(v, rot[i])));
 // la liaison entre deux runes (points qui se touchent) reste vraie après miroir
@@ -89,4 +89,45 @@ const K = (k) => plate([rune("Gebo", 44, 64), Object.assign(rune("Ansuz", 236, 6
 check("empreinte : une rune redimensionnée est une autre combinaison", comboKey(K(1.5)) !== comboKey(K(0)));
 check("empreinte : échelle 1 explicite = pas d'échelle", comboKey(plate([rune("Gebo", 44, 64), Object.assign(rune("Ansuz", 236, 64), { k: 1 })])) === comboKey(K(0)));
 check("empreinte : parité navigateur / serveur avec échelles et miroirs", [[0, 1.5], [1, 0.5], [3, 2]].every(([f, k]) => { const dd = plate([rune("Gebo", 44, 64, f), Object.assign(rune("Isa", 140, 100, 0), { k }), rune("Ansuz", 236, 64, f)]); return comboKey(dd) === Combo.key(dd); }));
+
+/* ---- miroirs inutiles */
+const SYM = { Gebo: [1, 1, 1], Isa: [1, 1, 1], Ingwaz: [1, 1, 1], Dagaz: [1, 1, 1], Thurisaz: [1, 0, 0], Kenaz: [1, 0, 0], Perthro: [1, 0, 0], Berkano: [1, 0, 0], Algiz: [0, 1, 0], Tiwaz: [0, 1, 0], Ehwaz: [0, 1, 0], Mannaz: [0, 1, 0], Othala: [0, 1, 0], Hagalaz: [0, 0, 1], Jera: [0, 0, 1], Eihwaz: [0, 0, 1], Sowilo: [0, 0, 1] };
+check("miroirs inutiles : la liste notée dans geom.js et NOTES_BINDRUNES.md", RUNES.every((n) => { const [v, hh, both] = SYM[n] || [0, 0, 0]; return Geom.changes(n, 1) === !v && Geom.changes(n, 2) === !hh && Geom.changes(n, 3) === !both; }));
+check("drapeau équivalent : Gebo et Isa restent à 0 quel que soit le miroir", [0, 1, 2, 3].every((f) => Geom.canonF("Isa", f) === 0 && Geom.canonF("Gebo", f) === 0 && Geom.canonF("Dagaz", f) === 0));
+check("drapeau équivalent : Hagalaz 3 devient 0 (rotation de 180° sans effet) et 2 donne la même forme que 1", Geom.canonF("Hagalaz", 3) === 0 && Geom.canonF("Hagalaz", 1) === 1 && Geom.canonF("Hagalaz", 2) === 1);
+check("drapeau équivalent : Thurisaz haut ↔ bas inutile, gauche ↔ droite utile", Geom.canonF("Thurisaz", 1) === 0 && Geom.canonF("Thurisaz", 2) === 2 && Geom.canonF("Thurisaz", 3) === 2);
+const sym = [{ n: "Isa", x: 0, y: 0 }, { n: "Algiz", x: 100, y: 50 }, { n: "Berkano", x: 200, y: 0 }];
+Geom.mirror(sym, "v", 300, 200);
+check("miroir vertical : les positions se retournent toujours, le drapeau seulement si la forme change", sym[0].f === 0 && sym[1].f === 1 && sym[2].f === 0 && sym[0].y === 2 * 200 - 0 - 512 && sym[1].y === 2 * 200 - 50 - 512);
+Geom.mirror(sym, "h", 300, 200);
+check("miroir horizontal : Algiz (symétrique gauche ↔ droite) garde 1, Berkano passe à 2", sym[1].f === 1 && sym[2].f === 2);
+
+/* ---- piques de jonction */
+const spk = RUNES.map((n) => [n, Geom.spikes(n).length]).filter(([, c]) => c);
+check("piques : seule Berkano en a une (son sommet central, posé au milieu de la tige) ; la pointe de Tiwaz est une vraie pointe de flèche", JSON.stringify(spk) === JSON.stringify([["Berkano", 1]]) && Geom.spikes("Berkano")[0].v === 2);
+const nBerkano = window.RUNES.runes.find((r) => r.name === "Berkano").strokes.length;
+check("piques : le trait de Berkano est coupé en deux à ce sommet (mêmes traits pour toutes les autres runes)", Geom.drawn({ n: "Berkano", x: 0, y: 0 }).length === nBerkano + 1 && RUNES.filter((n) => n !== "Berkano").every((n) => Geom.drawn({ n, x: 0, y: 0 }).length === window.RUNES.runes.find((r) => r.name === n).strokes.length));
+const bd = Geom.drawn({ n: "Berkano", x: 10, y: 20 });
+check("piques : les deux morceaux se rejoignent exactement au sommet coupé, décalés de la position", bd.some((s, i) => bd[i + 1] && s.pts[s.pts.length - 1].join() === bd[i + 1].pts[0].join() && s.pts[s.pts.length - 1].join() === "170,276"));
+
+/* ---- joints aux points d'ancrage liés */
+const isaTop = { n: "Isa", x: 0, y: 0 }, isaBottom = { n: "Isa", x: 0, y: 396 };
+const j1 = Geom.joins([[isaTop, isaBottom, 1, 0]]);
+check("joint : deux tiges bout à bout donnent un petit trait en V centré sur le point lié (ici plat)", j1.length === 1 && j1[0].pts[1].join() === "256,454" && j1[0].pts[0][0] === 256 && j1[0].pts[2][0] === 256 && j1[0].pts[0][1] < 454 && j1[0].pts[2][1] > 454);
+const kz = { n: "Kenaz", x: 0, y: 0 };                         // chevron : son sommet gauche (160,256) porte deux traits
+const kA = Geom.anchors("Kenaz", 0).findIndex((p) => p[0] === 160 && p[1] === 256);
+check("joint : le sommet d'un chevron (2 traits) lié au bout d'une tige donne deux joints, un par trait", kA >= 0 && Geom.joins([[kz, { n: "Isa", x: -96, y: 198 }, kA, 0]]).length === 2);
+check("joint : lien vers un point inexistant ignoré", Geom.joins([[isaTop, isaBottom, 99, 0]]).length === 0);
+check("joint : la branche du joint reste courte (au plus 1,2 fois l'épaisseur)", Geom.joins([[isaTop, isaBottom, 1, 0]]).every((j) => Math.hypot(j.pts[0][0] - j.pts[1][0], j.pts[0][1] - j.pts[1][1]) <= 24.1));
+
+/* ---- liaisons par les lignes */
+const isa = (x, y) => ({ n: "Isa", x, y });
+check("lignes : deux tiges superposées se touchent (un contact)", Geom.lineContacts(isa(0, 0), isa(0, 0)).length === 1);
+check("lignes : une tige décalée de 5 est hors de portée par défaut (3) mais dans une portée de 6", Geom.lineContacts(isa(0, 0), isa(5, 0)).length === 0 && Geom.lineContacts(isa(0, 0), isa(5, 0), 6).length === 1);
+check("lignes : deux tiges sans recouvrement ne se touchent pas", Geom.lineContacts(isa(0, 0), isa(0, 500)).length === 0);
+const ls = Geom.lineSnap([isa(8, 0)], [isa(0, 0)], 14);
+check("aimantation par les lignes : le décalage perpendiculaire ramène la tige exactement sur l'autre", ls && Math.abs(ls.dx + 8) < 1e-9 && Math.abs(ls.dy) < 1e-9);
+check("aimantation par les lignes : trop loin, rien", Geom.lineSnap([isa(30, 0)], [isa(0, 0)], 14) === null);
+const ls2 = Geom.lineSnap([isa(8, 100)], [isa(0, 0)], 14);
+check("aimantation par les lignes : seul le décalage perpendiculaire (la tige glisse librement le long de la ligne)", ls2 && Math.abs(ls2.dx + 8) < 1e-9 && Math.abs(ls2.dy) < 1e-9);
 finish();
