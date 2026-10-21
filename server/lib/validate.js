@@ -35,9 +35,9 @@ export function validateBindrune(d) {
     if (k !== 1) entry.k = k;
     r.push(entry);
   }
-  const l = (Array.isArray(d.l) ? d.l.slice(0, 20) : []).filter((k) => {
+  const l = (Array.isArray(d.l) ? d.l.slice(0, 40) : []).filter((k) => {
     if (!Array.isArray(k) || (k.length !== 4 && k.length !== 5) || !k.every(Number.isInteger) || k[0] === k[1] || k[0] < 0 || k[1] < 0 || k[0] >= r.length || k[1] >= r.length || k[2] < 0 || k[3] < 0) return false;
-    if (k.length === 5) return k[4] === 1 && k[2] < 64 && k[3] < 64;        // liaison par les lignes : numéros de segments
+    if (k.length === 5) return k[4] === 2 && k[2] < ANCHORS[r[k[0]].n] && k[3] < 64;      // ancrage de la rune i posé sur le trait (segment) de la rune j
     return k[2] < ANCHORS[r[k[0]].n] && k[3] < ANCHORS[r[k[1]].n];
   });
   const out = { r, s: SUPPORT_IDS.includes(d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };

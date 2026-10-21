@@ -116,76 +116,80 @@
     return out;
   };
 
-  /* ---------------------------------------------------------------- liaisons : joints aux points d'ancrage, liaisons par les lignes */
+  /* ---------------------------------------------------------------- liaisons : joints aux points d'ancrage, ancrage posé sur une ligne */
   /** Segments d'une rune posée, dans le repère de la plaque, avec leur numéro (continu d'un trait au suivant). */
   function segments(e) {
     const out = [];
     placed(e).forEach((s) => s.pts.slice(1).forEach((p, i) => out.push({ a: s.pts[i], b: p, idx: out.length })));
     return out;
   }
-  /** Traits de la rune qui aboutissent au point P (plaque) : direction unitaire en s'éloignant de P, et longueur. */
-  function incident(e, P) {
+  /** Directions (angle, longueur disponible) des traits de la rune qui partent du point P : une extrémité en donne une, un sommet deux, un trait qui traverse P deux (opposées). */
+  function raysAt(e, P) {
     const out = [];
     segments(e).forEach((g) => {
-      const len = Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]);
-      if (Math.hypot(g.a[0] - P[0], g.a[1] - P[1]) < 0.75) out.push({ u: [(g.b[0] - g.a[0]) / len, (g.b[1] - g.a[1]) / len], len });
-      else if (Math.hypot(g.b[0] - P[0], g.b[1] - P[1]) < 0.75) out.push({ u: [(g.a[0] - g.b[0]) / len, (g.a[1] - g.b[1]) / len], len });
+      const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      if (Math.hypot(g.a[0] - P[0], g.a[1] - P[1]) < 0.75) out.push({ a: Math.atan2(uy, ux), len });
+      else if (Math.hypot(g.b[0] - P[0], g.b[1] - P[1]) < 0.75) out.push({ a: Math.atan2(-uy, -ux), len });
+      else {
+        const t = (P[0] - g.a[0]) * ux + (P[1] - g.a[1]) * uy, off = Math.abs((P[0] - g.a[0]) * uy - (P[1] - g.a[1]) * ux);
+        if (off < 0.75 && t > 0.75 && t < len - 0.75) { out.push({ a: Math.atan2(-uy, -ux), len: t }); out.push({ a: Math.atan2(uy, ux), len: len - t }); }
+      }
     });
     return out;
   }
   /**
-   * Joints aux points d'ancrage liés : là où deux runes se rejoignent, les extrémités à bout plat laissent une encoche ; on ajoute un petit
-   * trait en V (un morceau de chaque trait, avec un joint mitré) qui referme l'angle comme à l'intérieur d'une rune.
+   * Joints aux points d'ancrage liés. Autour d'un point lié, les traits de toutes les runes qui s'y rejoignent sont classés par direction :
+   * l'encoche à combler est un grand écart (plus de 180°) entre deux traits voisins de runes différentes. Le joint est alors un V mitré
+   * (deux bras assez longs pour que la pointe soit exacte) qui prolonge le coin comme à l'intérieur d'une rune. Entre des traits qui
+   * se recouvrent ou se prolongent (angle d'au plus 180°), rien à ajouter : aucune bosse.
    * pairs : [[runeA, runeB, pointA, pointB]] ; retourne [{ e: runeA, pts }] (e donne la couleur et l'échelle).
    */
   function joins(pairs) {
-    const W = root.RUNES.strokeWidth, out = [];
+    const W = root.RUNES.strokeWidth, out = [], at = new Map();
     pairs.forEach(([A, B, pa]) => {
       const pt = anchors(A.n || A.name, A.f, A.k)[pa];
       if (!pt) return;
-      const P = [pt[0] + A.x, pt[1] + A.y], sa = incident(A, P), sb = incident(B, P);
-      sa.forEach((a) => sb.forEach((b) => {
-        const e = Math.min(W * 1.2 * (((A.k || 1) + (B.k || 1)) / 2), a.len * 0.5, b.len * 0.5);
-        out.push({ e: A, pts: [[P[0] + a.u[0] * e, P[1] + a.u[1] * e], P, [P[0] + b.u[0] * e, P[1] + b.u[1] * e]] });
-      }));
+      const P = [pt[0] + A.x, pt[1] + A.y], key = Math.round(P[0] * 2) + "," + Math.round(P[1] * 2);
+      const g = at.get(key) || { P, e: A, runes: [] };
+      [A, B].forEach((r) => { if (!g.runes.includes(r)) g.runes.push(r); });
+      at.set(key, g);
+    });
+    at.forEach(({ P, e, runes }) => {
+      const rays = [];
+      runes.forEach((r) => raysAt(r, P).forEach((x) => rays.push({ a: x.a, len: x.len, r })));
+      if (rays.length < 2) return;
+      rays.sort((p, q) => p.a - q.a);
+      rays.forEach((r1, i) => {
+        const r2 = rays[(i + 1) % rays.length], gap = i === rays.length - 1 ? r2.a + 2 * Math.PI - r1.a : r2.a - r1.a;
+        if (gap <= Math.PI + 0.02 || r1.r === r2.r) return;
+        const half = (2 * Math.PI - gap) / 2;
+        if (half < 0.06) return;                               // traits presque superposés : pas de joint
+        const need = (W * (e.k || 1)) / 2 / Math.tan(half) + 1, l1 = Math.min(need, r1.len), l2 = Math.min(need, r2.len);
+        out.push({ e, pts: [[P[0] + Math.cos(r1.a) * l1, P[1] + Math.sin(r1.a) * l1], P, [P[0] + Math.cos(r2.a) * l2, P[1] + Math.sin(r2.a) * l2]] });
+      });
     });
     return out;
   }
-  const PARALLEL = 0.035;                                      // sinus de l'écart d'angle toléré entre deux lignes parallèles (2 degrés)
-  /** Deux segments se longent-ils ? Retourne { dist (signée, de t vers s), from, to (zone commune) } ou null. */
-  function along(s, t, W) {
-    const dx = t.b[0] - t.a[0], dy = t.b[1] - t.a[1], lt = Math.hypot(dx, dy), ux = dx / lt, uy = dy / lt;
-    const sx = s.b[0] - s.a[0], sy = s.b[1] - s.a[1], ls = Math.hypot(sx, sy);
-    if (Math.abs((sx / ls) * uy - (sy / ls) * ux) > PARALLEL) return null;
-    const nx = -uy, ny = ux, dist = (s.a[0] - t.a[0]) * nx + (s.a[1] - t.a[1]) * ny;
-    const p0 = (s.a[0] - t.a[0]) * ux + (s.a[1] - t.a[1]) * uy, p1 = (s.b[0] - t.a[0]) * ux + (s.b[1] - t.a[1]) * uy;
-    const lo = Math.max(0, Math.min(p0, p1)), hi = Math.min(lt, Math.max(p0, p1));
-    if (hi - lo < W / 2) return null;                          // elles ne se recouvrent pas assez
-    return { dist, from: [t.a[0] + ux * lo, t.a[1] + uy * lo], to: [t.a[0] + ux * hi, t.a[1] + uy * hi] };
-  }
-  /** Contacts par les lignes entre deux runes posées : segments qui se longent à moins de tol l'un de l'autre. [{ sa, sb, from, to }] */
-  function lineContacts(A, B, tol) {
-    const W = root.RUNES.strokeWidth, out = [], sb = segments(B);
-    segments(A).forEach((s) => sb.forEach((t) => {
-      const c = along(s, t, W);
-      if (c && Math.abs(c.dist) <= (tol === undefined ? 3 : tol)) out.push({ sa: s.idx, sb: t.idx, from: c.from, to: c.to });
-    }));
-    return out;
+  /** Point d'un trait de la rune e le plus proche de P, à moins de tol : { idx (segment), q (point), d } ou null. */
+  function onLine(P, e, tol) {
+    let best = null;
+    segments(e).forEach((g) => {
+      const dx = g.b[0] - g.a[0], dy = g.b[1] - g.a[1], t = Math.max(0, Math.min(1, ((P[0] - g.a[0]) * dx + (P[1] - g.a[1]) * dy) / (dx * dx + dy * dy)));
+      const q = [g.a[0] + t * dx, g.a[1] + t * dy], d = Math.hypot(P[0] - q[0], P[1] - q[1]);
+      if (d <= tol && (!best || d < best.d)) best = { idx: g.idx, q, d };
+    });
+    return best;
   }
   /**
-   * Aimantation par les lignes : le décalage perpendiculaire (dx, dy) qui amène un segment des runes déplacées exactement sur une ligne
-   * parallèle d'une autre rune, si elle est à moins de radius. Retourne { dx, dy, from, to } (zone commune) ou null.
+   * Aimantation d'un point d'ancrage sur une ligne : le décalage (dx, dy) qui amène un point d'ancrage des runes déplacées sur un trait d'une
+   * autre rune, ou un point d'ancrage d'une autre rune sur un trait des runes déplacées, si l'écart est inférieur à radius. { dx, dy, at } ou null.
    */
-  function lineSnap(moving, others, radius) {
-    const W = root.RUNES.strokeWidth;
+  function anchorLineSnap(moving, others, radius) {
     let best = null;
-    const ot = others.flatMap((o) => segments(o));
-    moving.forEach((m) => segments(m).forEach((s) => ot.forEach((t) => {
-      const c = along(s, t, W);
-      if (!c || Math.abs(c.dist) > radius || (best && Math.abs(c.dist) >= best.d)) return;
-      const dx = t.b[0] - t.a[0], dy = t.b[1] - t.a[1], lt = Math.hypot(dx, dy), nx = -dy / lt, ny = dx / lt;
-      best = { d: Math.abs(c.dist), dx: -c.dist * nx, dy: -c.dist * ny, from: c.from, to: c.to };
-    })));
+    const take = (d, dx, dy, at) => { if (!best || d < best.d) best = { d, dx, dy, at }; };
+    const pts = (e) => anchors(e.n || e.name, e.f, e.k).map((p) => [p[0] + e.x, p[1] + e.y]);
+    moving.forEach((m) => pts(m).forEach((a) => others.forEach((o) => { const h = onLine(a, o, radius); if (h) take(h.d, h.q[0] - a[0], h.q[1] - a[1], h.q); })));
+    others.forEach((o) => pts(o).forEach((b) => moving.forEach((m) => { const h = onLine(b, m, radius); if (h) take(h.d, b[0] - h.q[0], b[1] - h.q[1], b); })));
     return best;
   }
 
@@ -219,5 +223,5 @@
     });
     return f;
   }
-  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, lineContacts, lineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
+  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
 });

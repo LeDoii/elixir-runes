@@ -111,23 +111,28 @@ const bd = Geom.drawn({ n: "Berkano", x: 10, y: 20 });
 check("piques : les deux morceaux se rejoignent exactement au sommet coupé, décalés de la position", bd.some((s, i) => bd[i + 1] && s.pts[s.pts.length - 1].join() === bd[i + 1].pts[0].join() && s.pts[s.pts.length - 1].join() === "170,276"));
 
 /* ---- joints aux points d'ancrage liés */
-const isaTop = { n: "Isa", x: 0, y: 0 }, isaBottom = { n: "Isa", x: 0, y: 396 };
-const j1 = Geom.joins([[isaTop, isaBottom, 1, 0]]);
-check("joint : deux tiges bout à bout donnent un petit trait en V centré sur le point lié (ici plat)", j1.length === 1 && j1[0].pts[1].join() === "256,454" && j1[0].pts[0][0] === 256 && j1[0].pts[2][0] === 256 && j1[0].pts[0][1] < 454 && j1[0].pts[2][1] > 454);
+const isa = (x, y) => ({ n: "Isa", x, y });
+const isaTop = isa(0, 0), isaBottom = isa(0, 396);
+check("joint : deux tiges bout à bout se prolongent : rien à ajouter", Geom.joins([[isaTop, isaBottom, 1, 0]]).length === 0);
 const kz = { n: "Kenaz", x: 0, y: 0 };                         // chevron : son sommet gauche (160,256) porte deux traits
 const kA = Geom.anchors("Kenaz", 0).findIndex((p) => p[0] === 160 && p[1] === 256);
-check("joint : le sommet d'un chevron (2 traits) lié au bout d'une tige donne deux joints, un par trait", kA >= 0 && Geom.joins([[kz, { n: "Isa", x: -96, y: 198 }, kA, 0]]).length === 2);
+const jk = Geom.joins([[kz, isa(-96, 198), kA, 0]]);
+check("joint : tige posée sous le sommet d'un chevron : un seul joint, au point lié, avec des bras assez longs", kA >= 0 && jk.length === 1 && jk[0].pts[1].join() === "160,256" && jk[0].pts.slice(0, 3).every((p) => Number.isFinite(p[0])), JSON.stringify(jk));
+check("joint : le V a un bras sur la tige (vers le bas) et un sur le chevron (vers le haut), longueur de bras juste suffisante", jk.length === 1 && jk[0].pts[0][0] === 160 && jk[0].pts[0][1] > 256 && jk[0].pts[2][0] > 160 && jk[0].pts[2][1] < 256 && Math.hypot(jk[0].pts[0][0] - 160, jk[0].pts[0][1] - 256) < 12);
+const bA = Geom.anchors("Berkano", 0).findIndex((p) => p[0] === 160 && p[1] === 256);
+check("joint : une tige qui prolonge la tige de Berkano au point central : aucune bosse", bA >= 0 && Geom.joins([[{ n: "Berkano", x: 0, y: 0 }, isa(-96, 198), bA, 0]]).length === 0);
 check("joint : lien vers un point inexistant ignoré", Geom.joins([[isaTop, isaBottom, 99, 0]]).length === 0);
-check("joint : la branche du joint reste courte (au plus 1,2 fois l'épaisseur)", Geom.joins([[isaTop, isaBottom, 1, 0]]).every((j) => Math.hypot(j.pts[0][0] - j.pts[1][0], j.pts[0][1] - j.pts[1][1]) <= 24.1));
+check("joint : deux liens sur le même point ne donnent qu'un joint", Geom.joins([[kz, isa(-96, 198), kA, 0], [isa(-96, 198), kz, 0, kA]]).length === 1);
 
-/* ---- liaisons par les lignes */
-const isa = (x, y) => ({ n: "Isa", x, y });
-check("lignes : deux tiges superposées se touchent (un contact)", Geom.lineContacts(isa(0, 0), isa(0, 0)).length === 1);
-check("lignes : une tige décalée de 5 est hors de portée par défaut (3) mais dans une portée de 6", Geom.lineContacts(isa(0, 0), isa(5, 0)).length === 0 && Geom.lineContacts(isa(0, 0), isa(5, 0), 6).length === 1);
-check("lignes : deux tiges sans recouvrement ne se touchent pas", Geom.lineContacts(isa(0, 0), isa(0, 500)).length === 0);
-const ls = Geom.lineSnap([isa(8, 0)], [isa(0, 0)], 14);
-check("aimantation par les lignes : le décalage perpendiculaire ramène la tige exactement sur l'autre", ls && Math.abs(ls.dx + 8) < 1e-9 && Math.abs(ls.dy) < 1e-9);
-check("aimantation par les lignes : trop loin, rien", Geom.lineSnap([isa(30, 0)], [isa(0, 0)], 14) === null);
-const ls2 = Geom.lineSnap([isa(8, 100)], [isa(0, 0)], 14);
-check("aimantation par les lignes : seul le décalage perpendiculaire (la tige glisse librement le long de la ligne)", ls2 && Math.abs(ls2.dx + 8) < 1e-9 && Math.abs(ls2.dy) < 1e-9);
+/* ---- ancrage posé sur une ligne */
+const onI = Geom.onLine([260, 200], isa(0, 0), 6);
+check("ligne : un point à 4 du trait d'une tige est trouvé, avec son point d'attache sur le trait", onI && Math.abs(onI.q[0] - 256) < 1e-9 && onI.q[1] === 200 && onI.d === 4);
+check("ligne : un point trop loin n'est pas sur la ligne", Geom.onLine([280, 200], isa(0, 0), 6) === null);
+const kenaz = { n: "Kenaz", x: 0, y: 0 };
+const als = Geom.anchorLineSnap([isa(2, 99)], [kenaz], 14);          // le haut de la tige (258,157) frôle la branche haute du chevron
+const moved = als && isa(2 + als.dx, 99 + als.dy), anc = moved && Geom.anchors("Isa", 0).map((p) => [p[0] + moved.x, p[1] + moved.y])[0];
+check("aimant de ligne : l'extrémité de la tige est ramenée exactement sur le trait du chevron", als && anc && Geom.onLine(anc, kenaz, 1e-6) !== null, JSON.stringify(als));
+const als3 = Geom.anchorLineSnap([kenaz], [isa(2, 99)], 14);
+check("aimant de ligne : même résultat dans l'autre sens (le chevron se déplace vers la tige)", als3 && Math.abs(als3.dx + als.dx) < 1e-9 && Math.abs(als3.dy + als.dy) < 1e-9);
+check("aimant de ligne : rien quand aucun ancrage n'est à portée d'un trait", Geom.anchorLineSnap([isa(300, 0)], [kenaz], 14) === null);
 finish();

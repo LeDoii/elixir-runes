@@ -7,8 +7,7 @@
   const NS = "http://www.w3.org/2000/svg";
   const VW = 800, VH = 640;                                  // viewBox de la plaque (échelle 1 : la grille de la rune)
   const prefs = Prefs.load(localStorage);                    // portées, unités des règles, confirmations (fenêtre « Préférences »)
-  const LINE_MAGNET = 8;                                     // portée de l'aimant des lignes (unités de la plaque)
-  const LINE_REACH = 60;                                     // portée de « Lier par les lignes »
+  const LINE_SNAP = 10;                                      // portée de l'aimant d'un point d'ancrage sur une ligne (unités de la plaque)
   const LINK_R = 6;                                          // écart maximal entre deux points pour les lier
   const MARGIN = 10;                                         // marge du cadre : une rune ne dépasse jamais
   const HW = D.strokeWidth / 2;
@@ -17,7 +16,7 @@
   const byName = (n) => D.runes.find((r) => r.name === n);
 
   const svg = $("dz");
-  let items = [], links = [], nextId = 1, snapMark = null, lineMark = null, drag = null, marquee = null, guides = [];
+  let items = [], links = [], nextId = 1, snapMark = null, drag = null, marquee = null, guides = [];
   let sel = new Set();                                       // identifiants des runes sélectionnées (une, ou plusieurs avec le cadre de sélection)
   const advanced = () => $("dz-adv").checked;                 // mode avancé : jusqu'à 6 runes, une même rune plusieurs fois
   const maxRunes = () => (advanced() ? 6 : 4);
@@ -34,7 +33,7 @@
     const s = JSON.parse(json);
     items = s.items; links = s.links; nextId = Math.max(nextId, s.nextId);
     sel = new Set([...sel].filter((id) => itemById(id)));
-    snapMark = null; lineMark = null;
+    snapMark = null;
     if (items.some((i) => i.f) && !$("dz-adv").checked) $("dz-adv").checked = true;     // une composition retournée n'existe qu'en mode avancé
   }
   function undo() { if (!past.length) return; const p = past.pop(); future.push({ s: stateJson(), label: p.label }); loadState(p.s); say("Annulé : " + p.label + "."); render(); }
@@ -84,7 +83,7 @@
   }
   const linkedPoints = (it) => {
     const s = new Set();
-    links.forEach((l) => { if (l.line) return; if (l.a === it.id) s.add(l.pa); if (l.b === it.id) s.add(l.pb); });
+    links.forEach((l) => { if (l.a === it.id) s.add(l.pa); if (l.b === it.id && !l.line) s.add(l.pb); });      // une liaison sur ligne ne marque que l'ancrage de la rune a
     return s;
   };
   const groups = () => {                                     // tous les ensembles (une rune seule en est un)
@@ -124,7 +123,7 @@
 
   /* ---- magnétisme : l'ensemble déplacé s'accroche aux points d'ancrage des autres runes */
   function snapGroup(members) {
-    snapMark = null; lineMark = null;
+    snapMark = null;
     if (!magnet()) return;
     const active = members.filter((m) => m.snap), others = items.filter((o) => !members.includes(o) && o.snap);
     if (!active.length || !others.length) return;
@@ -134,8 +133,8 @@
       if (d <= prefs.snap && (!best || d < best.d)) best = { d, dx: b[0] - a[0], dy: b[1] - a[1], at: b };
     }))));
     if (best) { members.forEach((m) => { m.x += best.dx; m.y += best.dy; }); snapMark = best.at; return; }
-    const ls = Geom.lineSnap(active, others, Math.min(prefs.snap, LINE_MAGNET));      // pas de point proche : les lignes parallèles s'accrochent
-    if (ls) { members.forEach((m) => { m.x += ls.dx; m.y += ls.dy; }); lineMark = { from: ls.from, to: ls.to }; }
+    const ls = Geom.anchorLineSnap(active, others, Math.min(prefs.snap, LINE_SNAP));      // sinon, un point d'ancrage qui frôle le trait d'une autre rune s'y pose
+    if (ls) { members.forEach((m) => { m.x += ls.dx; m.y += ls.dy; }); snapMark = ls.at; }
   }
   /** Place un ensemble : dans le cadre, aimanté, puis encore dans le cadre (le cadre l'emporte). */
   function settle(members) { fit(members); snapGroup(members); fit(members); }
@@ -143,7 +142,7 @@
   /* ---- repères d'alignement : bords et centres de l'ensemble déplacé contre ceux des autres runes et le centre de la plaque */
   function align(members) {
     guides = [];
-    if (!$("dz-align").checked || snapMark || lineMark || !items.length) return;
+    if (!$("dz-align").checked || snapMark || !items.length) return;
     const others = items.filter((o) => !members.includes(o));
     const [x0, y0, x1, y1] = boundsOf(members), tol = prefs.align;
     const mine = { x: [x0, (x0 + x1) / 2, x1], y: [y0, (y0 + y1) / 2, y1] };
@@ -249,11 +248,6 @@
     render();
   }
 
-  function lineMarker(world, a, b, w) {
-    const at = { x1: a[0], y1: a[1], x2: b[0], y2: b[1], "stroke-linecap": "round", class: "ui", "pointer-events": "none" };
-    el("line", Object.assign({ stroke: "#fff", "stroke-width": w + 3 }, at), world);
-    el("line", Object.assign({ stroke: LINK_COLOR, "stroke-width": w }, at), world);
-  }
   function render() {
     drawCanvas();
     svg.innerHTML = "";
@@ -280,12 +274,6 @@
         el("circle", { cx: a[0], cy: a[1], r: isLink ? 7 : 5, fill: isLink ? LINK_COLOR : "#fff", stroke: isLink ? "#fff" : "#20201E", "stroke-width": isLink ? 2.4 : 1.8, class: "ui", "pointer-events": "none" }, gr);
       });
     });
-    links.filter((l) => l.line).forEach((l) => {             // liaisons par les lignes : la zone où les deux lignes se confondent
-      const A = itemById(l.a), B = itemById(l.b);
-      if (!A || !B || A.hidden || B.hidden) return;
-      Geom.lineContacts(A, B, 6).filter((c) => c.sa === l.sa && c.sb === l.sb).forEach((c) => lineMarker(world, c.from, c.to, 3.2));
-    });
-    if (lineMark) lineMarker(world, lineMark.from, lineMark.to, 4.4);
     if (activeTool() === "select" && sel.size && !(drag && drag.moved) && !(marquee && marquee.moved)) drawHandles(world);
     if (marquee && marquee.moved) {
       const m = marqueeRect();
@@ -413,24 +401,50 @@
     toast(ids.length > 1 ? ids.length + " runes retirées." : "Rune retirée.", "Annuler", undo);
   }
 
-  /* ---- liaison : un clic sur un point d'ancrage lie les runes dont les points se touchent (un second clic délie) */
+  /* ---- liaison : un clic sur un point d'ancrage le lie au point d'une autre rune qui le touche, sinon à l'endroit où il touche une de ses lignes ; un second clic délie */
+  const MAX_LINKS = 40;
+  const samePointLink = (l, x, pi, y, pj) => !l.line && ((l.a === x.id && l.b === y.id && l.pa === pi && l.pb === pj) || (l.a === y.id && l.b === x.id && l.pa === pj && l.pb === pi));
+  /** Lie aussi tous les autres points d'ancrage qui se touchent entre les runes concernées ; retourne leur nombre. */
+  function autoLink(rs) {
+    let n = 0;
+    rs.forEach((x, i) => rs.slice(i + 1).forEach((y) => abs(x).forEach((p, pi) => abs(y).forEach((q, pj) => {
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) > LINK_R || links.length >= MAX_LINKS || links.some((l) => samePointLink(l, x, pi, y, pj))) return;
+      links.push({ a: x.id, pa: pi, b: y.id, pb: pj }); n++;
+    }))));
+    return n;
+  }
   function clickAnchor(it, pi) {
     const own = links.filter((l) => (l.a === it.id && l.pa === pi) || (l.b === it.id && l.pb === pi));
     if (own.length) { record("Liaison retirée"); links = links.filter((l) => !own.includes(l)); say("Liaison retirée."); render(); return; }
-    const a = abs(it)[pi], partners = [];
+    if (links.length >= MAX_LINKS) { say("Limite de " + MAX_LINKS + " liaisons atteinte."); return; }
+    const a = abs(it)[pi], partners = [], onLines = [];
     items.forEach((o) => {
       if (o === it) return;
       abs(o).forEach((b, pj) => { if (Math.hypot(b[0] - a[0], b[1] - a[1]) <= LINK_R) partners.push([o, pj, b]); });
+      const h = Geom.onLine(a, o, LINK_R);
+      if (h) onLines.push([o, h]);
     });
-    if (!partners.length) { say("Aucun point d'une autre rune à cet endroit : amène deux points d'ancrage l'un sur l'autre (l'aimant aide), puis clique dessus."); return; }
+    if (!partners.length && !onLines.length) { say("Rien à cet endroit : amène ce point d'ancrage sur un point d'ancrage ou sur la ligne d'une autre rune (l'aimant aide), puis clique dessus."); return; }
+    const grp = groupOf(it);
+    if (!partners.length) {                                  // le point touche une ligne : il y est attaché, à l'endroit du contact
+      onLines.sort((p, q) => p[1].d - q[1].d);
+      const [o, h] = onLines[0];
+      record("Liaison sur une ligne de " + o.name);
+      if (!grp.includes(o)) { const dx = h.q[0] - a[0], dy = h.q[1] - a[1]; grp.forEach((m) => { m.x += dx; m.y += dy; }); }   // le point se pose exactement sur la ligne
+      links.push({ a: it.id, pa: pi, b: o.id, sb: h.idx, line: true });
+      fit(groupOf(it));
+      say("« " + it.name + " » est attachée à la ligne de « " + o.name + " » à l'endroit du contact : l'ensemble se déplace d'un bloc.");
+      render();
+      return;
+    }
     record("Liaison de " + it.name);
-    const grp = groupOf(it), [first, , fb] = partners[0];
+    const [first, , fb] = partners[0];
     if (!grp.includes(first)) { const dx = fb[0] - a[0], dy = fb[1] - a[1]; grp.forEach((m) => { m.x += dx; m.y += dy; }); }   // les points se superposent exactement
-    partners.forEach(([o, pj]) => {
-      if (!links.some((l) => (l.a === it.id && l.b === o.id && l.pa === pi && l.pb === pj) || (l.a === o.id && l.b === it.id && l.pa === pj && l.pb === pi))) links.push({ a: it.id, pa: pi, b: o.id, pb: pj });
-    });
+    partners.forEach(([o, pj]) => { if (!links.some((l) => samePointLink(l, it, pi, o, pj)) && links.length < MAX_LINKS) links.push({ a: it.id, pa: pi, b: o.id, pb: pj }); });
+    const rs = [it].concat(partners.map((p) => p[0]).filter((o, i, all) => all.indexOf(o) === i));
+    const extra = autoLink(rs);                              // les autres points qui se touchent entre ces runes sont liés aussi
     fit(groupOf(it));
-    say("« " + it.name + " » est liée à « " + partners.map((p) => p[0].name).join(" », « ") + " » : l'ensemble se déplace d'un bloc.");
+    say("« " + it.name + " » est liée à « " + partners.map((p) => p[0].name).filter((n, i, all) => all.indexOf(n) === i).join(" », « ") + " »" + (extra ? " (" + extra + " autre" + (extra > 1 ? "s" : "") + " point" + (extra > 1 ? "s" : "") + " d'ancrage lié" + (extra > 1 ? "s" : "") + " au passage)" : "") + " : l'ensemble se déplace d'un bloc.");
     render();
   }
 
@@ -510,7 +524,7 @@
     }
     if (!drag) return;
     const d = drag;
-    drag = null; snapMark = null; lineMark = null; guides = [];
+    drag = null; snapMark = null; guides = [];
     if (!d.moved && d.pt === null && sel.size > 1) sel = new Set([d.it.id]);   // simple clic sur une rune : elle seule reste sélectionnée
     if (!d.moved && d.pt !== null && e.type === "pointerup") clickAnchor(d.it, d.pt);
     else render();
@@ -635,37 +649,6 @@
     $("dz-size-label").textContent = !items.length ? "Taille" : !sel.size ? "Taille : toutes les runes" : selMembers().length > 1 ? "Taille : la sélection (" + selMembers().length + " runes)" : "Taille : " + ref.name;
   }
 
-  /* ---- liaison par les lignes : les lignes parallèles de deux runes sont amenées l'une sur l'autre, puis les runes se déplacent ensemble */
-  function linkLines() {
-    const members = selMembers();
-    if (!members.length) { say("Sélectionne d'abord une rune."); return; }
-    if (locked(members)) { lockMsg(locked(members)); return; }
-    const others = items.filter((o) => !members.includes(o) && !o.hidden);
-    const ls = others.length ? Geom.lineSnap(members, others, LINE_REACH) : null;
-    if (!ls) { say(others.length ? "Aucune ligne parallèle d'une autre rune à proximité : rapproche les runes, lignes face à face, puis réessaie." : "Il faut une autre rune pour lier par les lignes."); return; }
-    record("Liaison par les lignes");
-    const starts = members.map((m) => [m.x, m.y]);
-    members.forEach((m) => { m.x += ls.dx; m.y += ls.dy; });
-    fit(members);
-    let added = 0;
-    const names = new Set();
-    members.forEach((m) => others.forEach((o) => {
-      const best = Geom.lineContacts(m, o, 6).sort((p, q) => Math.hypot(q.to[0] - q.from[0], q.to[1] - q.from[1]) - Math.hypot(p.to[0] - p.from[0], p.to[1] - p.from[1]))[0];
-      if (!best || links.length >= 20 || links.some((l) => l.line && l.a === m.id && l.b === o.id && l.sa === best.sa && l.sb === best.sb)) return;
-      links.push({ a: m.id, b: o.id, sa: best.sa, sb: best.sb, line: true }); added++; names.add(o.name);
-    }));
-    if (!added) { members.forEach((m, i) => { [m.x, m.y] = starts[i]; }); past.pop(); refreshHistory(); say("Les lignes n'ont pas pu se rejoindre sans sortir du plan de travail."); render(); return; }
-    say("Liées par les lignes à « " + [...names].join(" », « ") + " » : l'ensemble se déplace d'un bloc.");
-    render();
-  }
-  function unlinkLines() {
-    const own = links.filter((l) => l.line && (sel.has(l.a) || sel.has(l.b)));
-    if (!own.length) return;
-    record("Liaison par les lignes retirée");
-    links = links.filter((l) => !own.includes(l));
-    say("Liaison par les lignes retirée."); render();
-  }
-
   /* ---- menu contextuel : le clic droit sur une rune propose des actions sur elle ou sur la sélection */
   const menu = $("dz-menu");
   const closeMenu = () => { menu.hidden = true; menu.innerHTML = ""; };
@@ -687,8 +670,6 @@
       entries.push({ label: "Premier plan", fn: () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); render(); } });
       entries.push({ label: "Arrière-plan", fn: () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); render(); } });
     }
-    entries.push({ label: "Lier par les lignes", hint: "bord contre bord", fn: linkLines });
-    if (links.some((l) => l.line && (sel.has(l.a) || sel.has(l.b)))) entries.push({ label: "Délier les lignes", fn: unlinkLines });
     const lockedNow = everyone.every((i) => i.locked), snapNow = everyone.every((i) => i.snap);
     entries.push({ label: lockedNow ? "Déverrouiller" : "Verrouiller", fn: () => { record((lockedNow ? "Déverrouillage" : "Verrouillage") + " de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.locked = !lockedNow; }); render(); } });
     entries.push({ label: snapNow ? "Désactiver l'aimant" : "Activer l'aimant", fn: () => { record("Aimant de " + (multi ? everyone.length + " runes" : it.name)); everyone.forEach((i) => { i.snap = !snapNow; }); render(); } });
@@ -1186,7 +1167,7 @@
   const toD = (its, lks, support, strata) => ({
     r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
     s: support, t: strata,
-    l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.line ? k.sa : k.pa, k.line ? k.sb : k.pb].concat(k.line ? [1] : [])),
+    l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.pa, k.line ? k.sb : k.pb].concat(k.line ? [2] : [])),
   });
   const snapshot = () => toD(items, links, Supports.current(), $("dz-strata").checked ? 1 : 0);
   function restore(raw, label) {
@@ -1195,7 +1176,7 @@
     record(label || "Ouverture");
     items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
     if (d.z) Geom.scaleAbout(items, d.z, VW / 2, VH / 2);     // ancien format : taille générale, convertie en échelle de chaque rune
-    links = (d.l || []).map(([i, j, pa, pb, line]) => (line ? { a: items[i].id, sa: pa, b: items[j].id, sb: pb, line: true } : { a: items[i].id, pa, b: items[j].id, pb }));
+    links = (d.l || []).map(([i, j, pa, pb, line]) => (line ? { a: items[i].id, pa, b: items[j].id, sb: pb, line: true } : { a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
     sel = new Set(); snapMark = null;
     $("dz-adv").checked = items.length > 4 || hasDuplicates() || items.some((i) => i.f);
