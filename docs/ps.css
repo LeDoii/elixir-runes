@@ -194,3 +194,52 @@ body:has(#design:not([hidden])) footer { display: none; }
 .ctxm button:hover em, .ctxm button:focus em { color: #5a3513; }
 .ctxm button.danger { color: #ec8a79; }
 .ctxm button.danger:hover, .ctxm button.danger:focus { background: #b3402f; color: #fff; }
+
+/* ---- outils actifs, poignées, fenêtres, guide */
+#design.ps .tl.on { color: #1b1006; background: var(--acc); }
+#design.ps .ps-stage[data-tool="hand"], #design.ps .ps-stage[data-tool="hand"] svg * { cursor: grab !important; }
+#design.ps .ps-stage[data-tool="hand"].panning, #design.ps .ps-stage[data-tool="hand"].panning svg * { cursor: grabbing !important; }
+#design.ps .ps-stage[data-tool="zoom"], #design.ps .ps-stage[data-tool="zoom"] svg * { cursor: zoom-in !important; }
+#design.ps .snap-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+#design.ps .snaplist { list-style: none; margin: 0; padding: 0; }
+#design.ps .snaplist li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--line2); border-radius: 3px; margin-bottom: 4px; background: var(--bg2); }
+#design.ps .snaplist .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#design.ps .snaplist small { color: var(--tx2); }
+#design.ps .snaplist button { background: var(--bg3); border: 1px solid #000; border-radius: 3px; color: var(--tx2); cursor: pointer; font: inherit; font-size: 11px; padding: 2px 6px; }
+#design.ps .snaplist button:hover { color: var(--acc); }
+#design.ps .pmv { margin-left: auto; display: inline-flex; gap: 2px; }
+#design.ps .pmv button { background: none; border: 0; color: var(--tx2); cursor: pointer; font-size: 10px; padding: 0 4px; line-height: 1; opacity: .55; }
+#design.ps .pnl > summary:hover .pmv button { opacity: 1; }
+#design.ps .pmv button:hover { color: var(--acc); }
+#design.ps .count + .pmv { margin-left: 8px; }
+#design.ps .ps-body { position: relative; grid-template-columns: 46px minmax(0, 1fr) var(--panels-w, 340px); }
+#design.ps .ps-split { position: absolute; top: 0; bottom: 0; right: var(--panels-w, 340px); width: 7px; transform: translateX(3px); cursor: col-resize; z-index: 6; }
+#design.ps .ps-split:hover, #design.ps .ps-split.on, #design.ps .ps-split:focus-visible { background: rgba(224,146,79,.45); outline: none; }
+
+.psmodal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0,0,0,.55); padding: 16px; }
+.psmodal[hidden], .tour[hidden] { display: none; }
+.psmodal .card { background: #2b2b2b; color: #d6d6d6; border: 1px solid #000; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,.7); padding: 16px 18px; max-width: 520px; width: 100%; max-height: calc(100vh - 40px); overflow: auto; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+.psmodal .card.wide { max-width: 760px; }
+.psmodal h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: #e0924f; font-family: inherit; font-weight: 600; }
+.psmodal .keys { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 14px; }
+.psmodal .keys dt { font-weight: 600; color: #fff; }
+.psmodal .keys dd { margin: 0; color: #bdbdbd; }
+.psmodal .row-btns, .tour .row-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.psmodal .grow, .tour .grow { flex: 1; }
+.psmodal .pbtn, .tour .pbtn { display: inline-flex; align-items: center; gap: 6px; font: inherit; color: #d6d6d6; background: #3b3b3b; border: 1px solid #000; border-radius: 3px; padding: 5px 12px; cursor: pointer; }
+.psmodal .pbtn:hover, .tour .pbtn:hover { background: #4a4a4a; }
+.psmodal .pbtn.primary, .tour .pbtn.primary { background: #e0924f; color: #1b1006; border-color: #5a3513; font-weight: 600; }
+.psmodal .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.psmodal figure { margin: 0; text-align: center; }
+.psmodal .prev { background: #181818; border: 1px solid #000; border-radius: 4px; padding: 10px; height: 180px; display: grid; place-items: center; }
+.psmodal .prev svg { max-width: 100%; max-height: 100%; }
+.psmodal figcaption { margin-top: 6px; color: #9b9b9b; font-size: 12px; }
+.psmodal .difflines { margin: 12px 0; padding-left: 18px; color: #d6d6d6; }
+.psmodal .difflines li { margin: 3px 0; }
+.psmodal .difflines li.none { list-style: none; margin-left: -18px; color: #9b9b9b; font-style: italic; }
+
+.tour { position: fixed; z-index: 95; width: 330px; max-width: calc(100vw - 20px); background: #2b2b2b; color: #d6d6d6; border: 1px solid #e0924f; border-radius: 6px; box-shadow: 0 16px 50px rgba(0,0,0,.7); padding: 12px 14px; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+.tour h4 { margin: 2px 0 4px; font-size: 15px; color: #fff; font-family: inherit; }
+.tour .tstep { margin: 0; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #e0924f; }
+.tour .ttext { margin: 0 0 10px; color: #cfcfcf; }
+.tour-hl { outline: 2px solid #e0924f !important; outline-offset: -2px; position: relative; z-index: 2; box-shadow: 0 0 0 9999px rgba(0,0,0,.35); }

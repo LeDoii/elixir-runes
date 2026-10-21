@@ -165,27 +165,32 @@
   }
   /* ---- fond et tracé : dessinés sur le canevas, avec l'effet du support */
   const cv = $("dz-canvas"), ctx = cv.getContext("2d"), RES = cv.width / VW;
-  function drawCanvas() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(Supports.plate(Supports.current(), cv.width, cv.height), 0, 0);
-    ctx.setTransform(RES, 0, 0, RES, 0, 0);
+  /**
+   * Peint la composition sur g. tf = [échelle x, échelle y, décalage x, décalage y] (plaque -> pixels) ; avecPlaque : fond du support (taille pw x ph).
+   * Une gravure par échelle de rune : l'épaisseur du trait suit celle de la rune.
+   */
+  function paint(g, tf, avecPlaque, pw, ph) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    if (avecPlaque) g.drawImage(Supports.plate(Supports.current(), pw, ph), 0, 0);
+    g.setTransform(tf[0], 0, 0, tf[1], tf[2], tf[3]);
     const placed = items.map((it) => ({ it, paths: Geom.placed(it).map((s) => s.pts) }));
     if ($("dz-strata").checked) {
-      ctx.save(); ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.miterLimit = 3;
+      g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ it, paths }) => {
-        ctx.lineWidth = D.strokeWidth * (it.k || 1);
-        ctx.strokeStyle = it.color; ctx.globalAlpha = 0.88;
-        ctx.beginPath();
-        paths.forEach((p) => p.forEach((pt, i) => (i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]))));
-        ctx.stroke();
+        g.lineWidth = D.strokeWidth * (it.k || 1);
+        g.strokeStyle = it.color; g.globalAlpha = 0.88;
+        g.beginPath();
+        paths.forEach((p) => p.forEach((pt, i) => (i ? g.lineTo(pt[0], pt[1]) : g.moveTo(pt[0], pt[1]))));
+        g.stroke();
       });
-      ctx.restore();
-    } else if (placed.length) {                              // une gravure par échelle : l'épaisseur du trait suit celle de la rune
+      g.restore();
+    } else if (placed.length) {
       const byK = {};
       placed.forEach(({ it, paths }) => { (byK[it.k || 1] = byK[it.k || 1] || []).push(...paths); });
-      Object.keys(byK).forEach((k) => Supports.engrave(ctx, byK[k], D.strokeWidth * Number(k), Supports.current(), { cap: "butt" }));
+      Object.keys(byK).forEach((k) => Supports.engrave(g, byK[k], D.strokeWidth * Number(k), Supports.current(), { cap: "butt" }));
     }
   }
+  const drawCanvas = () => paint(ctx, [RES, RES, 0, 0], true, cv.width, cv.height);
 
   /* ---- rendu : le SVG ne porte que l'interaction (zones de prise, ancrages, sélection) */
   function selectionRect(gr, stroke, extra, k) {
@@ -193,6 +198,42 @@
     const x0 = cx + (bx0 - cx) * kk, y0 = cy + (by0 - cy) * kk, x1 = cx + (bx1 - cx) * kk, y1 = cy + (by1 - cy) * kk;
     el("rect", Object.assign({ x: x0 - 22, y: y0 - 14, width: x1 - x0 + 44, height: y1 - y0 + 28, fill: "none", stroke, "stroke-dasharray": "6 5", rx: 4, class: "ui", "pointer-events": "none" }, extra), gr);
   }
+  /** Poignées de la sélection : coins pour redimensionner (autour du coin opposé), ⇅ et ⇄ pour les miroirs. */
+  function drawHandles(world) {
+    const members = selMembers();
+    if (!members.length) return;
+    const [x0, y0, x1, y1] = boundsOf(members), pad = 8, X0 = x0 - pad, Y0 = y0 - pad, X1 = x1 + pad, Y1 = y1 + pad, mx = (X0 + X1) / 2, my = (Y0 + Y1) / 2;
+    el("rect", { x: X0, y: Y0, width: X1 - X0, height: Y1 - Y0, fill: "none", stroke: "#e0924f", "stroke-width": 1.2, "stroke-dasharray": "4 4", class: "ui", "pointer-events": "none" }, world);
+    [["nw", X0, Y0, "nwse-resize"], ["ne", X1, Y0, "nesw-resize"], ["sw", X0, Y1, "nesw-resize"], ["se", X1, Y1, "nwse-resize"]].forEach(([h, x, y, cur]) =>
+      el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, fill: "#fff", stroke: "#20201E", "stroke-width": 1.4, class: "ui", "data-h": h, style: "cursor:" + cur }, world));
+    [["mv", mx, Y0 - 24, "⇅", "Miroir vertical"], ["mh", X0 - 24, my, "⇄", "Miroir horizontal"]].forEach(([h, x, y, glyph, tip]) => {
+      const c = el("circle", { cx: x, cy: y, r: 11, fill: "#fff", stroke: "#20201E", "stroke-width": 1.4, class: "ui", "data-h": h, style: "cursor:pointer" }, world);
+      const t = document.createElementNS(NS, "title"); t.textContent = tip; c.appendChild(t);
+      const tx = el("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central", "font-size": 14, fill: "#20201E", "pointer-events": "none" }, world);
+      tx.textContent = glyph;
+    });
+  }
+  let resize = null;
+  function startHandle(e, h) {
+    if (h === "mv" || h === "mh") { mirrorSel(h === "mv" ? "v" : "h"); return; }
+    const members = selMembers();
+    if (!members.length) return;
+    if (locked(members)) { lockMsg(locked(members)); return; }
+    const [x0, y0, x1, y1] = boundsOf(members), corner = { nw: [x0, y0], ne: [x1, y0], sw: [x0, y1], se: [x1, y1] }, opp = corner[{ nw: "se", ne: "sw", sw: "ne", se: "nw" }[h]], c0 = corner[h];
+    resize = { members, starts: members.map((m) => ({ x: m.x, y: m.y, k: m.k || 1 })), opp, c0, len2: (c0[0] - opp[0]) ** 2 + (c0[1] - opp[1]) ** 2, recorded: false };
+    svg.setPointerCapture(e.pointerId);
+  }
+  function moveHandle(e) {
+    const [px, py] = svgPoint(e), { opp, c0, len2, members, starts } = resize;
+    const f = Math.max(0.05, ((px - opp[0]) * (c0[0] - opp[0]) + (py - opp[1]) * (c0[1] - opp[1])) / len2);
+    if (!resize.recorded) { record("Redimensionnement"); resize.recorded = true; }
+    members.forEach((m, i) => { m.x = starts[i].x; m.y = starts[i].y; m.k = starts[i].k; });
+    Geom.scaleAbout(members, f, opp[0], opp[1]);
+    fit(members);
+    say("Taille : " + Math.round((members[0].k || 1) * 100) + " %");
+    render();
+  }
+
   function render() {
     drawCanvas();
     svg.innerHTML = "";
@@ -218,6 +259,7 @@
         el("circle", { cx: a[0], cy: a[1], r: isLink ? 7 : 5, fill: isLink ? LINK_COLOR : "#fff", stroke: isLink ? "#fff" : "#20201E", "stroke-width": isLink ? 2.4 : 1.8, class: "ui", "pointer-events": "none" }, gr);
       });
     });
+    if (activeTool() === "select" && sel.size && !(drag && drag.moved) && !(marquee && marquee.moved)) drawHandles(world);
     if (marquee && marquee.moved) {
       const m = marqueeRect();
       el("rect", { x: m[0], y: m[1], width: m[2] - m[0], height: m[3] - m[1], class: "marquee" }, world);
@@ -343,7 +385,8 @@
     }));
   }
   svg.addEventListener("pointerdown", (e) => {
-    if (e.button > 0) return;
+    if (e.button > 0 || activeTool() !== "select") return;
+    if (e.target.dataset && e.target.dataset.h) { startHandle(e, e.target.dataset.h); return; }
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const g = e.target.closest("g[data-id]");
     if (!g || !e.target.classList.contains("ui")) {
@@ -365,6 +408,7 @@
     render();
   });
   svg.addEventListener("pointermove", (e) => {
+    if (resize) { moveHandle(e); return; }
     if (marquee) {
       if (!marquee.moved && Math.hypot(e.clientX - marquee.cx, e.clientY - marquee.cy) < 4) return;
       marquee.moved = true;
@@ -387,6 +431,7 @@
     render();
   });
   const endDrag = (e) => {
+    if (resize) { resize = null; say(""); render(); return; }
     if (marquee) {
       const was = marquee.moved;
       marquee = null;
@@ -407,6 +452,9 @@
   window.addEventListener("keydown", (e) => {
     if ($("design").hidden) return;
     if ((e.target.matches && e.target.matches("input, select, textarea"))) return;
+    if (e.key === "Escape" && !keysBox.hidden) { closeKeys(); return; }
+    if (e.key === "Escape" && !$("dz-diff").hidden) { $("dz-diff").hidden = true; return; }
+    if (e.key === "Escape" && !$("dz-tour").hidden) { endTour(); return; }
     if (e.key === "Escape" && !menu.hidden) { closeMenu(); return; }
     if (e.key === "Escape") {                                // Échap : ferme le menu, désélectionne, puis quitte le plein écran
       if (sel.size) { sel = new Set(); render(); } else if (expanded) setExpanded(false);
@@ -635,10 +683,62 @@
     scheduleRulers();
   }
   const zoomView = (k) => { viewScale = Math.min(4, Math.max(0.25, (viewScale === null ? 1 : viewScale) * k)); applyView(); };
+  /** Zoom de la vue qui garde sous le curseur le point visé de la plaque. */
+  function zoomAt(k, cx, cy) {
+    const before = wrap.getBoundingClientRect(), u = (cx - before.left) / before.width, v = (cy - before.top) / before.height;
+    zoomView(k);
+    const after = wrap.getBoundingClientRect();
+    stage.scrollLeft += after.left + u * after.width - cx;
+    stage.scrollTop += after.top + v * after.height - cy;
+    scheduleRulers();
+  }
   $("dz-view-in").addEventListener("click", () => zoomView(1.25));
   $("dz-view-out").addEventListener("click", () => zoomView(0.8));
   $("dz-view-fit").addEventListener("click", () => { viewScale = null; applyView(); });
-  stage.addEventListener("wheel", (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomView(e.deltaY < 0 ? 1.1 : 0.9); } }, { passive: false });
+  stage.addEventListener("wheel", (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.1 : 0.9, e.clientX, e.clientY); } }, { passive: false });
+
+  /* ---- outils : Sélection (V), Main (H, ou Espace maintenu), Zoom (Z) */
+  let tool = "select", tempHand = false, pan = null;
+  const activeTool = () => (tempHand ? "hand" : tool);
+  function syncTool() {
+    const a = activeTool();
+    ["select", "hand", "zoom"].forEach((n) => { const b = $("dz-tool-" + n); b.classList.toggle("on", n === tool); b.setAttribute("aria-pressed", String(n === tool)); });
+    stage.dataset.tool = a;
+    if (a !== "select") render();                            // les poignées disparaissent hors de l'outil Sélection
+  }
+  function setTool(t) { tool = t; tempHand = false; syncTool(); render(); }
+  ["select", "hand", "zoom"].forEach((n) => $("dz-tool-" + n).addEventListener("click", () => setTool(n)));
+  stage.addEventListener("pointerdown", (e) => {
+    const t = e.button === 1 ? "hand" : activeTool();        // le bouton du milieu déplace toujours la vue
+    if (t === "hand" && (e.button === 0 || e.button === 1)) {
+      pan = { x: e.clientX, y: e.clientY, l: stage.scrollLeft, t: stage.scrollTop };
+      stage.classList.add("panning"); stage.setPointerCapture(e.pointerId); e.preventDefault();
+    } else if (t === "zoom" && e.button === 0) zoomAt(e.shiftKey || e.altKey ? 0.8 : 1.25, e.clientX, e.clientY);
+  });
+  stage.addEventListener("pointermove", (e) => { if (pan) { stage.scrollLeft = pan.l - (e.clientX - pan.x); stage.scrollTop = pan.t - (e.clientY - pan.y); } });
+  const endPan = () => { pan = null; stage.classList.remove("panning"); };
+  stage.addEventListener("pointerup", endPan);
+  stage.addEventListener("pointercancel", endPan);
+  window.addEventListener("keydown", (e) => {
+    if ($("design").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.matches && e.target.matches("input, select, textarea")) return;
+    const k = e.key.toLowerCase();
+    if (k === "v") setTool("select");
+    else if (k === "h") setTool("hand");
+    else if (k === "z") setTool("zoom");
+    else if (e.key === "?") openKeys();
+    else if (e.key === " " && !(e.target.closest && e.target.closest("button, summary, a")) && !tempHand) { e.preventDefault(); tempHand = true; syncTool(); }
+  });
+  window.addEventListener("keyup", (e) => { if (e.key === " " && tempHand) { tempHand = false; syncTool(); } });
+  window.addEventListener("blur", () => { if (tempHand) { tempHand = false; syncTool(); } });
+
+  /* ---- fenêtre des raccourcis */
+  const keysBox = $("dz-keys");
+  function openKeys() { keysBox.hidden = false; $("dz-keys-close").focus(); }
+  const closeKeys = () => { keysBox.hidden = true; };
+  $("dz-keys-btn").addEventListener("click", openKeys);
+  $("dz-keys-close").addEventListener("click", closeKeys);
+  keysBox.addEventListener("pointerdown", (e) => { if (e.target === keysBox) closeKeys(); });
   if (window.ResizeObserver) new ResizeObserver(applyView).observe(stage); else window.addEventListener("resize", applyView);
 
   /* ---- règles graduées : unités de la plaque (la plaque mesure 800 × 640), alignées sur le plan de travail ; le curseur y laisse un repère */
@@ -710,17 +810,86 @@
   window.addEventListener("hashchange", () => { if (expanded && $("design").hidden) setExpanded(false); });
 
   /* ---- export PNG : la composition est d'abord centrée ; le canevas seul (pas d'ancrages ni de sélection) */
-  $("dz-export").addEventListener("click", () => {
+  const fileSafe = (t) => String(t).replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").toLowerCase() || "bindrune";
+  function saveBlob(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+  const cdata = () => Bindrunes.validate(snapshot());
+  const exportName = () => Bindrunes.cleanName($("sv-name").value) || "Sans nom";
+  const toBlob = (c) => new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("Image impossible à produire."))), "image/png"));
+  /** PNG de la composition seule (fond transparent), cadré sur la bindrune, 3 pixels par unité de la plaque. */
+  function transparentCanvas(d, scale) {
+    const [x0, y0, x1, y1] = Export.bounds(d), c = document.createElement("canvas");
+    c.width = Math.ceil((x1 - x0) * scale); c.height = Math.ceil((y1 - y0) * scale);
+    paint(c.getContext("2d"), [scale, scale, -x0 * scale, -y0 * scale], false);
+    return c;
+  }
+  $("dz-export").addEventListener("click", async () => {
     if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
+    if ($("dz-transparent").checked) {
+      try { saveBlob(await toBlob(transparentCanvas(cdata(), 3)), "bindrune-" + fileSafe(exportName()) + "-transparent.png"); say("PNG sans fond exporté."); }
+      catch (e) { say("Export impossible : " + e.message); }
+      return;
+    }
     record("Centrage avant l'export");
     centerOn(items); fitAll();
     render();
     say("Composition centrée avant l'export.");
-    cv.toBlob((b) => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(b); a.download = "bindrune-" + Supports.current() + ".png"; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    });
+    cv.toBlob((b) => saveBlob(b, "bindrune-" + Supports.current() + ".png"));
+  });
+  $("dz-export-svg").addEventListener("click", () => {
+    if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
+    saveBlob(new Blob([Export.svgOf(cdata(), exportName())], { type: "image/svg+xml" }), "bindrune-" + fileSafe(exportName()) + ".svg");
+    say("SVG exporté : un groupe par rune.");
+  });
+  /** Strates : l'ensemble en SVG et en PNG, puis une image par rune (SVG et PNG, même cadre), dans une archive ZIP. */
+  $("dz-export-zip").addEventListener("click", async () => {
+    if (!items.length) { say("Ajoute au moins une rune avant d'exporter."); return; }
+    say("Préparation des strates…");
+    try {
+      const d = cdata(), name = exportName(), enc = new TextEncoder(), scale = 3, files = [];
+      files.push({ name: "bindrune.svg", data: enc.encode(Export.svgOf(d, name)) });
+      files.push({ name: "bindrune.png", data: new Uint8Array(await (await toBlob(transparentCanvas(d, scale))).arrayBuffer()) });
+      for (const l of Export.layers(d, name)) {
+        files.push({ name: l.name + ".svg", data: enc.encode(l.svg) });
+        const [x0, y0, x1, y1] = l.box, c = document.createElement("canvas");
+        c.width = Math.ceil((x1 - x0) * scale); c.height = Math.ceil((y1 - y0) * scale);
+        const g = c.getContext("2d");
+        g.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
+        g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * (l.e.k || 1); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
+        g.beginPath();
+        Geom.placed(l.e).forEach((st) => st.pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))));
+        g.stroke();
+        files.push({ name: l.name + ".png", data: new Uint8Array(await (await toBlob(c)).arrayBuffer()) });
+      }
+      files.push({ name: "LISEZMOI.txt", data: enc.encode("Strates de la bindrune « " + name + " »\r\n\r\n" +
+        "bindrune.svg et bindrune.png : toute la bindrune (fond transparent).\r\n" +
+        "01-…, 02-… : une image par rune, dans l'ordre d'empilement (01 en dessous). Elles ont toutes le même cadre : placées l'une sur l'autre à la position 0, 0, elles reconstituent la bindrune.\r\n" +
+        "Les couleurs sont celles des strates du site. Fait avec « Les runes » (outil de fan, non affilié à l'équipe d'Elixir RP).\r\n") });
+      saveBlob(new Blob([Zip.build(files)], { type: "application/zip" }), "strates-" + fileSafe(name) + ".zip");
+      say("Strates exportées : " + files.length + " fichiers.");
+    } catch (e) { say("Export impossible : " + e.message); }
+  });
+
+  /* ---- nouvelle bindrune : repart de zéro, au-delà de « Tout retirer » (qui s'annule et garde nom, support et réglages) */
+  function savedAsIs() {
+    const rec = Bindrunes.get(Bindrunes.cleanName($("sv-name").value)), d = cdata();
+    return !!(rec && d && JSON.stringify(rec.d) === JSON.stringify(d) && (rec.description || "") === Bindrunes.cleanDesc($("sv-desc").value) && JSON.stringify(rec.tags || []) === JSON.stringify(Tags.extras(d, svTags)));
+  }
+  function newBindrune() {
+    items = []; links = []; sel = new Set(); marquee = null; drag = null; resize = null; guides = []; snapMark = null;
+    past.length = 0; future.length = 0; snaps = []; saveSnaps(); renderSnaps();
+    svTags = []; $("sv-name").value = ""; $("sv-desc").value = ""; $("sv-msg").textContent = "";
+    $("dz-adv").checked = false; $("dz-strata").checked = false; Supports.set("bois");
+    try { localStorage.removeItem(DRAFT); } catch (e) { /* ignoré */ }
+    viewScale = null; tool = "select"; tempHand = false; closeMenu(); syncTool();
+    say("Nouvelle bindrune."); render(); tagEd.refresh(); applyView();
+  }
+  $("dz-new").addEventListener("click", () => {
+    if (items.length && !savedAsIs() && !confirm("Commencer une nouvelle bindrune ?\n\nLa composition en cours n'est pas enregistrée à l'identique : elle sera perdue, sans retour possible.")) return;
+    newBindrune();
   });
 
   Supports.bindSelect($("dz-support"), $("dz-support-note"));
@@ -785,11 +954,12 @@
   const tagEd = Tags.editor({ locked: () => Tags.derive(platesD()), get: () => svTags, set: (t) => { svTags = Tags.extras(platesD(), t); scheduleDraft(); } });
   $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
-  const snapshot = () => ({
-    r: items.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
-    s: Supports.current(), t: $("dz-strata").checked ? 1 : 0,
-    l: links.map((k) => [items.findIndex((i) => i.id === k.a), items.findIndex((i) => i.id === k.b), k.pa, k.pb]),
+  const toD = (its, lks, support, strata) => ({
+    r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
+    s: support, t: strata,
+    l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.pa, k.pb]),
   });
+  const snapshot = () => toD(items, links, Supports.current(), $("dz-strata").checked ? 1 : 0);
   function restore(raw, label) {
     const d = Bindrunes.validate(raw);
     if (!d) return false;
@@ -864,8 +1034,159 @@
     } catch (e) { /* brouillon illisible : on repart de zéro */ }
   }
 
+  /* ---- instantanés : états nommés, qu'on retrouve ou qu'on compare à l'état actuel */
+  const SNAPS = "runes-snaps";
+  let snaps = [];
+  try { snaps = JSON.parse(localStorage.getItem(SNAPS) || "[]").filter((x) => x && typeof x.state === "string" && typeof x.name === "string").slice(0, 20); } catch (e) { snaps = []; }
+  function saveSnaps() { try { localStorage.setItem(SNAPS, JSON.stringify(snaps)); } catch (e) { /* ignoré */ } }
+  const snapD = (sn) => { const st = JSON.parse(sn.state); return Bindrunes.validate(toD(st.items, st.links, sn.s, sn.t)); };
+  function renderSnaps() {
+    const ul = $("dz-snaps");
+    ul.innerHTML = "";
+    if (!snaps.length) { const li = document.createElement("li"); li.className = "hint"; li.style.border = "0"; li.style.background = "none"; li.textContent = "Aucun instantané."; ul.appendChild(li); return; }
+    snaps.forEach((sn, i) => {
+      const li = document.createElement("li"), nm = document.createElement("span");
+      nm.className = "nm"; nm.textContent = sn.name;
+      const when = document.createElement("small"); when.textContent = new Date(sn.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      const mk = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.addEventListener("click", fn); return b; };
+      li.append(nm, when,
+        mk("Revenir", "Revient à cet instantané (annulable)", () => {
+          record("Retour à « " + sn.name + " »");
+          loadState(sn.state); Supports.set(sn.s); $("dz-strata").checked = sn.t === 1;
+          say("Retour à l'instantané « " + sn.name + " »."); render();
+        }),
+        mk("Comparer", "Compare cet instantané à l'état actuel", () => { const d = snapD(sn); if (d) openDiff("Instantané « " + sn.name + " »", d); }),
+        mk("✕", "Supprimer l'instantané", () => { snaps.splice(i, 1); saveSnaps(); renderSnaps(); }));
+      ul.appendChild(li);
+    });
+  }
+  $("dz-snap").addEventListener("click", () => {
+    if (!items.length) { say("Ajoute d'abord des runes."); return; }
+    const name = (prompt("Nom de l'instantané :", "Version " + (snaps.length + 1)) || "").trim().slice(0, 40);
+    if (!name) return;
+    snaps.unshift({ name, at: Date.now(), state: stateJson(), s: Supports.current(), t: $("dz-strata").checked ? 1 : 0 });
+    snaps = snaps.slice(0, 20); saveSnaps(); renderSnaps();
+    say("Instantané « " + name + " » gardé.");
+  });
+  /** Fenêtre de comparaison : aperçus côte à côte et liste des différences. */
+  const diffBox = $("dz-diff");
+  function openDiff(label, before) {
+    const now = cdata();
+    if (!now) { say("Rien à comparer."); return; }
+    $("dz-diff-title").textContent = "Comparaison";
+    $("dz-diff-a-cap").textContent = label;
+    $("dz-diff-a").innerHTML = Bindrunes.previewSVG(before);
+    $("dz-diff-b").innerHTML = Bindrunes.previewSVG(now);
+    const r = BindDiff.diff(before, now, (id) => Supports.get(id).label), ul = $("dz-diff-lines");
+    ul.innerHTML = "";
+    (r.same ? ["Aucune différence : les deux versions sont identiques."] : r.lines).forEach((t) => { const li = document.createElement("li"); if (r.same) li.className = "none"; li.textContent = t; ul.appendChild(li); });
+    diffBox.hidden = false; $("dz-diff-close").focus();
+  }
+  $("dz-diff-close").addEventListener("click", () => { diffBox.hidden = true; });
+  diffBox.addEventListener("pointerdown", (e) => { if (e.target === diffBox) diffBox.hidden = true; });
+  $("dz-cmp-saved").addEventListener("click", () => {
+    const name = Bindrunes.cleanName($("sv-name").value), rec = name && Bindrunes.get(name);
+    if (!items.length) { say("Ajoute d'abord des runes."); return; }
+    if (!rec) { say(name ? "Aucune version enregistrée sous le nom « " + name + " »." : "Donne d'abord à la bindrune le nom d'une version enregistrée."); return; }
+    openDiff("Version enregistrée « " + rec.name + " »", rec.d);
+  });
+  renderSnaps();
+
+  /* ---- mémoire de l'interface : panneaux ouverts ou fermés, ordre, largeur de la colonne de droite */
+  const UI = "runes-ui";
+  let ui = {};
+  try { ui = JSON.parse(localStorage.getItem(UI) || "{}") || {}; } catch (e) { ui = {}; }
+  const saveUi = () => { try { localStorage.setItem(UI, JSON.stringify(ui)); } catch (e) { /* ignoré */ } };
+  const panelsBox = document.querySelector(".ps-panels"), body = document.querySelector(".ps-body");
+  const panels = () => [...panelsBox.querySelectorAll(":scope > details.pnl")];
+  if (Array.isArray(ui.order)) ui.order.forEach((id) => { const p = panels().find((x) => x.dataset.pnl === id); if (p) panelsBox.appendChild(p); });
+  panels().forEach((p) => {
+    const id = p.dataset.pnl;
+    if (ui.open && typeof ui.open[id] === "boolean") p.open = ui.open[id];
+    p.addEventListener("toggle", () => { ui.open = ui.open || {}; ui.open[id] = p.open; saveUi(); });
+    const mv = document.createElement("span");
+    mv.className = "pmv";
+    [["▲", -1, "Monter le panneau"], ["▼", 1, "Descendre le panneau"]].forEach(([g, dir, tip]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = g; b.title = tip; b.setAttribute("aria-label", tip + " " + p.querySelector("summary").firstChild.textContent.trim());
+      b.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const all = panels(), i = all.indexOf(p), j = i + dir;
+        if (j < 0 || j >= all.length) return;
+        if (dir < 0) panelsBox.insertBefore(p, all[j]); else panelsBox.insertBefore(all[j], p);
+        ui.order = panels().map((x) => x.dataset.pnl); saveUi();
+      });
+      mv.appendChild(b);
+    });
+    p.querySelector("summary").appendChild(mv);
+  });
+  const setPanelsW = (w) => $("design").style.setProperty("--panels-w", w + "px");
+  if (Number.isFinite(ui.w)) setPanelsW(Math.min(640, Math.max(240, ui.w)));
+  const split = document.createElement("div");
+  split.className = "ps-split"; split.setAttribute("role", "separator"); split.setAttribute("aria-orientation", "vertical"); split.setAttribute("aria-label", "Largeur des panneaux"); split.tabIndex = 0;
+  body.appendChild(split);
+  const curW = () => panelsBox.getBoundingClientRect().width;
+  split.addEventListener("pointerdown", (e) => { split.setPointerCapture(e.pointerId); split.classList.add("on"); e.preventDefault(); });
+  split.addEventListener("pointermove", (e) => {
+    if (!split.classList.contains("on")) return;
+    const w = Math.round(Math.min(640, Math.max(240, body.getBoundingClientRect().right - e.clientX)));
+    setPanelsW(w); ui.w = w;
+  });
+  const endSplit = () => { if (split.classList.contains("on")) { split.classList.remove("on"); saveUi(); applyView(); } };
+  split.addEventListener("pointerup", endSplit);
+  split.addEventListener("pointercancel", endSplit);
+  split.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const w = Math.round(Math.min(640, Math.max(240, curW() + (e.key === "ArrowLeft" ? 20 : -20))));
+    setPanelsW(w); ui.w = w; saveUi(); applyView();
+  });
+  $("dz-ui-reset").addEventListener("click", () => { try { localStorage.removeItem(UI); } catch (e) { /* ignoré */ } location.reload(); });
+
+  /* ---- guide de première visite (quatre étapes) ; « ? » le rouvre */
+  const TOUR = "runes-tour", tourBox = $("dz-tour");
+  const TOUR_STEPS = [
+    { sel: '[data-pnl="runes"]', h: "Choisis des runes", t: "Clique une rune du panneau « Runes », ou glisse-la sur la plaque. Quatre au plus (six avec le mode avancé, interrupteur « + » de la barre d'outils)." },
+    { sel: "#dz-stage", h: "Compose sur le plan de travail", t: "Glisse les runes, approche deux points d'ancrage pour les aimanter, clique sur une rune pour son menu (miroirs, taille, verrou…). Les poignées des coins redimensionnent. Ctrl + molette zoome la vue, Espace la déplace." },
+    { sel: ".ps-tools", h: "Les outils", t: "Annuler, miroirs, centrage, et les interrupteurs : magnétisme, repères, strates, mode avancé, règles. V, H et Z choisissent Sélection, Main et Zoom." },
+    { sel: ".ps-bar", h: "Enregistre et exporte", t: "Donne un nom, enregistre, puis exporte : PNG, SVG, strates (une image par rune) ou fiche A4. À droite : Calques, Historique avec instantanés, Complexité, Sens et étiquettes. Touche ? pour les raccourcis." },
+  ];
+  let tourI = -1;
+  const seen = () => { try { return localStorage.getItem(TOUR) === "1"; } catch (e) { return true; } };
+  function clearHl() { document.querySelectorAll(".tour-hl").forEach((x) => x.classList.remove("tour-hl")); }
+  function endTour() { clearHl(); tourBox.hidden = true; tourI = -1; try { localStorage.setItem(TOUR, "1"); } catch (e) { /* ignoré */ } }
+  function showTour(i) {
+    clearHl();
+    if (i < 0) i = 0;
+    if (i >= TOUR_STEPS.length) { endTour(); return; }
+    tourI = i;
+    const st = TOUR_STEPS[i], target = document.querySelector(st.sel);
+    if (target) { if (target.tagName === "DETAILS") target.open = true; target.classList.add("tour-hl"); target.scrollIntoView({ block: "nearest" }); }
+    tourBox.querySelector(".tstep").textContent = "Guide · étape " + (i + 1) + " sur " + TOUR_STEPS.length;
+    tourBox.querySelector("h4").textContent = st.h; tourBox.querySelector(".ttext").textContent = st.t;
+    $("dz-tour-prev").disabled = i === 0; $("dz-tour-next").textContent = i === TOUR_STEPS.length - 1 ? "Terminer" : "Suivant";
+    tourBox.hidden = false;
+    const r = target ? target.getBoundingClientRect() : { left: 20, right: 20, top: 80, bottom: 80 }, w = tourBox.offsetWidth, h = tourBox.offsetHeight;
+    let x, y;
+    if (window.innerWidth < 960) { x = (window.innerWidth - w) / 2; y = window.innerHeight - h - 12; }
+    else if (r.right + w + 16 < window.innerWidth) { x = r.right + 12; y = r.top + 12; }
+    else if (r.left - w - 16 > 0) { x = r.left - w - 12; y = r.top + 12; }
+    else { x = (window.innerWidth - w) / 2; y = Math.min(r.bottom + 12, window.innerHeight - h - 12); }
+    tourBox.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
+    tourBox.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + "px";
+  }
+  $("dz-tour-next").addEventListener("click", () => showTour(tourI + 1));
+  $("dz-tour-prev").addEventListener("click", () => showTour(tourI - 1));
+  $("dz-tour-skip").addEventListener("click", endTour);
+  $("dz-tour-again").addEventListener("click", () => { closeKeys(); showTour(0); });
+  const tourWatch = () => { if (!$("design").hidden && !seen() && tourI < 0) setTimeout(() => { if (!$("design").hidden && !seen() && tourI < 0) showTour(0); }, 700); };
+  new MutationObserver(tourWatch).observe($("design"), { attributes: true, attributeFilter: ["hidden"] });
+  window.addEventListener("resize", () => { if (tourI >= 0) showTour(tourI); });
+
   render();
   loadDraft();
   draftReady = true;
+  syncTool();
+  tourWatch();
   window.__designer = { applyView, goTo, resizeTo: (p) => resizeTo(p, "Taille"), mirror: mirrorSel, getGuides: () => guides, align, draftKey: DRAFT, setExpanded, getSel: () => [...sel], setSel: (ids) => { sel = new Set(ids); render(); }, touches, undo, redo, historySize: () => [past.length, future.length], add, getItems: () => items, getLinks: () => links, clickAnchor, groupOf, boundsOf, settle, snapshot, restore, setMagnet: (v) => { $("dz-magnet").checked = v; render(); } };
 })();
