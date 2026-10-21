@@ -4,7 +4,7 @@
   else root.Prefs = factory();
 })(typeof self !== "undefined" ? self : globalThis, function () {
   const KEY = "runes-prefs";
-  const DEFAULTS = { snap: 14, align: 5, units: "plate", askNew: true, confirmClose: true, history: 100 };
+  const DEFAULTS = { snap: 14, align: 5, units: "plate", askNew: true, confirmClose: true, unlinkGroup: true, history: 100 };
   const clamp = (v, lo, hi, def) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def; };
 
   /** Toute valeur venue du stockage est revalidée : bornes, types, valeurs d'origine en cas de doute. */
@@ -16,6 +16,7 @@
       units: ["plate", "percent", "cells"].includes(r.units) ? r.units : DEFAULTS.units,
       askNew: r.askNew !== false,                                      // « Nouvelle bindrune » demande ses options
       confirmClose: r.confirmClose !== false,                          // prévenir à la fermeture avec un travail non enregistré
+      unlinkGroup: r.unlinkGroup !== false,                            // délier un point d'ancrage délie tous les points liés avec lui
       history: clamp(r.history, 10, 300, DEFAULTS.history),            // actions gardées par l'historique
     };
   }

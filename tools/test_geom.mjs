@@ -140,7 +140,7 @@ check("aimant de ligne : rien quand aucun ancrage n'est à portée d'un trait", 
 /* ---- coins fermés d'origine : traits distincts qui se rejoignent en laissant une encoche */
 const COINS = { Uruz: ["160,58"], Ansuz: ["160,58"], Raidho: ["160,58"], Wunjo: ["160,58"], Eihwaz: ["256,58", "256,454"], Perthro: ["160,58", "160,454"], Berkano: ["160,58", "160,454"], Ehwaz: ["160,58", "352,58"], Mannaz: ["160,58", "352,58"], Laguz: ["160,58"], Ingwaz: ["256,124"], Dagaz: ["160,58", "160,454", "352,58", "352,454"], Othala: ["256,58"] };
 check("coins : exactement les runes dont des traits se rejoignent en laissant une encoche sont fermées, aux bons sommets", RUNES.every((n) => JSON.stringify(Geom.corners(n, 0, 1).map((c) => c[1].join(",")).sort()) === JSON.stringify((COINS[n] || []).slice().sort())));
-check("coins : les joints de fermeture sont dessinés avec la rune (nom joint), décalés de sa position", Geom.drawn({ n: "Dagaz", x: 5, y: 7 }).filter((s) => s.name === "joint").length === 4 && Geom.drawn({ n: "Dagaz", x: 5, y: 7 }).filter((s) => s.name === "joint").every((s) => s.pts[1][0] === 165 || s.pts[1][0] === 357));
+check("coins : les joints de fermeture sont dessinés avec la rune (nom joint), décalés de sa position", Geom.drawn({ n: "Dagaz", x: 5, y: 7, o: 1 }).filter((s) => s.name === "joint").length === 4 && Geom.drawn({ n: "Dagaz", x: 5, y: 7, o: 1 }).filter((s) => s.name === "joint").every((s) => s.pts[1][0] === 165 || s.pts[1][0] === 357));
 check("coins : un miroir ou une échelle gardent les coins fermés (même nombre de joints)", Geom.corners("Mannaz", 2, 1).length === 2 && Geom.corners("Uruz", 3, 0.5).length === 1);
 
 /* ---- joints aux points liés non superposés (jusqu'à 6 d'écart) et ancrage posé sur une ligne */
@@ -150,4 +150,10 @@ const tj = Geom.joins([[isa(0, 0), { n: "Isa", x: 0, y: 0 }, 1, null]]);
 check("joint : ancrage posé sur une ligne (pointB null) : tige qui prolonge un trait, rien à ajouter", tj.length === 0);
 check("joint : le sommet d'un chevron posé contre le milieu d'une tige droite : aucune encoche, aucun joint", Geom.joins([[kzz, isa(-96, 0), kA, null]]).length === 0);
 check("joint : liens d'une bindrune (linkPairs) : 4 valeurs = deux points, 5 valeurs = point sur une ligne", (() => { const p = Geom.linkPairs([kzz, isa(0, 0)], [[0, 1, 1, 0], [0, 1, 1, 0, 2]]); return p.length === 2 && p[0][3] === 0 && p[1][3] === null; })());
+check("coins : par défaut (réglage de la rune absent) le tracé d'origine est gardé, sans joint de fermeture", RUNES.every((n) => Geom.drawn({ n, x: 0, y: 0 }).every((s) => s.name !== "joint")));
+const fehu = { n: "Fehu", x: -192, y: 0 }, wunjo = { n: "Wunjo", x: 0, y: 0 };      // la branche haute de Fehu rejoint le sommet de Wunjo
+const fw = Geom.joins([[fehu, wunjo, 3, 0]]);
+check("liaison harmonisée : Fehu sur le sommet de Wunjo : un seul joint, au point lié, entre la branche et le fanion", fw.length === 1 && fw[0].pts[1].join() === "160,58", JSON.stringify(fw));
+check("liaison harmonisée : le joint ne dépend pas du réglage des sommets de Wunjo (le joint comble déjà l'encoche)", JSON.stringify(Geom.joins([[fehu, { n: "Wunjo", x: 0, y: 0, o: 1 }, 3, 0]]).map((j) => j.pts)) === JSON.stringify(fw.map((j) => j.pts)));
+check("validation : le réglage des sommets (o) est gardé, absent sinon", validateBindrune({ r: [{ n: "Uruz", x: 0, y: 0, m: 1, c: "#112233", o: 1 }, { n: "Fehu", x: 100, y: 0, m: 1, c: "#112233" }], s: "bois", t: 0, l: [] }).r.map((e) => e.o).join() === "1,");
 finish();

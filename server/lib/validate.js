@@ -31,6 +31,7 @@ export function validateBindrune(d) {
     if (kept && kept.length < runeTags(e.n).length) entry.t = kept;
     const f = Number.isInteger(e.f) && e.f > 0 && e.f <= 3 ? e.f : 0;        // miroir : 1 haut ↔ bas, 2 gauche ↔ droite
     if (f) entry.f = f;
+    if (e.o === 1 || e.o === true) entry.o = 1;                              // coins ouverts d'origine fermés (réglage de la rune)
     const k = isNum(e.k) ? Math.round(Math.min(3, Math.max(0.25, e.k)) * 100) / 100 : 1;                // échelle de la rune (1 : taille d'origine)
     if (k !== 1) entry.k = k;
     r.push(entry);

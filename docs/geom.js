@@ -158,11 +158,11 @@
     if (Object.keys(cornerCache).length > 400) for (const x in cornerCache) delete cornerCache[x];
     return (cornerCache[key] = out);
   }
-  /** Traits à dessiner (nom, points) d'une rune posée : comme placed, mais sans les piques de jonction et avec les joints de fermeture (nom « joint »). Les mesures (emprise, contacts) restent sur placed. */
+  /** Traits à dessiner (nom, points) d'une rune posée : comme placed, mais sans les piques de jonction ; avec e.o, les coins ouverts d'origine sont fermés par des joints (nom « joint »). Les mesures (emprise, contacts) restent sur placed. */
   const drawn = (e) => {
     const name = e.n || e.name, base = byName(name).strokes, out = [];
     strokes(name, e.f, e.k).forEach((s, si) => splitStroke(name, si, s.pts).forEach((pts) => out.push({ name: base[si].name, pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
-    corners(name, e.f, e.k).forEach((pts) => out.push({ name: "joint", pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) }));
+    if (e.o) corners(name, e.f, e.k).forEach((pts) => out.push({ name: "joint", pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) }));
     return out;
   };
 
@@ -173,8 +173,8 @@
     placed(e).forEach((s) => s.pts.slice(1).forEach((p, i) => out.push({ a: s.pts[i], b: p, idx: out.length })));
     return out;
   }
-  /** Rayons des traits de la rune posée e qui partent du point P (plaque), tous du même id (la rune). */
-  const raysAt = (e, P, id) => polyRays(placed(e).map((s) => s.pts), P).map((r) => ({ a: r.a, len: r.len, id }));
+  /** Rayons des traits de la rune posée e qui partent du point P (plaque) ; l'id distingue la rune et le sommet de trait. */
+  const raysAt = (e, P, id) => polyRays(placed(e).map((s) => s.pts), P).map((r) => ({ a: r.a, len: r.len, id: id + "|" + r.id }));
   /**
    * Joints aux points d'ancrage liés : autour de chaque point lié, les traits de toutes les runes qui s'y rejoignent sont classés par direction et
    * l'encoche entre deux runes voisines est comblée (voir notchFills) ; entre des traits qui se prolongent ou se recouvrent, rien à ajouter.
@@ -196,7 +196,7 @@
     });
     groups.forEach(({ P, e, ends }) => {
       const runes = [], rays = [];
-      ends.forEach(({ r, Q }) => { if (!runes.includes(r)) runes.push(r); raysAt(r, Q, runes.indexOf(r)).forEach((x) => rays.push(x)); });
+      ends.forEach(({ r, Q }) => { if (!runes.includes(r)) runes.push(r); raysAt(r, Q, runes.indexOf(r)).forEach((x) => rays.push(x)); });   // id par sommet de trait : les encoches ouvertes d'une rune sont comblées avec celles de la liaison
       notchFills(P, rays, root.RUNES.strokeWidth * (e.k || 1)).forEach((pts) => out.push({ e, pts }));
     });
     return out;

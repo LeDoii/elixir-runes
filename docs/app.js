@@ -14,7 +14,7 @@
   /* ------------------------------------------------------------------ SVG d'une rune */
   function runeSVG(rune, opts) {
     opts = opts || {};
-    const real = D.runes.some((r) => r.name === rune.name), parts = real ? Geom.drawn({ name: rune.name, x: 0, y: 0 }) : rune.strokes;     // les traits d'une rune sont coupés aux sommets qui piquent (Berkano)
+    const real = D.runes.some((r) => r.name === rune.name), parts = real ? Geom.drawn({ name: rune.name, x: 0, y: 0, o: 1 }) : rune.strokes;     // les traits d'une rune sont coupés aux sommets qui piquent (Berkano)
     const paths = parts.map((s, i) =>
       '<polyline class="' + (opts.animate ? "draw" + (opts.force ? " force" : "") : "") + '" pathLength="1" points="' + s.pts.map((p) => p.join(",")).join(" ") +
       '" fill="none" stroke="' + (opts.color || "#20201E") + '" stroke-width="' + D.strokeWidth +

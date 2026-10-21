@@ -320,6 +320,7 @@
         '<span class="ctl"><button type="button" class="eye" aria-pressed="' + !!it.hidden + '" title="' + (it.hidden ? "Afficher la rune sur le plan de travail" : "Masquer la rune à l\'écran (elle reste dans la bindrune et dans les exports)") + '" aria-label="' + (it.hidden ? "Afficher " : "Masquer ") + it.name + '">' + (it.hidden ? EYE_OFF : EYE) + "</button>" +
         '<label><input type="checkbox" class="snap"' + (it.snap ? " checked" : "") + "> Aimant</label>" +
         '<label><input type="checkbox" class="lock"' + (it.locked ? " checked" : "") + "> Verrou</label>" +
+        (Geom.corners(it.name, it.f, 1).length ? '<label title="Ferme les coins restés ouverts dans le tracé de cette rune (par défaut : tracé tel qu\'il est dessiné à l\'origine)"><input type="checkbox" class="corn"' + (it.o ? " checked" : "") + "> Sommets</label>" : "") +
         '<button type="button" class="ord up" title="Mettre au premier plan" aria-label="Premier plan : ' + it.name + '">▲</button>' +
         '<button type="button" class="ord down" title="Mettre à l\'arrière-plan" aria-label="Arrière-plan : ' + it.name + '">▼</button></span>' +
         '<button class="rm" title="Retirer" aria-label="Retirer ' + it.name + '">✕</button>';
@@ -332,6 +333,8 @@
       clr.addEventListener("change", () => { colored = false; render(); });
       li.querySelector(".eye").addEventListener("click", () => { record((it.hidden ? "Affichage de " : "Masquage de ") + it.name); it.hidden = !it.hidden; say(it.hidden ? "« " + it.name + " » masquée à l'écran : elle reste dans la bindrune et dans les exports." : "« " + it.name + " » affichée."); render(); });
       li.querySelector("input.snap").addEventListener("change", (e) => { record("Aimant de " + it.name); it.snap = e.target.checked; render(); });
+      const corn = li.querySelector("input.corn");
+      if (corn) corn.addEventListener("change", (e) => { record("Sommets de " + it.name); it.o = e.target.checked; say(it.o ? "Sommets fermés pour « " + it.name + " »." : "Tracé d'origine de « " + it.name + " » : sommets non fermés."); render(); });
       li.querySelector("input.lock").addEventListener("change", (e) => { record((e.target.checked ? "Verrouillage de " : "Déverrouillage de ") + it.name); it.locked = e.target.checked; say(it.locked ? "« " + it.name + " » verrouillée : elle ne bouge plus." : "« " + it.name + " » déverrouillée."); render(); });
       li.querySelector(".up").addEventListener("click", () => { record("Premier plan : " + it.name); items = items.filter((i) => i !== it).concat(it); say("« " + it.name + " » passe au premier plan."); render(); });
       li.querySelector(".down").addEventListener("click", () => { record("Arrière-plan : " + it.name); items = [it].concat(items.filter((i) => i !== it)); say("« " + it.name + " » passe à l'arrière-plan."); render(); });
@@ -414,8 +417,15 @@
     return n;
   }
   function clickAnchor(it, pi) {
-    const own = links.filter((l) => (l.a === it.id && l.pa === pi) || (l.b === it.id && l.pb === pi));
-    if (own.length) { record("Liaison retirée"); links = links.filter((l) => !own.includes(l)); say("Liaison retirée."); render(); return; }
+    let own = links.filter((l) => (l.a === it.id && l.pa === pi) || (l.b === it.id && l.pb === pi));
+    if (own.length) {
+      if (prefs.unlinkGroup) {                               // les points liés en même temps (entre les mêmes runes) se délient ensemble
+        const pairs = new Set(own.map((l) => Math.min(l.a, l.b) + "|" + Math.max(l.a, l.b)));
+        own = links.filter((l) => pairs.has(Math.min(l.a, l.b) + "|" + Math.max(l.a, l.b)));
+      }
+      record("Liaison retirée"); links = links.filter((l) => !own.includes(l));
+      say(own.length > 1 ? own.length + " liaisons retirées (points liés ensemble)." : "Liaison retirée."); render(); return;
+    }
     if (links.length >= MAX_LINKS) { say("Limite de " + MAX_LINKS + " liaisons atteinte."); return; }
     const a = abs(it)[pi], partners = [], onLines = [];
     items.forEach((o) => {
@@ -716,7 +726,7 @@
 
   /* ---- palette : clic (ajout au centre) ou glisser-déposer sur la plaque */
   function miniSVG(r) {
-    return '<svg viewBox="112 28 288 456" xmlns="http://www.w3.org/2000/svg">' + Geom.drawn({ name: r.name, x: 0, y: 0 }).map((s) =>
+    return '<svg viewBox="112 28 288 456" xmlns="http://www.w3.org/2000/svg">' + Geom.drawn({ name: r.name, x: 0, y: 0, o: 1 }).map((s) =>
       '<polyline points="' + s.pts.map((p) => p.join(",")).join(" ") + '" fill="none" stroke="#20201E" stroke-width="' + D.strokeWidth + '"/>').join("") + "</svg>";
   }
   const pal = $("palette");
@@ -1165,7 +1175,7 @@
   $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
   const toD = (its, lks, support, strata) => ({
-    r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
+    r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.o ? { o: 1 } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
     s: support, t: strata,
     l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.pa, k.line ? k.sb : k.pb].concat(k.line ? [2] : [])),
   });
@@ -1174,7 +1184,7 @@
     const d = Bindrunes.validate(raw);
     if (!d) return false;
     record(label || "Ouverture");
-    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
+    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, o: !!e.o, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
     if (d.z) Geom.scaleAbout(items, d.z, VW / 2, VH / 2);     // ancien format : taille générale, convertie en échelle de chaque rune
     links = (d.l || []).map(([i, j, pa, pb, line]) => (line ? { a: items[i].id, pa, b: items[j].id, sb: pb, line: true } : { a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();
@@ -1419,12 +1429,13 @@
     $("pf-snap").value = prefs.snap; $("pf-snap-v").textContent = prefs.snap;
     $("pf-align").value = prefs.align; $("pf-align-v").textContent = prefs.align;
     $("pf-history").value = prefs.history; $("pf-history-v").textContent = prefs.history;
-    $("pf-units").value = prefs.units; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
+    $("pf-units").value = prefs.units; $("pf-ungroup").checked = prefs.unlinkGroup; $("pf-new").checked = prefs.askNew; $("pf-close").checked = prefs.confirmClose;
   }
   const setPrefs = (patch) => { Object.assign(prefs, Prefs.sanitize(Object.assign({}, prefs, patch))); Prefs.save(localStorage, prefs); fillPrefs(); scheduleRulers(); };
   function openPrefs() { fillPrefs(); prefsBox.hidden = false; $("pf-close-btn").focus(); }
   [["pf-snap", "snap"], ["pf-align", "align"], ["pf-history", "history"]].forEach(([id, key]) => $(id).addEventListener("input", (e) => setPrefs({ [key]: Number(e.target.value) })));
   $("pf-units").addEventListener("change", (e) => setPrefs({ units: e.target.value }));
+  $("pf-ungroup").addEventListener("change", (e) => setPrefs({ unlinkGroup: e.target.checked }));
   $("pf-new").addEventListener("change", (e) => setPrefs({ askNew: e.target.checked }));
   $("pf-close").addEventListener("change", (e) => setPrefs({ confirmClose: e.target.checked }));
   $("pf-reset").addEventListener("click", () => setPrefs(Prefs.DEFAULTS));
