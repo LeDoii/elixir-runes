@@ -35,6 +35,8 @@
       if (e.o === 1 || e.o === true) entry.o = 1;                            // coins ouverts d'origine fermés (réglage de la rune, absent : non)
       const k = isNum(e.k) ? Math.round(Math.min(3, Math.max(0.25, e.k)) * 100) / 100 : 1;              // échelle de la rune (1 : taille d'origine)
       if (k !== 1) entry.k = k;
+      const wt = isNum(e.w) ? Math.round(Math.min(2.5, Math.max(0.4, e.w)) * 100) / 100 : 1;          // épaisseur du trait (1 : épaisseur d'origine)
+      if (wt !== 1) entry.w = wt;
       r.push(entry);
     }
     const l = (Array.isArray(d.l) ? d.l.slice(0, 40) : []).filter((k) => {
@@ -200,8 +202,8 @@
   const say = (t) => { $("mine-msg").textContent = t; };
   function previewSVG(d) {
     const parts = [];
-    d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: e.k || 1, pts: s.pts })));
-    Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: j.e.k || 1, pts: j.pts, fill: !!j.pts.filled }));
+    d.r.forEach((e) => Geom.drawn(e).forEach((s) => parts.push({ c: e.c, k: Geom.thickK(e), pts: s.pts })));
+    Geom.joins(Geom.linkPairs(d.r, d.l)).forEach((j) => parts.push({ c: j.e.c, k: Geom.thickK(j.e), pts: j.pts, fill: !!j.pts.filled }));
     const all = parts.flatMap((p) => p.pts);
     const x0 = Math.min(...all.map((p) => p[0])) - 30, x1 = Math.max(...all.map((p) => p[0])) + 30;
     const y0 = Math.min(...all.map((p) => p[1])) - 30, y1 = Math.max(...all.map((p) => p[1])) + 30;

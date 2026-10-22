@@ -166,4 +166,11 @@ const bv = Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 
 check("biseau : l'encoche est comblée par un triangle (point lié + les deux coins des traits), sans pointe", bv.length === 1 && bv[0].pts.length === 3 && bv[0].pts.filled === true && bv[0].pts[0].join() === "160,58" && inBox(bv[0].pts, [160, 58]), JSON.stringify(bv));
 Geom.setJoinStyle("square");
 check("coupe carrée rétablie : le polygone revient à la coupe au carré", Geom.joins([[{ n: "Dagaz", x: 0, y: 0 }, { n: "Isa", x: -96, y: 0 }, 0, 0]])[0].pts.length > 3);
+/* ---- épaisseur du trait (réglage w, indépendant de la taille k) */
+check("épaisseur : le facteur total est taille × épaisseur", Geom.thickK({ k: 2, w: 1.5 }) === 3 && Geom.thickK({}) === 1);
+const vw = validateBindrune({ r: [{ n: "Isa", x: 0, y: 0, m: 1, c: "#112233", w: 1.5 }, { n: "Fehu", x: 100, y: 0, m: 1, c: "#112233", w: 9 }, { n: "Uruz", x: 200, y: 0, m: 1, c: "#112233" }], s: "bois", t: 0, l: [] });
+check("épaisseur : bornée entre 0,4 et 2,5, absente quand elle vaut 1", vw.r.map((e) => e.w).join() === "1.5,2.5,", JSON.stringify(vw.r.map((e) => e.w)));
+const thickJoin = Geom.joins([[{ n: "Dagaz", x: 0, y: 0, w: 2 }, { n: "Isa", x: -96, y: 0 }, 0, 0]]);
+check("épaisseur : le joint de liaison suit l'épaisseur de la rune (carré de 20 de demi-largeur au lieu de 10)", thickJoin.length === 1 && Math.min(...thickJoin[0].pts.map((p) => p[0])) === 140, JSON.stringify(thickJoin));
+check("épaisseur : les joints de fermeture en tiennent compte", Geom.corners("Dagaz", 0, 1, 2).length === 4);
 finish();

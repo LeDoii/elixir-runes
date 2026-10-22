@@ -14,14 +14,14 @@
     const sw = root.RUNES.strokeWidth;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     d.r.forEach((e) => {
-      const pad = (sw * (e.k || 1)) / 2;
+      const pad = (sw * root.Geom.thickK(e)) / 2;
       root.Geom.placed(e).forEach((s) => s.pts.forEach((p) => { x0 = Math.min(x0, p[0] - pad); y0 = Math.min(y0, p[1] - pad); x1 = Math.max(x1, p[0] + pad); y1 = Math.max(y1, p[1] + pad); }));
     });
     return [x0 - MARGIN, y0 - MARGIN, x1 + MARGIN, y1 + MARGIN].map(num);
   }
   /** Le groupe SVG d'une rune posée, dans sa couleur. */
   function runeGroup(e, id, joins) {
-    const sw = root.RUNES.strokeWidth * (e.k || 1), pts = (a) => a.map((p) => num(p[0]) + "," + num(p[1])).join(" ");
+    const sw = root.RUNES.strokeWidth * root.Geom.thickK(e), pts = (a) => a.map((p) => num(p[0]) + "," + num(p[1])).join(" ");
     return '<g id="' + esc(id) + '" fill="none" stroke="' + esc(e.c) + '" stroke-opacity=".88" stroke-width="' + num(sw) + '" stroke-linejoin="miter" stroke-linecap="butt">' +
       root.Geom.drawn(e).map((s) => '<polyline data-trait="' + esc(s.name) + '" points="' + pts(s.pts) + '"/>').join("") +
       (joins || []).map((j) => (j.filled ? '<polygon data-trait="joint" points="' + pts(j) + '" fill="' + esc(e.c) + '" fill-opacity=".88" stroke-width=".8"/>' : '<polyline data-trait="joint" points="' + pts(j) + '"/>')).join("") + "</g>";

@@ -94,15 +94,15 @@
 
   /* ---- cadre : emprise des runes, maintien dans la plaque, centrage */
   let boxCache = {};
-  function runeBox(name, f, k) {                             // emprise de la rune (épaisseur du trait comprise), dans son repère
-    const kk = k || 1, key = name + "|" + (f || 0) + "|" + kk;
+  function runeBox(name, f, k, w) {                          // emprise de la rune (épaisseur du trait comprise), dans son repère
+    const kk = k || 1, key = name + "|" + (f || 0) + "|" + kk + "|" + (w || 1);
     if (boxCache[key]) return boxCache[key];
     if (Object.keys(boxCache).length > 500) boxCache = {};
-    const all = Geom.strokes(name, f, kk).flatMap((s) => s.pts), pad = HW * kk;
+    const all = Geom.strokes(name, f, kk).flatMap((s) => s.pts), pad = HW * kk * (w || 1);
     return (boxCache[key] = [Math.min(...all.map((p) => p[0])) - pad, Math.min(...all.map((p) => p[1])) - pad, Math.max(...all.map((p) => p[0])) + pad, Math.max(...all.map((p) => p[1])) + pad]);
   }
   function boundsOf(members) {
-    const bs = members.map((m) => { const b = runeBox(m.name, m.f, m.k); return [b[0] + m.x, b[1] + m.y, b[2] + m.x, b[3] + m.y]; });
+    const bs = members.map((m) => { const b = runeBox(m.name, m.f, m.k, m.w); return [b[0] + m.x, b[1] + m.y, b[2] + m.x, b[3] + m.y]; });
     return [Math.min(...bs.map((b) => b[0])), Math.min(...bs.map((b) => b[1])), Math.max(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3]))];
   }
   /** Ramène l'ensemble dans le cadre ; s'il est plus grand que le cadre sur un axe, il est centré sur cet axe. */
@@ -181,14 +181,14 @@
     if ($("dz-strata").checked) {
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ it, paths }) => {
-        g.lineWidth = D.strokeWidth * (it.k || 1);
+        g.lineWidth = D.strokeWidth * Geom.thickK(it);
         g.strokeStyle = it.color; g.globalAlpha = 0.88;
         Export.strokePaths(g, paths);
       });
       g.restore();
     } else if (placed.length) {
       const byK = {};
-      placed.forEach(({ it, paths }) => { (byK[it.k || 1] = byK[it.k || 1] || []).push(...paths); });
+      placed.forEach(({ it, paths }) => { const t = Geom.thickK(it); (byK[t] = byK[t] || []).push(...paths); });
       Object.keys(byK).forEach((k) => Supports.engrave(g, byK[k], D.strokeWidth * Number(k), Supports.current(), { cap: "butt" }));
     }
   }
@@ -649,11 +649,32 @@
   });
   $("dz-size").addEventListener("change", () => { sizing = false; });
   $("dz-size-reset").addEventListener("click", () => resizeTo(100, "Taille d'origine"));
+  /* ---- épaisseur du trait : par rune, indépendante de la taille (la sélection, sinon toute la bindrune) */
+  let thickening = false;
+  function setThick(pct, label) {
+    const members = targets(), w = Math.min(Geom.WMAX, Math.max(Geom.WMIN, pct / 100));
+    if (!members.length || members.every((m) => Math.abs((m.w || 1) - w) < 1e-4)) return false;
+    if (locked(members)) { lockMsg(locked(members)); return false; }
+    if (label) record(label);
+    members.forEach((m) => { m.w = w; });
+    fit(members);
+    return true;
+  }
+  $("dz-thick").addEventListener("input", (e) => {
+    if (!items.length) return;
+    if (!thickening) { if (locked(targets())) { lockMsg(locked(targets())); render(); return; } record("Épaisseur de " + scope()); thickening = true; }
+    setThick(Number(e.target.value)); render();
+  });
+  $("dz-thick").addEventListener("change", () => { thickening = false; });
+  $("dz-thick-reset").addEventListener("click", () => { if (!items.length) { say("Ajoute d'abord des runes."); return; } if (setThick(100, "Épaisseur d'origine")) { say("Épaisseur d'origine : " + scope() + "."); render(); } });
   /** Curseur et libellé de taille : ils suivent la sélection. */
   function syncSize() {
     const ref = refItem(), pct = ref ? Math.round((ref.k || 1) * 100) : 100;
     $("dz-size").value = pct; $("dz-size-val").textContent = pct + " %";
     $("dz-size").disabled = !items.length; $("dz-size-reset").disabled = !items.length;
+    const tp = ref ? Math.round((ref.w || 1) * 100) : 100;
+    $("dz-thick").value = tp; $("dz-thick-val").textContent = tp + " %"; $("dz-thick").disabled = !items.length; $("dz-thick-reset").disabled = !items.length;
+    $("dz-thick-label").textContent = !items.length ? "Épaisseur du trait" : !sel.size ? "Épaisseur : toutes les runes" : selMembers().length > 1 ? "Épaisseur : la sélection (" + selMembers().length + " runes)" : "Épaisseur : " + ref.name;
     $("dz-size-label").textContent = !items.length ? "Taille" : !sel.size ? "Taille : toutes les runes" : selMembers().length > 1 ? "Taille : la sélection (" + selMembers().length + " runes)" : "Taille : " + ref.name;
   }
 
@@ -1032,7 +1053,7 @@
       c.width = Math.ceil((x1 - x0) * scale); c.height = Math.ceil((y1 - y0) * scale);
       const g = c.getContext("2d");
       g.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
-      g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * (l.e.k || 1); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
+      g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3; g.lineWidth = D.strokeWidth * Geom.thickK(l.e); g.strokeStyle = l.e.c; g.globalAlpha = 0.88;
       Export.strokePaths(g, l.paths);
       files.push({ name: l.name + ".png", data: new Uint8Array(await (await toBlob(c)).arrayBuffer()) });
     }
@@ -1171,7 +1192,7 @@
   $("sv-tags").appendChild(tagEd.el);
   const svmsg = (t) => { $("sv-msg").textContent = t; };
   const toD = (its, lks, support, strata) => ({
-    r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.o ? { o: 1 } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
+    r: its.map((i) => Object.assign({ n: i.name, x: Math.round(i.x * 10) / 10, y: Math.round(i.y * 10) / 10, m: i.snap ? 1 : 0, c: i.color }, i.keep ? { t: i.keep } : {}, i.f ? { f: i.f } : {}, i.o ? { o: 1 } : {}, i.w && i.w !== 1 ? { w: Math.round(i.w * 100) / 100 } : {}, i.k && i.k !== 1 ? { k: Math.round(i.k * 100) / 100 } : {})),
     s: support, t: strata,
     l: lks.map((k) => [its.findIndex((i) => i.id === k.a), its.findIndex((i) => i.id === k.b), k.pa, k.line ? k.sb : k.pb].concat(k.line ? [2] : [])),
   });
@@ -1180,7 +1201,7 @@
     const d = Bindrunes.validate(raw);
     if (!d) return false;
     record(label || "Ouverture");
-    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, o: !!e.o, k: e.k || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
+    items = d.r.map((e) => ({ id: nextId++, name: e.n, x: e.x, y: e.y, f: e.f || 0, o: !!e.o, k: e.k || 1, w: e.w || 1, snap: e.m !== 0, keep: Array.isArray(e.t) ? e.t : null, locked: false, color: e.c }));
     if (d.z) Geom.scaleAbout(items, d.z, VW / 2, VH / 2);     // ancien format : taille générale, convertie en échelle de chaque rune
     links = (d.l || []).map(([i, j, pa, pb, line]) => (line ? { a: items[i].id, pa, b: items[j].id, sb: pb, line: true } : { a: items[i].id, pa, b: items[j].id, pb }));
     fitAll();

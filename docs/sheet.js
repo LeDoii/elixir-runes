@@ -45,22 +45,23 @@
     const placed = d.r.map((e) => ({ e, paths: root.Geom.drawn(e).map((s) => s.pts) }));
     root.Geom.joins(root.Geom.linkPairs(d.r, d.l)).forEach((j) => { const p = placed.find((x) => x.e === j.e); if (p) p.paths.push(j.pts); });
     const all = placed.flatMap((p) => p.paths.flat());
-    const x0 = Math.min(...all.map((p) => p[0])) - HW, x1 = Math.max(...all.map((p) => p[0])) + HW;
-    const y0 = Math.min(...all.map((p) => p[1])) - HW, y1 = Math.max(...all.map((p) => p[1])) + HW;
+    const pad = Math.max(HW, ...d.r.map((e) => HW * root.Geom.thickK(e)));
+    const x0 = Math.min(...all.map((p) => p[0])) - pad, x1 = Math.max(...all.map((p) => p[0])) + pad;
+    const y0 = Math.min(...all.map((p) => p[1])) - pad, y1 = Math.max(...all.map((p) => p[1])) + pad;
     const z = d.z || 1, sc = z * Math.min(1, 740 / ((x1 - x0) * z), 590 / ((y1 - y0) * z));   // z : taille choisie dans l'onglet Bindrune
     g.setTransform(RES * sc, 0, 0, RES * sc, 0, 0);
     g.translate(400 / sc - (x0 + x1) / 2, 320 / sc - (y0 + y1) / 2);
     if (d.t === 1) {
       g.save(); g.lineCap = "butt"; g.lineJoin = "miter"; g.miterLimit = 3;
       placed.forEach(({ e, paths }) => {
-        g.lineWidth = D.strokeWidth * (e.k || 1);
+        g.lineWidth = D.strokeWidth * root.Geom.thickK(e);
         g.strokeStyle = e.c; g.globalAlpha = 0.88;
         root.Export.strokePaths(g, paths);
       });
       g.restore();
     } else {                                                     // une gravure par échelle : l'épaisseur du trait suit celle de la rune
       const byK = {};
-      placed.forEach(({ e, paths }) => { (byK[e.k || 1] = byK[e.k || 1] || []).push(...paths); });
+      placed.forEach(({ e, paths }) => { const t = root.Geom.thickK(e); (byK[t] = byK[t] || []).push(...paths); });
       Object.keys(byK).forEach((k) => root.Supports.engrave(g, byK[k], D.strokeWidth * Number(k), d.s, { cap: "butt" }));
     }
     return c;

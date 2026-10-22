@@ -14,6 +14,9 @@
   else root.Geom = factory(root);
 })(typeof self !== "undefined" ? self : globalThis, function (root) {
   const FLIP_V = 1, FLIP_H = 2;
+  const WMIN = 0.4, WMAX = 2.5;                              // épaisseur du trait d'une rune : multiple de l'épaisseur d'origine (réglage indépendant de la taille)
+  /** Facteur d'épaisseur totale du trait d'une rune : échelle (taille) × réglage d'épaisseur. */
+  const thickK = (e) => (e.k || 1) * (e.w || 1);
   const byName = (n) => root.RUNES.runes.find((r) => r.name === n);
   const center = () => { const b = root.RUNES.bbox; return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; };
 
@@ -183,14 +186,14 @@
   }
   const cornerCache = {};
   /** Joints de fermeture propres à la rune : là où des traits distincts se rejoignent en laissant une encoche (Uruz, Ansuz, Dagaz…), et la couture d'un trait fermé (Ingwaz). Repère de la rune. */
-  function corners(name, f, k) {
-    const key = name + "|" + (f || 0) + "|" + (k || 1);
+  function corners(name, f, k, w) {
+    const key = name + "|" + (f || 0) + "|" + (k || 1) + "|" + (w || 1);
     if (cornerCache[key]) return cornerCache[key];
     const parts = [], at = new Map();
     strokes(name, f, k).forEach((s, si) => splitStroke(name, si, s.pts).forEach((pts) => parts.push(pts)));
     parts.forEach((p) => p.forEach((q) => at.set(q[0].toFixed(2) + "," + q[1].toFixed(2), q)));
     const out = [];
-    at.forEach((P) => notchFills(P, polyRays(parts, P), root.RUNES.strokeWidth * (k || 1)).forEach((pts) => out.push(pts)));
+    at.forEach((P) => notchFills(P, polyRays(parts, P), root.RUNES.strokeWidth * (k || 1) * (w || 1)).forEach((pts) => out.push(pts)));
     if (Object.keys(cornerCache).length > 400) for (const x in cornerCache) delete cornerCache[x];
     return (cornerCache[key] = out);
   }
@@ -198,7 +201,7 @@
   const drawn = (e) => {
     const name = e.n || e.name, base = byName(name).strokes, out = [];
     strokes(name, e.f, e.k).forEach((s, si) => splitStroke(name, si, s.pts).forEach((pts) => out.push({ name: base[si].name, pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) })));
-    if (e.o) corners(name, e.f, e.k).forEach((pts) => out.push({ name: "joint", pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) }));
+    if (e.o) corners(name, e.f, e.k, e.w).forEach((pts) => out.push({ name: "joint", pts: pts.map((p) => [p[0] + e.x, p[1] + e.y]) }));
     return out;
   };
 
@@ -233,7 +236,7 @@
     groups.forEach(({ P, e, ends }) => {
       const runes = [], rays = [];
       ends.forEach(({ r, Q }) => { if (!runes.includes(r)) runes.push(r); raysAt(r, Q, runes.indexOf(r)).forEach((x) => rays.push(x)); });   // id par sommet de trait : les encoches ouvertes d'une rune sont comblées avec celles de la liaison
-      notchPolys(P, rays, root.RUNES.strokeWidth * (e.k || 1)).forEach((pts) => out.push({ e, pts }));
+      notchPolys(P, rays, root.RUNES.strokeWidth * thickK(e)).forEach((pts) => out.push({ e, pts }));
     });
     return out;
   }
@@ -294,5 +297,5 @@
     });
     return f;
   }
-  return { FLIP_V, FLIP_H, KMIN, KMAX, changes, canonF, spikes, drawn, segments, joins, setJoinStyle, linkPairs, corners, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
+  return { FLIP_V, FLIP_H, KMIN, KMAX, WMIN, WMAX, thickK, changes, canonF, spikes, drawn, segments, joins, setJoinStyle, linkPairs, corners, onLine, anchorLineSnap, flipPts, scalePts, strokes, anchors, placed, mirror, scaleAbout, center };
 });

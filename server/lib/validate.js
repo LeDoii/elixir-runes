@@ -34,6 +34,8 @@ export function validateBindrune(d) {
     if (e.o === 1 || e.o === true) entry.o = 1;                              // coins ouverts d'origine fermés (réglage de la rune)
     const k = isNum(e.k) ? Math.round(Math.min(3, Math.max(0.25, e.k)) * 100) / 100 : 1;                // échelle de la rune (1 : taille d'origine)
     if (k !== 1) entry.k = k;
+    const wt = isNum(e.w) ? Math.round(Math.min(2.5, Math.max(0.4, e.w)) * 100) / 100 : 1;                  // épaisseur du trait (1 : épaisseur d'origine)
+    if (wt !== 1) entry.w = wt;
     r.push(entry);
   }
   const l = (Array.isArray(d.l) ? d.l.slice(0, 40) : []).filter((k) => {
