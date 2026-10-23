@@ -47,6 +47,9 @@
     const out = { r, s: Supports.list.some((s) => s.id === d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
     const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
     if (z !== 1) out.z = z;
+    if (d.fv === 1 || d.fv === true) out.fv = 1;                              // favori (rangement dans « Mes bindrunes », voyage avec le compte)
+    const dr = typeof d.dr === "string" ? d.dr.replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30) : "";
+    if (dr) out.dr = dr;                                                       // dossier
     return out;
   }
 
@@ -86,7 +89,12 @@
     const nm = cleanName(name), data = validate(d);
     if (!nm || !data) return null;
     const all = readAll(), rec = { name: nm, at: Date.now(), d: data, description: cleanDesc(description), tags: Tags.extras(data, tags), from: "" }, idx = all.findIndex((x) => x.name.toLowerCase() === nm.toLowerCase());
-    if (idx >= 0) all[idx] = rec; else all.push(rec);
+    if (idx >= 0) {                                                       // le rangement (favori, dossier) survit à un nouvel enregistrement
+      const old = all[idx].d;
+      if (old.fv && !rec.d.fv) rec.d.fv = 1;
+      if (old.dr && !rec.d.dr) rec.d.dr = old.dr;
+      all[idx] = rec;
+    } else all.push(rec);
     return writeAll(all) ? rec : null;
   }
   function setDescription(name, text) {
@@ -95,6 +103,17 @@
     rec.description = cleanDesc(text);
     return writeAll(all);
   }
+  /** Rangement : favori (fv) et dossier (dr) d'une bindrune. patch : { fv: bool, dr: texte }. */
+  function setOrg(name, patch) {
+    const all = readAll(), rec = all.find((x) => x.name.toLowerCase() === cleanName(name).toLowerCase());
+    if (!rec) return false;
+    const d = Object.assign({}, rec.d);
+    if ("fv" in patch) { if (patch.fv) d.fv = 1; else delete d.fv; }
+    if ("dr" in patch) { const v = validate({ r: rec.d.r, dr: patch.dr }); if (v && v.dr) d.dr = v.dr; else delete d.dr; }
+    rec.d = d;
+    return writeAll(all);
+  }
+  const folders = () => [...new Set(readAll().map((x) => x.d.dr).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
   /** Étiquettes d'une bindrune : enregistrées sans redessiner l'onglet (l'éditeur d'étiquettes se met à jour lui-même). */
   function setTags(name, tags) {
     const all = readAll(), rec = all.find((x) => x.name.toLowerCase() === cleanName(name).toLowerCase());
@@ -285,15 +304,18 @@
   }
 
   /* ---- onglet « Mes bindrunes » : cartes lisibles, recherche, tri ; les actions rares sont rangées dans des menus */
-  const mineView = { q: "", sort: "recent" };
+  const mineView = { q: "", sort: "recent", dir: "", tags: new Set() };       // dir : "" tous, "*fav" favoris, "*none" sans dossier, sinon un dossier
   const cxOf = (d) => Complexity.rate(d);
   const searchText = (rec) => Tags.fold([rec.name, rec.description || "", runesLine(rec.d), Tags.all(rec.d, rec.tags).map(Tags.label).join(" ")].join(" "));
   function sortedList() {
-    const q = Tags.fold(mineView.q), all = list().filter((r) => !q || q.split(" ").every((w) => searchText(r).includes(w)));
+    const q = Tags.fold(mineView.q), dir = mineView.dir;
+    const all = list().filter((r) => (!q || q.split(" ").every((w) => searchText(r).includes(w)))
+      && (!dir || (dir === "*fav" ? !!r.d.fv : dir === "*none" ? !r.d.dr : r.d.dr === dir))
+      && [...mineView.tags].every((t) => Tags.all(r.d, r.tags).includes(t)));
     if (mineView.sort === "name") all.sort((x, y) => x.name.localeCompare(y.name, "fr"));
     else if (mineView.sort === "cx") all.sort((x, y) => cxOf(y.d).score - cxOf(x.d).score || x.name.localeCompare(y.name, "fr"));
     else all.sort((x, y) => (y.at || 0) - (x.at || 0));
-    return all;
+    return all.sort((x, y) => (y.d.fv ? 1 : 0) - (x.d.fv ? 1 : 0));                     // les favoris d'abord (le tri choisi reste valable à l'intérieur de chaque groupe)
   }
   const dropdown = Cards.dropdown;
 
@@ -302,12 +324,17 @@
     li.className = "bcard"; pv.className = "bpv"; pv.innerHTML = previewSVG(rec.d); body.className = "bbody";
     const published = !!(window.Account && window.Account.isPublished(rec.name));
     if (published) { const bd = document.createElement("span"); bd.className = "bpub"; bd.textContent = "Publiée"; pv.appendChild(bd); }
+    const star = document.createElement("button");                                      // favori : une étoile sur l'aperçu
+    star.type = "button"; star.className = "bfav" + (rec.d.fv ? " on" : ""); star.textContent = rec.d.fv ? "★" : "☆";
+    star.title = rec.d.fv ? "Retirer des favoris" : "Ajouter aux favoris"; star.setAttribute("aria-pressed", String(!!rec.d.fv));
+    star.addEventListener("click", () => { setOrg(rec.name, { fv: !rec.d.fv }); });
+    pv.appendChild(star);
     const h = document.createElement("h3"), runes = document.createElement("p"), meta = document.createElement("p"), c = cxOf(rec.d);
     h.className = "bname"; h.textContent = rec.name;
     runes.className = "brunes"; runes.textContent = runesLine(rec.d);
     meta.className = "bmeta";
     const lvl = document.createElement("span"); lvl.className = "lvl"; lvl.textContent = "Complexité " + c.level.toLowerCase() + " · " + c.score + " / 100"; meta.appendChild(lvl);
-    meta.appendChild(document.createTextNode(" · " + Supports.get(rec.d.s).label + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "")));
+    meta.appendChild(document.createTextNode((rec.d.dr ? " · Dossier « " + rec.d.dr + " »" : "") + " · " + Supports.get(rec.d.s).label + (rec.at ? " · " + when(rec.at) : "") + (rec.from ? " · d'après " + rec.from : "")));
     body.append(h, runes, meta);
     if (rec.description) { const dp = document.createElement("p"); dp.className = "bdesc"; dp.textContent = rec.description; body.appendChild(dp); }
     const tg = Tags.all(rec.d, rec.tags), shown = document.createElement("p"), more = tg.length - 4;       // quatre étiquettes en aperçu, le reste dans l'éditeur
@@ -336,12 +363,40 @@
       dropdown("Fiche", [["Fiche PNG", () => sheet(rec, "png")], ["Fiche PDF", () => sheet(rec, "pdf")]]),
       dropdown("⋯", [
         ["Modifier la description", () => { const t = prompt("Description (" + MAX_DESC + " caractères au plus) :", rec.description || ""); if (t !== null) say(setDescription(rec.name, t) ? "Description enregistrée." : "Enregistrement impossible."); }],
+        ["Déplacer vers un dossier…", () => {
+          const known = folders(), t = prompt("Nom du dossier" + (known.length ? " (existants : " + known.join(", ") + ")" : "") + " :", rec.d.dr || "");
+          if (t !== null) { setOrg(rec.name, { dr: t }); say(t.trim() ? "« " + rec.name + " » rangée dans le dossier « " + (get(rec.name).d.dr || "") + " »." : "« " + rec.name + " » sortie de son dossier."); }
+        }],
+        rec.d.dr && ["Sortir du dossier", () => { setOrg(rec.name, { dr: "" }); say("« " + rec.name + " » sortie de son dossier."); }],
         ["Renommer", () => { const nn = prompt("Nouveau nom :", rec.name); if (nn !== null) say(rename(rec.name, nn) || "Renommée."); }],
         ["Supprimer", () => { if (confirm("Supprimer « " + rec.name + " » ?")) { remove(rec.name); say("« " + rec.name + " » supprimée."); } }, true],
       ], "more"));
     body.appendChild(acts);
     li.append(pv, body);
     return li;
+  }
+  /** Filtres : dossiers (liste déroulante) et étiquettes les plus employées (puces à cocher). */
+  function renderFilters() {
+    const recs = list(), sel = $("mine-dir"), keep = mineView.dir;
+    const dirs = folders(), opts = [["", "Tous les dossiers"], ["*fav", "★ Favoris (" + recs.filter((r) => r.d.fv).length + ")"], ["*none", "Sans dossier"]].concat(dirs.map((x) => [x, "Dossier : " + x + " (" + recs.filter((r) => r.d.dr === x).length + ")"]));
+    if (!opts.some((o) => o[0] === keep)) mineView.dir = "";
+    sel.innerHTML = "";
+    opts.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); });
+    sel.value = mineView.dir; sel.hidden = !recs.length;
+    const count = {};
+    recs.forEach((r) => Tags.all(r.d, r.tags).forEach((t) => { count[t] = (count[t] || 0) + 1; }));
+    mineView.tags.forEach((t) => { if (!count[t]) mineView.tags.delete(t); });
+    const top = Object.keys(count).sort((a, b) => count[b] - count[a] || a.localeCompare(b, "fr")).slice(0, 14);
+    mineView.tags.forEach((t) => { if (!top.includes(t)) top.push(t); });
+    const box = $("mine-tags");
+    box.innerHTML = ""; box.hidden = !recs.length || !top.length;
+    top.forEach((t) => {
+      const b = document.createElement("button"), on = mineView.tags.has(t);
+      b.type = "button"; b.className = "tg" + (on ? " on" : ""); b.textContent = Tags.label(t) + " " + count[t]; b.setAttribute("aria-pressed", String(on));
+      b.addEventListener("click", () => { if (on) mineView.tags.delete(t); else mineView.tags.add(t); renderTab(); });
+      box.appendChild(b);
+    });
+    if (mineView.tags.size) { const x = document.createElement("button"); x.type = "button"; x.className = "tg clear"; x.textContent = "Effacer le filtre"; x.addEventListener("click", () => { mineView.tags.clear(); renderTab(); }); box.appendChild(x); }
   }
   function renderTab() {
     const ul = $("mine-list");
@@ -350,12 +405,14 @@
     ul.innerHTML = "";
     $("mine-empty").hidden = total > 0;
     $("mine-export-all").disabled = !total;
+    renderFilters();
     $("mine-count").textContent = total ? (all.length === total ? "· " + total : "· " + all.length + " sur " + total) : "";
     if (total && !all.length) { const li = document.createElement("li"); li.className = "mine-none"; li.textContent = "Aucune bindrune ne correspond à « " + mineView.q + " »."; ul.appendChild(li); return; }
     all.forEach((rec) => ul.appendChild(card(rec)));
   }
   $("mine-q").addEventListener("input", (e) => { mineView.q = e.target.value; renderTab(); });
   $("mine-sort").addEventListener("change", (e) => { mineView.sort = e.target.value; renderTab(); });
+  $("mine-dir").addEventListener("change", (e) => { mineView.dir = e.target.value; renderTab(); });
 
   function doImport(items, from) {
     if (!items.length) { say("Rien d'importable : " + from + " ne contient pas de bindrune valide."); return; }
@@ -408,7 +465,7 @@
   $("mine-export-all").addEventListener("click", () => download(exportDoc(list()), "mes-bindrunes.json"));
   window.addEventListener("storage", (e) => { if (e.key === STORE) { cache = null; changed(); } });
 
-  window.Bindrunes = { applyRemote, dropLocal, sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, cxOf, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
+  window.Bindrunes = { setOrg, folders, applyRemote, dropLocal, sheet, cxLine, setTags, duplicateNotice, cleanDesc, MAX_DESC, setDescription, previewSVG, cxOf, runesLine, importItems: importAll, rerender: renderTab, checkApi, COLORS, anchors, validate, list, get, has, save, remove, rename, uniqueName, model, onChange: (fn) => listeners.push(fn), cleanName, MAX_NAME };
   renderTab();
   checkApi();
 

@@ -299,6 +299,7 @@
     });
     refreshHistory();
     syncMirror();
+    syncAlign();
   }
 
   const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -551,6 +552,7 @@
     if (e.key === "Escape" && !expBox.hidden) { closeExport(); return; }
     if (e.key === "Escape" && !keysBox.hidden) { closeKeys(); return; }
     if (e.key === "Escape" && !$("dz-diff").hidden) { $("dz-diff").hidden = true; return; }
+    if (e.key === "Escape" && !layersBox.hidden) { layersBox.hidden = true; return; }
     if (e.key === "Escape" && !$("dz-tour").hidden) { endTour(); return; }
     if (e.key === "Escape" && !menu.hidden) { closeMenu(); return; }
     if (e.key === "Escape") {                                // Échap : ferme le menu, désélectionne, puis quitte le plein écran
@@ -649,6 +651,39 @@
   });
   $("dz-size").addEventListener("change", () => { sizing = false; });
   $("dz-size-reset").addEventListener("click", () => resizeTo(100, "Taille d'origine"));
+  /* ---- alignement et répartition : les runes (ou ensembles liés) sélectionnés, sur leurs emprises */
+  function selGroups() {
+    const seen = new Set(), out = [];
+    selItems().forEach((i) => { if (seen.has(i.id)) return; const g = groupOf(i); g.forEach((m) => seen.add(m.id)); out.push(g); });
+    return out;
+  }
+  const AL_NAMES = { left: "bords gauches", hcenter: "centres (horizontal)", right: "bords droits", top: "bords supérieurs", vcenter: "centres (vertical)", bottom: "bords inférieurs", disth: "répartition horizontale", distv: "répartition verticale" };
+  function alignSel(mode) {
+    const gs = selGroups();
+    if (gs.length < 2) { say("Sélectionne au moins deux runes (Maj + clic, ou cadre de sélection) pour les aligner."); return; }
+    if (mode.startsWith("dist") && gs.length < 3) { say("Répartir demande au moins trois runes ou ensembles."); return; }
+    const flat = gs.flat();
+    if (locked(flat)) { lockMsg(locked(flat)); return; }
+    const bs = gs.map((g) => boundsOf(g)), horiz = mode === "left" || mode === "hcenter" || mode === "right" || mode === "disth", ax = horiz ? 0 : 1;   // ax : 0 = x, 1 = y
+    const lo = Math.min(...bs.map((b) => b[ax])), hi = Math.max(...bs.map((b) => b[ax + 2])), shift = bs.map(() => 0);
+    if (mode.startsWith("dist")) {
+      const order = bs.map((b, i) => i).sort((a, b) => bs[a][ax] - bs[b][ax]), total = order.reduce((s, i) => s + bs[i][ax + 2] - bs[i][ax], 0), gap = (hi - lo - total) / (gs.length - 1);
+      let at = lo;
+      order.forEach((i) => { shift[i] = at - bs[i][ax]; at += bs[i][ax + 2] - bs[i][ax] + gap; });
+    } else {
+      bs.forEach((b, i) => { shift[i] = (mode === "left" || mode === "top" ? lo - b[ax] : mode === "right" || mode === "bottom" ? hi - b[ax + 2] : (lo + hi) / 2 - (b[ax] + b[ax + 2]) / 2); });
+    }
+    if (shift.every((v) => Math.abs(v) < 1e-6)) { say("Déjà aligné."); return; }
+    record("Alignement : " + AL_NAMES[mode]);
+    gs.forEach((g, i) => g.forEach((m) => { if (ax === 0) m.x += shift[i]; else m.y += shift[i]; }));
+    say("Alignement (" + AL_NAMES[mode] + ") : " + gs.length + " runes ou ensembles.");
+    render();
+  }
+  document.querySelectorAll("[data-al]").forEach((b) => b.addEventListener("click", () => alignSel(b.dataset.al)));
+  function syncAlign() {
+    const n = selGroups().length;
+    document.querySelectorAll("[data-al]").forEach((b) => { b.disabled = n < 2 || (b.dataset.al.startsWith("dist") && n < 3); });
+  }
   /* ---- épaisseur du trait : par rune, indépendante de la taille (la sélection, sinon toute la bindrune) */
   let thickening = false;
   function setThick(pct, label) {
@@ -1085,7 +1120,8 @@
   /* ---- nouvelle bindrune : repart de zéro, au-delà de « Tout retirer » (qui s'annule et garde nom, support et réglages) */
   function savedAsIs() {
     const rec = Bindrunes.get(Bindrunes.cleanName($("sv-name").value)), d = cdata();
-    return !!(rec && d && JSON.stringify(rec.d) === JSON.stringify(d) && (rec.description || "") === Bindrunes.cleanDesc($("sv-desc").value) && JSON.stringify(rec.tags || []) === JSON.stringify(Tags.extras(d, svTags)));
+    const rd = Object.assign({}, rec && rec.d); delete rd.fv; delete rd.dr;                // favori et dossier se règlent dans « Mes bindrunes »
+    return !!(rec && d && JSON.stringify(rd) === JSON.stringify(d) && (rec.description || "") === Bindrunes.cleanDesc($("sv-desc").value) && JSON.stringify(rec.tags || []) === JSON.stringify(Tags.extras(d, svTags)));
   }
   /** Remise à zéro complète ; opts : { start: {type: "rune", name} | {type: "copy", rec}, support, strata, adv }. Un bouton « Annuler » rend l'ancienne composition. */
   function newBindrune(opts) {
@@ -1369,6 +1405,29 @@
     say("Instantané « " + name + " » gardé.");
   });
   /** Fenêtre de comparaison : aperçus côte à côte et liste des différences. */
+  /* ---- vue éclatée : chaque rune sur sa propre strate, dans l'ordre d'empilement */
+  const layersBox = $("dz-layers");
+  function openLayers() {
+    const d = cdata();
+    if (!d) { say("Ajoute d'abord des runes."); return; }
+    const ul = $("dz-layers-list");
+    ul.innerHTML = "";
+    const whole = document.createElement("li");
+    whole.innerHTML = '<div class="prev">' + Bindrunes.previewSVG(d) + "</div><strong>Ensemble</strong><small>toutes les strates empilées</small>";
+    ul.appendChild(whole);
+    Export.layers(d, "Bindrune").forEach((l, i) => {
+      const li = document.createElement("li"), pv = document.createElement("div"), nm = document.createElement("strong"), sm = document.createElement("small");
+      pv.className = "prev"; pv.innerHTML = l.svg.replace(/<svg [^>]*>/, (t) => t.replace(/ width="[^"]*"| height="[^"]*"/g, ""));
+      nm.textContent = String(i + 1).padStart(2, "0") + " · " + l.e.n;
+      sm.textContent = (i === 0 ? "dessous" : i === d.r.length - 1 ? "dessus" : "milieu") + (l.e.k && l.e.k !== 1 ? " · taille " + Math.round(l.e.k * 100) + " %" : "") + (l.e.w && l.e.w !== 1 ? " · épaisseur " + Math.round(l.e.w * 100) + " %" : "") + (l.e.f ? " · retournée" : "");
+      li.append(pv, nm, sm);
+      ul.appendChild(li);
+    });
+    layersBox.hidden = false; $("dz-layers-close").focus();
+  }
+  $("dz-explode").addEventListener("click", openLayers);
+  $("dz-layers-close").addEventListener("click", () => { layersBox.hidden = true; });
+  layersBox.addEventListener("pointerdown", (e) => { if (e.target === layersBox) layersBox.hidden = true; });
   const diffBox = $("dz-diff");
   function openDiff(label, before) {
     const now = cdata();
@@ -1542,6 +1601,7 @@
       { l: "Magnétisme", chk: $("dz-magnet").checked, fn: () => $("dz-magnet").click() },
       { l: "Strates colorées", chk: $("dz-strata").checked, fn: () => $("dz-strata").click() },
       { l: "Mode avancé", chk: $("dz-adv").checked, fn: () => $("dz-adv").click() },
+      { l: "Vue éclatée des strates", fn: openLayers },
       { sep: true },
       { l: "Zoom avant", k: "Ctrl+molette", fn: () => $("dz-view-in").click() },
       { l: "Zoom arrière", fn: () => $("dz-view-out").click() },

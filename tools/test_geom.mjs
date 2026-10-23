@@ -173,4 +173,8 @@ check("épaisseur : bornée entre 0,4 et 2,5, absente quand elle vaut 1", vw.r.m
 const thickJoin = Geom.joins([[{ n: "Dagaz", x: 0, y: 0, w: 2 }, { n: "Isa", x: -96, y: 0 }, 0, 0]]);
 check("épaisseur : le joint de liaison suit l'épaisseur de la rune (carré de 20 de demi-largeur au lieu de 10)", thickJoin.length === 1 && Math.min(...thickJoin[0].pts.map((p) => p[0])) === 140, JSON.stringify(thickJoin));
 check("épaisseur : les joints de fermeture en tiennent compte", Geom.corners("Dagaz", 0, 1, 2).length === 4);
+/* ---- rangement : favori (fv) et dossier (dr) */
+const vo = validateBindrune({ r: [{ n: "Isa", x: 0, y: 0, m: 1, c: "#112233" }], s: "bois", t: 0, l: [], fv: 1, dr: "  Mes  <protections>  " });
+check("rangement : favori et dossier gardés, dossier nettoyé et borné à 30 caractères", vo.fv === 1 && vo.dr === "Mes protections" && validateBindrune({ r: [{ n: "Isa", x: 0, y: 0, m: 1, c: "#112233" }], dr: "x".repeat(60) }).dr.length === 30, JSON.stringify(vo));
+check("rangement : absents par défaut et pour des valeurs invalides", (() => { const v = validateBindrune({ r: [{ n: "Isa", x: 0, y: 0, m: 1, c: "#112233" }], fv: 5, dr: 7 }); return v.fv === undefined && v.dr === undefined; })());
 finish();

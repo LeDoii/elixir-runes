@@ -498,3 +498,11 @@ body:has(#design:not([hidden])) footer { display: none; }
 #design.ps .dz-list li { grid-template-columns: 12px 22px minmax(0, 1fr) auto; row-gap: 3px; }
 #design.ps .dz-list li .rm { grid-column: 4; grid-row: 1; }
 #design.ps .dz-list li .ctl { grid-column: 2 / -1; grid-row: 2; justify-content: flex-start; }
+#design.ps .al-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+#design.ps .al-btns button { padding: 3px 4px; font-size: 11px; }
+#design.ps .al-btns button:disabled { opacity: .4; cursor: default; }
+.psmodal .layers-grid { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.psmodal .layers-grid li { display: grid; gap: 2px; }
+.psmodal .layers-grid .prev { height: 150px; }
+.psmodal .layers-grid small { color: #8a8a8a; }
+#design.ps #dz-explode { margin-top: 6px; }

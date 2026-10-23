@@ -46,5 +46,8 @@ export function validateBindrune(d) {
   const out = { r, s: SUPPORT_IDS.includes(d.s) ? d.s : "bois", t: d.t === 1 ? 1 : 0, l };
   const z = isNum(d.z) ? Math.round(Math.min(1.6, Math.max(0.4, d.z)) * 100) / 100 : 1;   // taille de la bindrune sur la plaque
   if (z !== 1) out.z = z;
+  if (d.fv === 1 || d.fv === true) out.fv = 1;                              // favori (rangement dans « Mes bindrunes », voyage avec le compte)
+  const dr = typeof d.dr === "string" ? d.dr.replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30) : "";
+  if (dr) out.dr = dr;                                                       // dossier
   return out;
 }

@@ -108,6 +108,7 @@
       <div class="mine-bar">
         <input id="mine-q" type="search" placeholder="Rechercher : nom, rune, étiquette…" aria-label="Rechercher dans mes bindrunes" autocomplete="off">
         <label class="sr" for="mine-sort">Trier</label>
+        <select id="mine-dir" aria-label="Dossier" hidden></select>
         <select id="mine-sort"><option value="recent">Plus récentes</option><option value="name">Nom (A → Z)</option><option value="cx">Complexité</option></select>
         <details class="mine-imp" id="mine-imp">
           <summary class="btn ghost">Importer</summary>
@@ -122,6 +123,7 @@
         </details>
         <button id="mine-export-all" class="btn ghost">Tout exporter</button>
       </div>
+      <div id="mine-tags" class="btags filters" role="group" aria-label="Filtrer par étiquette" hidden></div>
       <p id="mine-msg" class="status" role="status"></p>
       <p id="acc-msg" class="status" role="status"></p>
       <p id="mine-empty" class="mine-empty">Aucune bindrune enregistrée pour l'instant.<br><small>Compose-en une dans l'onglet Bindrune, puis clique sur « Enregistrer ».</small></p>
@@ -276,6 +278,7 @@
             <summary>Calques <span id="dz-count" class="count"></span></summary>
             <div class="pnl-in">
               <ul id="dz-list" class="dz-list"></ul>
+              <button id="dz-explode" class="pbtn small" type="button" title="Voir chaque rune séparément, dans l'ordre d'empilement">Vue éclatée des strates</button>
               <p class="hint">Glisse une rune pour la déplacer ; clic maintenu sur le fond pour en entourer plusieurs (Maj ou Ctrl : ajouter, Ctrl+A : toutes) ; flèches pour ajuster (Maj : par 10), Suppr pour retirer. « Aimant » libère la rune de tout magnétisme, « Verrou » l'empêche de bouger, ▲ ▼ changent l'ordre d'empilement.</p>
             </div>
           </details>
@@ -315,6 +318,19 @@
                   <input id="dz-thick" type="range" min="40" max="250" step="5" value="100">
                   <output id="dz-thick-val" for="dz-thick">100 %</output>
                   <button id="dz-thick-reset" class="pbtn small" type="button" title="Épaisseur d'origine">100 %</button>
+                </div>
+              </div>
+              <div class="field dz-align">
+                <label id="dz-al-label">Aligner la sélection</label>
+                <div class="al-btns" role="group" aria-labelledby="dz-al-label">
+                  <button type="button" class="pbtn small" data-al="left" title="Aligner les bords gauches">Gauche</button>
+                  <button type="button" class="pbtn small" data-al="hcenter" title="Centrer horizontalement">Centre</button>
+                  <button type="button" class="pbtn small" data-al="right" title="Aligner les bords droits">Droite</button>
+                  <button type="button" class="pbtn small" data-al="top" title="Aligner les bords supérieurs">Haut</button>
+                  <button type="button" class="pbtn small" data-al="vcenter" title="Centrer verticalement">Milieu</button>
+                  <button type="button" class="pbtn small" data-al="bottom" title="Aligner les bords inférieurs">Bas</button>
+                  <button type="button" class="pbtn small" data-al="disth" title="Répartir à égale distance, de gauche à droite (3 runes ou plus)">Répartir ↔</button>
+                  <button type="button" class="pbtn small" data-al="distv" title="Répartir à égale distance, de haut en bas (3 runes ou plus)">Répartir ↕</button>
                 </div>
               </div>
             </div>
@@ -491,6 +507,15 @@
             <span class="grow"></span>
             <button id="dz-keys-close" class="pbtn primary" type="button">Fermer</button>
           </div>
+        </div>
+      </div>
+
+      <div id="dz-layers" class="psmodal" role="dialog" aria-modal="true" aria-label="Vue éclatée des strates" hidden>
+        <div class="card wide">
+          <h3>Vue éclatée des strates</h3>
+          <p class="hint">Chaque rune séparée, de la plus basse (01) à la plus haute : l'ensemble est ce que donne leur empilement. Rien n'est modifié sur le plan de travail.</p>
+          <ul id="dz-layers-list" class="layers-grid"></ul>
+          <div class="row-btns"><span class="grow"></span><button id="dz-layers-close" class="pbtn primary" type="button">Fermer</button></div>
         </div>
       </div>
 
